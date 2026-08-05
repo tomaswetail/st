@@ -1,0 +1,6 @@
+{
+  "categories": [
+    {"id": 1, "name": "England", "alpha2": "EN"},
+    {"id": 32, "name": "Spain", "alpha2": "ES"}
+  ]
+}

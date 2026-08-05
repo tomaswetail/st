@@ -1,0 +1,18 @@
+{
+  "groups": [
+    {
+      "uniqueTournaments": [
+        {
+          "id": 17,
+          "name": "Premier League",
+          "category": {"name": "England", "alpha2": "EN"}
+        },
+        {
+          "id": 18,
+          "name": "Championship",
+          "category": {"name": "England", "alpha2": "EN"}
+        }
+      ]
+    }
+  ]
+}

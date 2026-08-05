@@ -1,0 +1,85 @@
+{
+  "general": {
+    "matchId": 4000001,
+    "matchTimeUTC": "2025-08-15T18:00:00Z",
+    "parentLeagueId": 47,
+    "seasonId": "2025/2026",
+    "finished": true
+  },
+  "header": {
+    "teams": [
+      {"id": 8456, "name": "Manchester City", "score": 2},
+      {"id": 9825, "name": "Arsenal", "score": 1}
+    ]
+  },
+  "home_xg": 1.85,
+  "away_xg": 0.95,
+  "shots": [
+    {
+      "id": "s1",
+      "teamId": 8456,
+      "playerId": 100,
+      "minute": 12,
+      "second": 30,
+      "xg": 0.4,
+      "xgot": 0.35,
+      "eventType": "Goal",
+      "situation": "OpenPlay",
+      "bodyPart": "LeftFoot",
+      "x": 90,
+      "y": 40
+    },
+    {
+      "id": "s2",
+      "teamId": 8456,
+      "playerId": 101,
+      "minute": 55,
+      "second": 10,
+      "xg": 0.75,
+      "expectedGoalsOnTarget": 0.7,
+      "eventType": "AttemptSaved",
+      "situation": "Penalty",
+      "isPenalty": true,
+      "x": 92,
+      "y": 50
+    },
+    {
+      "id": "s3",
+      "teamId": 8456,
+      "playerId": 102,
+      "minute": 70,
+      "xg": 0.2,
+      "eventType": "Miss",
+      "situation": "Corner",
+      "x": 88,
+      "y": 45
+    },
+    {
+      "id": "s4",
+      "teamId": 9825,
+      "playerId": 200,
+      "minute": 33,
+      "xg": 0.5,
+      "xgot": 0.4,
+      "eventType": "Goal",
+      "situation": "OpenPlay",
+      "x": 10,
+      "y": 50
+    },
+    {
+      "teamId": 9825,
+      "playerId": 201,
+      "minute": 80,
+      "second": 5,
+      "xg": 0.15,
+      "eventType": "Blocked",
+      "situation": "FreeKick",
+      "x": 20,
+      "y": 48
+    }
+  ],
+  "statistics": {
+    "home_xg": 1.85,
+    "away_xg": 0.95
+  }
+}

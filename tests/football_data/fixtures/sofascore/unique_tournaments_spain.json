@@ -1,0 +1,13 @@
+{
+  "groups": [
+    {
+      "uniqueTournaments": [
+        {
+          "id": 8,
+          "name": "LaLiga",
+          "category": {"name": "Spain", "alpha2": "ES"}
+        }
+      ]
+    }
+  ]
+}

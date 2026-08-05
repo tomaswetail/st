@@ -1,0 +1,57 @@
+{
+  "event": {
+    "id": 1200001,
+    "startTimestamp": 1755280800,
+    "homeTeam": {"id": 17, "name": "Manchester City"},
+    "awayTeam": {"id": 42, "name": "Arsenal"},
+    "homeScore": {"current": 2},
+    "awayScore": {"current": 1},
+    "status": {"type": "finished"},
+    "tournament": {"uniqueTournament": {"id": 17}},
+    "season": {"id": 76986}
+  },
+  "home_xg": 1.7,
+  "away_xg": 1.0,
+  "shotmap": [
+    {
+      "id": 1,
+      "isHome": true,
+      "player": {"id": 10},
+      "time": 12,
+      "xg": 0.35,
+      "xGOT": 0.3,
+      "shotType": "goal",
+      "situation": "regular",
+      "playerCoordinates": {"x": 90, "y": 40}
+    },
+    {
+      "id": 2,
+      "isHome": true,
+      "player": {"id": 11},
+      "time": 50,
+      "xg": 0.78,
+      "shotType": "miss",
+      "situation": "penalty",
+      "playerCoordinates": {"x": 92, "y": 50}
+    },
+    {
+      "id": 3,
+      "isHome": false,
+      "player": {"id": 20},
+      "time": 70,
+      "xg": 0.4,
+      "shotType": "goal",
+      "situation": "corner",
+      "playerCoordinates": {"x": 12, "y": 45}
+    }
+  ],
+  "statistics": {
+    "statistics": [
+      {
+        "statisticsItems": [
+          {"name": "Expected goals", "home": 1.7, "away": 1.0}
+        ]
+      }
+    ]
+  }
+}

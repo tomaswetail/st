@@ -1,0 +1,15 @@
+{
+  "events": [
+    {
+      "id": 1200001,
+      "startTimestamp": 1755280800,
+      "homeTeam": {"id": 17, "name": "Manchester City"},
+      "awayTeam": {"id": 42, "name": "Arsenal"},
+      "homeScore": {"current": 2},
+      "awayScore": {"current": 1},
+      "status": {"type": "finished"},
+      "tournament": {"uniqueTournament": {"id": 17}},
+      "season": {"id": 76986}
+    }
+  ]
+}
