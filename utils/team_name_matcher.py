@@ -41,6 +41,7 @@ _ALIASES: dict[str, str] = {
     "Club Brügge": "Club Brugge",
     "Dagenham & Redbridge": "Dag and Red",
     "Djurgården": "Djurgarden",
+    "Halmstads BK": "Halmstad",
     "Djurgårdens IF FF": "Djurgarden",
     "Dover Athletic FC": "Dover Athletic",
     "Eintracht Frankfurt": "Ein Frankfurt",

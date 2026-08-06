@@ -20,7 +20,7 @@ from objects.repositories.league_repository import LeagueRepository
 from objects.repositories.team_repository import TeamRepository
 from objects.schema.data_classes.data_sources import DataSourceConfig
 from objects.schema.data_classes.provider_dtos import ProviderMatch
-from utils.common import LEAGUE_NAMES_REV
+from utils.common import LEAGUE_NAMES_REV, sanitize_string
 from utils.team_name_matcher import _load_aliases, normalize_team_name
 
 logger = logging.getLogger(__name__)
@@ -127,6 +127,13 @@ class EntityResolver:
             team = self._get_team_by_name_fuzzy(provider_team_name)
             if team is not None:
                 return TeamResolution(team=team, confidence=0.75, method="alias")
+            team = self._get_team_by_machine_name(provider_team_name)
+            if team is not None:
+                return TeamResolution(team=team, confidence=1.0, method="exact_name")
+            team = self._get_team_by_machine_name_fuzzy(provider_team_name)
+            if team is not None:
+                return TeamResolution(team=team, confidence=0.9, method="alias")
+
         threshold = self.config.fuzzy_match_threshold / 100
         best_name = ""
         best_score = 0.0
@@ -308,6 +315,20 @@ class EntityResolver:
             self, name: str
     ) -> TeamModel | None:
         return self.team_repo.team_name_wide_search(name)
+
+    def _get_team_by_machine_name(
+        self, name: str
+    ) -> TeamModel | None:
+        """Load a team by name, preferring a league-scoped lookup."""
+
+        team = self.team_repo.get_by_machine_name(sanitize_string(name))
+        if team is not None:
+            return team
+
+    def _get_team_by_machine_name_fuzzy(
+            self, name: str
+    ) -> TeamModel | None:
+        return self.team_repo.team_likely_name_wide_search(name)
 
     def _names_for_team(
         self, team: TeamModel | None, provider_name: str, league_id: int

@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 
-from data_sources.football_data.entity_resolver import EntityResolver
+from data_sources.football_data.entity_resolver import EntityResolver, MatchResolution, TeamResolution
 from data_sources.football_data.http_client import (
     FootballDataHttpError,
     NotFoundError,
@@ -35,6 +35,7 @@ from objects.schema.data_classes.provider_dtos import (
     ProviderMatch,
     ProviderMatchDetails,
     ProviderShot,
+    ProviderTeam,
 )
 from services.team_strength_feature_service import TeamStrengthFeatureService
 from tests.football_data.conftest import load_fixture
@@ -467,6 +468,87 @@ def test_transaction_rollback_for_one_failed_match_keeps_others():
     assert batch.imported == 2
     assert batch.failed == 1
     assert batch.requested == 3
+
+
+def test_unresolved_teams_created_from_fotmob():
+    session = MagicMock()
+    provider = MagicMock()
+    provider.name = "fotmob"
+    provider.fetch_team.side_effect = lambda team_id: ProviderTeam(
+        provider_team_id=str(team_id),
+        name=f"Team {team_id}",
+        short_name=f"T{team_id}",
+        country_code="ENG",
+        country_name="England",
+    )
+
+    service = ExtendedMatchDataService(
+        provider=provider, session=session, dry_run=False
+    )
+    service.resolver.resolve_team = MagicMock(
+        return_value=TeamResolution(
+            team=None, confidence=0.0, method="unresolved", unresolved_name="x"
+        )
+    )
+    created_home = SimpleNamespace(id=101, name="Team 8456")
+    created_away = SimpleNamespace(id=102, name="Team 9825")
+    service.resolver.team_repo.create_from_provider_team = MagicMock(
+        side_effect=[created_home, created_away]
+    )
+    historical = SimpleNamespace(id=50, home_team="Team 8456", away_team="Team 9825")
+    service.resolver.resolve_match = MagicMock(
+        return_value=MatchResolution(
+            match=historical, method="date_teams", warnings=[]
+        )
+    )
+    service.resolver.ensure_mapping = MagicMock()
+    service._fetch_details_with_fallback = MagicMock(
+        return_value=(_sample_details(), "fotmob")
+    )
+    service._persist_match_details = MagicMock(
+        return_value=MatchImportResult(
+            internal_match_id=50,
+            provider_match_id="m1",
+            status="imported",
+            shots_imported=0,
+        )
+    )
+
+    fixture = ProviderMatch(
+        provider_match_id="m1",
+        provider_league_id="47",
+        provider_season_id="2025/2026",
+        home_team_id="8456",
+        away_team_id="9825",
+        home_team_name="Man City",
+        away_team_name="Arsenal",
+        kickoff_at=datetime(2025, 8, 1, 15, 0, tzinfo=timezone.utc),
+        status="FT",
+    )
+    result = service._import_provider_fixture(
+        fixture=fixture,
+        league_id=1,
+        league_code="E0",
+        season="2526",
+        force_refresh=False,
+    )
+
+    assert result.status == "imported"
+    assert service.resolver.team_repo.create_from_provider_team.call_count == 2
+    service.resolver.team_repo.create_from_provider_team.assert_any_call(
+        name="Team 8456",
+        league_id=1,
+        short_name="T8456",
+        country_name="England",
+        iso_code="ENG",
+    )
+    provider.fetch_team.assert_any_call("8456")
+    provider.fetch_team.assert_any_call("9825")
+    assert any(
+        call.kwargs.get("entity_type") == "team"
+        and call.kwargs.get("internal_entity_id") == 101
+        for call in service.resolver.ensure_mapping.call_args_list
+    )
 
 
 # ---------------------------------------------------------------------------

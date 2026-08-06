@@ -22,6 +22,7 @@ class TeamModel(Base):
     )
     league_id: Mapped[int] = mapped_column(Integer, nullable=True)
     name: Mapped[str] = mapped_column(String(150), nullable=False)
+    machine_name: Mapped[str] = mapped_column(String(150), nullable=False)
     short_name: Mapped[Optional[str]] = mapped_column(String(50))
     medium_name: Mapped[Optional[str]] = mapped_column(String(100))
 

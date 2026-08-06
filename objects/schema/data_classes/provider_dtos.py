@@ -45,6 +45,16 @@ class ProviderSeason:
 
 
 @dataclass
+class ProviderTeam:
+    provider_team_id: str
+    name: str
+    short_name: str | None = None
+    country_name: str | None = None
+    country_code: str | None = None
+    raw_payload: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
 class ProviderMatch:
     provider_match_id: str
     provider_league_id: str

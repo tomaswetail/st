@@ -8,7 +8,7 @@ from typing import Literal
 
 from sqlalchemy.orm import Session
 
-from data_sources.football_data.entity_resolver import EntityResolver
+from data_sources.football_data.entity_resolver import EntityResolver, TeamResolution
 from data_sources.football_data.http_client import (
     FootballDataHttpError,
     NotFoundError,
@@ -309,6 +309,7 @@ class ExtendedMatchDataService:
             provider_team_name=fixture.home_team_name,
             league_id=league_id,
         )
+
         away = self.resolver.resolve_team(
             provider_team_id=fixture.away_team_id,
             provider_team_name=fixture.away_team_name,
@@ -316,9 +317,17 @@ class ExtendedMatchDataService:
         )
         warnings: list[str] = []
         if home.team is None:
-            warnings.append(f"Unresolved home team: {fixture.home_team_name}")
+            home = self._create_team_from_fotmob(
+                fixture.home_team_id, league_id
+            ) or home
+            if home.team is None:
+                warnings.append(f"Unresolved home team: {fixture.home_team_name}")
         if away.team is None:
-            warnings.append(f"Unresolved away team: {fixture.away_team_name}")
+            away = self._create_team_from_fotmob(
+                fixture.away_team_id, league_id
+            ) or away
+            if away.team is None:
+                warnings.append(f"Unresolved away team: {fixture.away_team_name}")
 
         match_resolution = self.resolver.resolve_match(
             fixture,
@@ -587,6 +596,40 @@ class ExtendedMatchDataService:
                 raw_payload=seed_match.raw_payload,
             )
         return details, used
+
+    def _create_team_from_fotmob(
+        self,
+        provider_team_id: str,
+        league_id: int,
+    ) -> TeamResolution | None:
+        """Fetch FotMob team profile and create an internal team row."""
+        if self.dry_run or self.provider_name != "fotmob":
+            return None
+        fetch_team = getattr(self.provider, "fetch_team", None)
+        if not callable(fetch_team):
+            return None
+        try:
+            provider_team = fetch_team(provider_team_id)
+            team = self.resolver.team_repo.create_from_provider_team(
+                name=provider_team.name,
+                league_id=league_id,
+                short_name=provider_team.short_name,
+                country_name=provider_team.country_name,
+                iso_code=provider_team.country_code,
+            )
+            return TeamResolution(team=team, confidence=1.0, method="created")
+        except Exception as exc:  # noqa: BLE001 — keep fixture import going
+            logger.warning(
+                "Failed creating team from FotMob id=%s: %s",
+                provider_team_id,
+                exc,
+            )
+            return TeamResolution(
+                team=None,
+                confidence=0.0,
+                method="unresolved",
+                unresolved_name=provider_team_id,
+            )
 
     def _provider_match_id_for_internal(
         self,

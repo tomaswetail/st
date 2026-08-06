@@ -3,6 +3,7 @@ from typing import Any
 from sqlalchemy import select
 
 from objects.models.team import TeamModel
+from utils.common import sanitize_string
 
 from utils.team_name_matcher import to_football_data_name
 
@@ -46,6 +47,25 @@ class TeamRepository(BaseRepository[TeamModel]):
             )
         )
 
+    def get_by_likely_machine_name(
+        self, machine_name: str
+    ) -> TeamModel | None:
+        return self.session.scalar(
+            select(self.model).where(
+                self.model.machine_name.ilike(f'%{machine_name}%')
+            )
+        )
+
+
+    def get_by_machine_name(
+        self, machine_name: str
+    ) -> TeamModel | None:
+        return self.session.scalar(
+            select(self.model).where(
+                self.model.machine_name == machine_name
+            )
+        )
+
     def get_all_names(self) -> list[str]:
         return list(
             self.session.scalars(
@@ -70,6 +90,16 @@ class TeamRepository(BaseRepository[TeamModel]):
             return team
         return self.get_by_likely_name(team_name)
 
+    def team_likely_name_wide_search(self, team_name):
+        if not team_name:
+            return
+        if len(team_name.split(' ')) > 1:
+            team_name = team_name.split(' ')[0]
+            team_name = sanitize_string(team_name)
+            team = self.get_by_likely_machine_name(team_name)
+            return team
+        return self.get_by_likely_machine_name(sanitize_string(team_name))
+
 
     def ensure_from_historical(self, name: str, league_id: int) -> TeamModel:
         team = self.get_by_name_and_league(name, league_id)
@@ -80,8 +110,36 @@ class TeamRepository(BaseRepository[TeamModel]):
                 name = name.split(' ')[0]
                 team = self.get_by_likely_name(name)
         if team is None:
-            team = self.create(name=name, league_id=league_id)
+            team = self.get_by_machine_name(sanitize_string(name))
+        if team is None:
+            if len(name.split(' ')) > 1:
+                name = name.split(' ')[0]
+                team = self.get_by_likely_machine_name(name)
+        if team is None:
+            team = self.create(name=name, machine_name=sanitize_string(name), league_id=league_id)
         return team
+
+    def create_from_provider_team(
+        self,
+        *,
+        name: str,
+        league_id: int,
+        short_name: str | None = None,
+        country_name: str | None = None,
+        iso_code: str | None = None,
+    ) -> TeamModel:
+        """Create a team from provider profile data, or return existing name+league row."""
+        existing = self.get_by_name_and_league(name, league_id)
+        if existing is not None:
+            return existing
+        return self.create(
+            name=name,
+            machine_name=sanitize_string(name),
+            short_name=short_name,
+            league_id=league_id,
+            country_name=country_name,
+            iso_code=iso_code,
+        )
 
     def upsert_from_participant(self, participant: dict[str, Any]) -> TeamModel:
         external_id = participant["id"]
@@ -90,6 +148,7 @@ class TeamRepository(BaseRepository[TeamModel]):
             team = self.create(external_id=external_id)
 
         team.name = participant["name"]
+        team.machine_name = sanitize_string(participant["name"])
         team.short_name = participant.get("shortName")
         team.medium_name = participant.get("mediumName")
         team.country_name = participant.get("countryName")

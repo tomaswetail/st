@@ -17,7 +17,9 @@ from objects.schema.data_classes.provider_dtos import (
     ProviderMatchDetails,
     ProviderSeason,
     ProviderShot,
+    ProviderTeam,
 )
+from utils.common import get_season_rev
 
 logger = logging.getLogger(__name__)
 
@@ -490,6 +492,31 @@ def _to_float(value: Any) -> float | None:
         return None
 
 
+def parse_fotmob_team(payload: Any) -> ProviderTeam:
+    """Parse FotMob teams endpoint payload into a ProviderTeam."""
+    if not isinstance(payload, dict):
+        raise ValueError("Unexpected FotMob team payload")
+    details = payload.get("details") if isinstance(payload.get("details"), dict) else payload
+    team_id = details.get("id") or payload.get("id")
+    name = details.get("name") or details.get("longName")
+    if team_id is None or not name:
+        raise ValueError("FotMob team payload missing id or name")
+    country_code = details.get("country") or details.get("countryCode")
+    country_name = details.get("countryName") or details.get("countryFullName")
+    return ProviderTeam(
+        provider_team_id=str(team_id),
+        name=str(name),
+        short_name=(
+            str(details["shortName"])
+            if details.get("shortName") is not None
+            else None
+        ),
+        country_name=str(country_name) if country_name else None,
+        country_code=str(country_code) if country_code else None,
+        raw_payload=payload if isinstance(payload, dict) else {"raw": payload},
+    )
+
+
 class FotMobProvider:
     """FotMob adapter. Endpoint paths stay inside this module."""
 
@@ -550,7 +577,7 @@ class FotMobProvider:
             "leagues",
             params={
                 "id": provider_league_id,
-                "season": provider_season_id,
+                "season": get_season_rev(provider_season_id),
                 "ccode3": country_code,
             },
         )
@@ -570,3 +597,12 @@ class FotMobProvider:
         """Return shots from FotMob match details."""
         details = self.fetch_match_details(provider_match_id)
         return details.shots
+
+    def fetch_team(self, provider_team_id: str) -> ProviderTeam:
+        """Fetch a FotMob team profile via /api/teams?id=."""
+        api_root = self.config.fotmob_base_url.rstrip("/")
+        payload = self.client.get_json(
+            f"{api_root}/teams",
+            params={"id": provider_team_id},
+        )
+        return parse_fotmob_team(payload)

@@ -44,7 +44,7 @@ def main() -> None:
     init_db()
     session = SessionLocal()
     collector = DataCollector(session)
-    collector.refresh_all_data(['2425'])
+    collector.refresh_all_data(['2526'])
 
 def main_extra_data() -> None:
     init_db()
