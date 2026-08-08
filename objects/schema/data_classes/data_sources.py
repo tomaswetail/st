@@ -120,3 +120,34 @@ class DataSourceConfig(BaseModel):
     create_missing_historical_matches: bool = Field(default=False)
     football_data_feature_shrinkage_prior_matches: int = Field(default=10, ge=0)
     football_data_opponent_adjustment: Literal["none", "simple"] = Field(default="none")
+    team_strength_lookback_matches: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("TEAM_STRENGTH_LOOKBACK_MATCHES", "20")
+        ),
+        ge=1,
+    )
+    team_strength_recency_decay: float = Field(
+        default_factory=lambda: float(
+            os.environ.get("TEAM_STRENGTH_RECENCY_DECAY", "0.90")
+        ),
+        gt=0.0,
+        le=1.0,
+    )
+    team_strength_prior_matches: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("TEAM_STRENGTH_PRIOR_MATCHES", "8")
+        ),
+        ge=0,
+    )
+    team_strength_min_venue_matches: int = Field(default=5, ge=0)
+    goalkeeper_prior_shots: int = Field(
+        default_factory=lambda: int(os.environ.get("GOALKEEPER_PRIOR_SHOTS", "100")),
+        ge=0,
+    )
+    dixon_coles_max_goals: int = Field(
+        default_factory=lambda: int(os.environ.get("DIXON_COLES_MAX_GOALS", "10")),
+        ge=1,
+    )
+    dixon_coles_rho: float = Field(
+        default_factory=lambda: float(os.environ.get("DIXON_COLES_RHO", "-0.13")),
+    )

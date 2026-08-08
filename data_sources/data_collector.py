@@ -243,7 +243,7 @@ class DataCollector:
         else:
             logger.info("Full refresh for last %d seasons", len(season_list))
         soccerdata_count, csv_count = 0, 0
-        """soccerdata_matches = self.import_soccerdata_matches(
+        soccerdata_matches = self.import_soccerdata_matches(
             soccerdata_codes,
             season_list,
             from_date=from_date,
@@ -254,7 +254,7 @@ class DataCollector:
             self.leagues_repo.flush()
             self._ensure_teams(self._team_entries_from_matches(soccerdata_matches))
             soccerdata_count = self.historical_matches_repo.upsert_many(soccerdata_matches)
-"""
+
 
         if csv_codes:
             csv_count = self.import_football_data(

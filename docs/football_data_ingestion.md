@@ -19,7 +19,7 @@ HistoricalFootballDataService
 | HTTP client | `data_sources/football_data/http_client.py` |
 | Entity resolution | `data_sources/football_data/entity_resolver.py` |
 | Derived metrics | `data_sources/football_data/metrics.py` |
-| Team features | `services/team_strength_feature_service.py` |
+| Team features | `calc/strength_calculator.py` |
 | CLI | `services/football_data_cli.py` |
 
 Schema delivery uses SQLAlchemy `create_all` via `init_db()` (no Alembic).
@@ -199,14 +199,13 @@ Optional `fallback_provider` is used only when the primary has no match, no xG/s
 ## Team strength features
 
 ```python
-from services.team_strength_feature_service import TeamStrengthFeatureService
+from calc.strength_calculator import StrengthCalculator
 
-features = TeamStrengthFeatureService(session=session).calculate_features(
+features = StrengthCalculator(session=session).get_team_features(
     team_id=10,
     before=kickoff_utc,
     venue="home",
     lookback_matches=20,
-    decay=0.9,
 )
 ```
 

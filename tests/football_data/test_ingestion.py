@@ -37,7 +37,7 @@ from objects.schema.data_classes.provider_dtos import (
     ProviderShot,
     ProviderTeam,
 )
-from services.team_strength_feature_service import TeamStrengthFeatureService
+from calc.strength_calculator import StrengthCalculator
 from tests.football_data.conftest import load_fixture
 
 
@@ -558,9 +558,9 @@ def test_unresolved_teams_created_from_fotmob():
 
 def test_team_features_no_future_data_leakage():
     session = MagicMock()
-    service = TeamStrengthFeatureService(session=session, provider="fotmob")
+    calculator = StrengthCalculator(session=session, provider="fotmob")
     team = SimpleNamespace(id=1, name="Manchester City", league_id=1)
-    service.team_repo.get = MagicMock(return_value=team)
+    calculator.team_repo.get = MagicMock(return_value=team)
 
     past = SimpleNamespace(
         id=10,
@@ -579,7 +579,7 @@ def test_team_features_no_future_data_leakage():
         away_goals=0,
     )
     # Repository query already filters match_date < before; simulate only past returned.
-    service._load_team_match_stats = MagicMock(
+    calculator._load_team_match_stats = MagicMock(
         return_value=[
             (
                 past,
@@ -601,17 +601,17 @@ def test_team_features_no_future_data_leakage():
             )
         ]
     )
-    service._league_averages = MagicMock(
+    calculator._league_averages = MagicMock(
         return_value={"attack": 1.0, "defence": 1.0, "npxg_for": 1.0, "npxg_against": 1.0}
     )
     cutoff = datetime(2025, 8, 10, tzinfo=timezone.utc)
-    features = service.calculate_features(1, before=cutoff, lookback_matches=20)
+    features = calculator.get_team_features(1, before=cutoff, lookback_matches=20)
     assert features.sample_size == 1
     assert features.non_penalty_xg_for is not None
     # Ensure loader was asked with cutoff (no future match id 11).
-    args, kwargs = service._load_team_match_stats.call_args
+    args, kwargs = calculator._load_team_match_stats.call_args
     assert kwargs["before_date"] == cutoff.date()
-    loaded_ids = [row[0].id for row in service._load_team_match_stats.return_value]
+    loaded_ids = [row[0].id for row in calculator._load_team_match_stats.return_value]
     assert 11 not in loaded_ids
     assert future.id not in loaded_ids
 

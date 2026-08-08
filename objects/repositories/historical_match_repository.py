@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Literal
 
 from sqlalchemy import func, or_, select, text
 from sqlalchemy.dialects import postgresql
@@ -26,6 +27,66 @@ class HistoricalMatchRepository(BaseRepository[HistoricalMatchModel]):
 
         self.team_repo = TeamRepository(self.session)
         self.league_repo = LeagueRepository(self.session)
+
+    def find_before_date_by_team(
+        self,
+        *,
+        team_name: str,
+        before_date: date,
+        venue: Literal["home", "away"] | None = None,
+        limit: int,
+    ) -> list[HistoricalMatchModel]:
+        """Newest-first matches for a team name before cutoff, optionally venue-filtered."""
+        query = (
+            select(self.model)
+            .where(
+                self.model.match_date < before_date,
+                *self._venue_filters(team_name, venue),
+            )
+            .order_by(self.model.match_date.desc())
+            .limit(limit)
+        )
+        return list(self.session.scalars(query).all())
+
+    def find_before_date_by_team_names(
+        self,
+        *,
+        team_names: list[str],
+        before_date: date,
+        limit: int = 500,
+    ) -> list[HistoricalMatchModel]:
+        """Newest-first matches involving any of the given team names before cutoff."""
+        if not team_names:
+            return []
+        query = (
+            select(self.model)
+            .where(
+                self.model.match_date < before_date,
+                or_(
+                    self.model.home_team.in_(team_names),
+                    self.model.away_team.in_(team_names),
+                ),
+            )
+            .order_by(self.model.match_date.desc())
+            .limit(limit)
+        )
+        return list(self.session.scalars(query).all())
+
+    @staticmethod
+    def _venue_filters(
+        team_name: str, venue: Literal["home", "away"] | None
+    ) -> list:
+        """SQLAlchemy filters for home-only, away-only, or either venue."""
+        if venue == "home":
+            return [HistoricalMatchModel.home_team == team_name]
+        if venue == "away":
+            return [HistoricalMatchModel.away_team == team_name]
+        return [
+            or_(
+                HistoricalMatchModel.home_team == team_name,
+                HistoricalMatchModel.away_team == team_name,
+            )
+        ]
 
     def get_by_match_key(
         self,

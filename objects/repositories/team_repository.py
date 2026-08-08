@@ -73,6 +73,14 @@ class TeamRepository(BaseRepository[TeamModel]):
             ).all()
         )
 
+    def get_names_by_league_id(self, league_id: int) -> list[str]:
+        """Return team names belonging to a league."""
+        return list(
+            self.session.scalars(
+                select(self.model.name).where(self.model.league_id == league_id)
+            ).all()
+        )
+
     def to_football_data_name(self, svenska_spel_name: str) -> str | None:
         if not hasattr(self, "_football_data_names"):
             from objects.repositories.historical_match_repository import HistoricalMatchRepository

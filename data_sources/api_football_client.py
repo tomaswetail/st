@@ -1,3 +1,5 @@
+import time
+
 import os
 import sys
 from dataclasses import asdict
@@ -47,9 +49,14 @@ class APIFootballClient:
             response.raise_for_status()
         except requests.HTTPError as exc:
             logger.warning( f"API-Football request failed: {response.status_code} {response.text}")
+
+            if response.status_code == 429:
+                time.sleep(5)
+                return self.get(endpoint, params)
             raise RuntimeError(
                 f"API-Football request failed: {response.status_code} {response.text}"
             ) from exc
+
 
         data = response.json()
 

@@ -32,7 +32,6 @@ def mapped_fotmob_league_ids(session) -> list[tuple[int, str, str | None]]:
         select(ExternalEntityMappingModel).where(
             ExternalEntityMappingModel.provider == "fotmob",
             ExternalEntityMappingModel.entity_type == "league",
-            ExternalEntityMappingModel.external_entity_id == '67',
         )
     ).all()
     return [
@@ -44,7 +43,10 @@ def main() -> None:
     init_db()
     session = SessionLocal()
     collector = DataCollector(session)
-    collector.refresh_all_data(['2526'])
+
+    #collector.refresh_all_data(['2223','2324','2324','2526'])
+
+    main_extra_data()
 
 def main_extra_data() -> None:
     init_db()
@@ -64,7 +66,7 @@ def main_extra_data() -> None:
             league_catalogue_service = LeagueCatalogueService(session)
             league_catalogue_service.map_leagues_from_all_leagues_csv()
             logger.error("No fotmob league mappings found in external_entity_mapping")
-            return
+
 
         logger.info(
             "Importing advanced stats/shots for %d mapped leagues (from %s)",
@@ -118,4 +120,4 @@ def main_extra_data() -> None:
 
 
 if __name__ == "__main__":
-    main_extra_data()
+    main()

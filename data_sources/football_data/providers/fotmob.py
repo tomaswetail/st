@@ -373,7 +373,7 @@ def parse_fotmob_match_details(payload: dict[str, Any]) -> ProviderMatchDetails:
         else None
     )
     kickoff = (
-        (general.get("matchTimeUTC") if isinstance(general, dict) else None)
+        (general.get("matchTimeUTCDate") if isinstance(general, dict) else None)
         or payload.get("kickoff_at")
         or payload.get("matchDate")
     )
