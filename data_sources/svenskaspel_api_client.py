@@ -15,22 +15,6 @@ logger = logging.getLogger(__name__)
 DRAW_NOT_FOUND = "Resource Not Found"
 
 
-def parse_swedish_decimal(value: str | float | int | None) -> float | None:
-    """Parse Svenska Spel decimal strings like '3,10' or '1,00'."""
-    if value is None:
-        return None
-    if isinstance(value, (int, float)):
-        return float(value)
-    text = str(value).strip().replace("\u00a0", "").replace(" ", "")
-    if not text:
-        return None
-    text = text.replace(",", ".")
-    try:
-        return float(text)
-    except ValueError:
-        return None
-
-
 def _participant_name(participants: list[dict[str, Any]], role: str) -> str:
     for p in participants:
         if p.get("type") == role:
@@ -148,7 +132,7 @@ class SvenskaSpelClient:
                 return n, payload
 
         try:
-            latest_payload = self.fetch_draw_raw(highes)
+            latest_payload = self.fetch_draw_raw(highest)
             latest_draw = latest_payload["draw"]
             close = latest_draw.get("regCloseTime", "unknown")
             state = latest_draw.get("drawState", "unknown")

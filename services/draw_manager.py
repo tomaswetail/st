@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from data_sources.svenskaspel_api_client import SvenskaSpelClient
 from objects.repositories.league_repository import LeagueRepository
 from objects.repositories.st_match_bet_repository import STMatchBetRepository
+from objects.repositories.st_match_odds_repository import STMatchOddsRepository
 from objects.repositories.st_match_repository import STMatchRepository
 from objects.repositories.st_round_repository import STRoundRepository
 from objects.repositories.team_repository import TeamRepository
@@ -45,6 +46,7 @@ class STDrawManager:
         self.rounds_repo = STRoundRepository(session)
         self.matches_repo = STMatchRepository(session)
         self.match_bets_repo = STMatchBetRepository(session)
+        self.match_odds_repo = STMatchOddsRepository(session)
 
     def import_draw(self, draw_number: int) -> list[STRound]:
         payload = self.client.fetch_draw(draw_number)
@@ -94,7 +96,9 @@ class STDrawManager:
                 away_team=away_team,
             )
             self.matches_repo.flush()
+            _odds = draw_event.get("startOdds")
             self.match_bets_repo.upsert_from_draw_event(match, draw_event)
+            self.match_odds_repo.upsert_from_draw_event(match, draw_event)
             imported_rounds.append(self.rounds_repo.to_schema(round_model))
 
         self.rounds_repo.commit()

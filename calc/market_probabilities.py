@@ -1,15 +1,11 @@
-from objects.schema.db.st_match_bet import STMatchBet
+from objects.schema.db.st_match_odds import STMatchOdds
+from utils.common import odds_to_probabilities
 
 
 class MarketProbabilities:
 
-    def __init__(self, match_bet: STMatchBet):
-        self.match_bet = match_bet
+    def __init__(self, match_odds: STMatchOdds):
+        self.match_odds = match_odds
 
     def get_probs(self):
-        return {
-            '1': self.match_bet.distribution_1,
-            'X': self.match_bet.distribution_X,
-            '2': self.match_bet.distribution_2
-        }
-
+        return odds_to_probabilities(self.match_odds.odds_1, self.match_odds.odds_X, self.match_odds.odds_2)

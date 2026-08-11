@@ -1,7 +1,10 @@
 from sqlalchemy.orm import Session
 
+from calc.market_probabilities import MarketProbabilities
+from calc.strength_calculator import StrengthCalculator
 from objects.repositories.st_match_repository import STMatchRepository
 from objects.repositories.st_round_repository import STRoundRepository
+from objects.repositories.st_match_odds_repository import STMatchOddsRepository
 
 
 class ProbabilityManager:
@@ -10,8 +13,11 @@ class ProbabilityManager:
         self,
         session: Session,
     ) -> None:
+        self.session = session
         self.rounds_repo = STRoundRepository(session)
         self.matches_repo = STMatchRepository(session)
+        self.match_odds_repo = STMatchOddsRepository(session)
+
     def process(self, draw_number: int):
         round = self.rounds_repo.get_by_draw_number(draw_number)
         if not round:
@@ -26,3 +32,7 @@ class ProbabilityManager:
                 raise ValueError(f"Missing team on match id={match.id}")
             if match.start_time is None:
                 raise ValueError(f"Missing start_time on match id={match.id}")
+            base_probs = MarketProbabilities(match.match_odds).get_probs()
+            features = StrengthCalculator(self.session).get_match_features(match_id)
+
+

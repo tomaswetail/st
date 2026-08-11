@@ -56,3 +56,8 @@ class STMatchModel(Base):
         uselist=False,
         cascade="all, delete-orphan",
     )
+    match_odds: Mapped[Optional["STMatchOddsModel"]] = relationship(
+        back_populates="stryktipset_match",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )

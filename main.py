@@ -12,6 +12,7 @@ from data_sources.football_data import ExtendedMatchDataService, LeagueCatalogue
 from database import SessionLocal, init_db
 from objects.models.external_entity_mapping import ExternalEntityMappingModel
 from objects.schema.data_classes.data_sources import DataSourceConfig
+from services.draw_manager import STDrawManager
 
 logging.basicConfig(
     level=logging.INFO,
@@ -43,8 +44,9 @@ def mapped_fotmob_league_ids(session) -> list[tuple[int, str, str | None]]:
 def calc() -> None:
     init_db()
     session = SessionLocal()
+    STDrawManager(session).import_draw(4750)
     prob_manager = ProbabilityManager(session)
-    prob_manager.process(4400)
+    prob_manager.process(4750)
 
 def main() -> None:
     init_db()
@@ -127,4 +129,4 @@ def main_extra_data() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    calc()

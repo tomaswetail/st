@@ -266,6 +266,21 @@ def strtr(s, repl):
   pattern = '|'.join(map(re.escape, sorted(repl, key=len, reverse=True)))
   return re.sub(pattern, lambda m: repl[m.group()], s)
 
+def parse_swedish_decimal(value: str | float | int | None) -> float | None:
+    """Parse Svenska Spel decimal strings like '3,10' or '1,00'."""
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    text = str(value).strip().replace("\u00a0", "").replace(" ", "")
+    if not text:
+        return None
+    text = text.replace(",", ".")
+    try:
+        return float(text)
+    except ValueError:
+        return None
+
 def sanitize_string(name: str):
 
   chars = {
