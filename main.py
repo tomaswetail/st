@@ -6,6 +6,7 @@ import logging
 
 from sqlalchemy import select
 
+from calc.probality_manager import ProbabilityManager
 from data_sources.data_collector import DataCollector
 from data_sources.football_data import ExtendedMatchDataService, LeagueCatalogueService
 from database import SessionLocal, init_db
@@ -38,6 +39,12 @@ def mapped_fotmob_league_ids(session) -> list[tuple[int, str, str | None]]:
         (row.internal_entity_id, row.external_entity_id, row.external_name)
         for row in rows
     ]
+
+def calc() -> None:
+    init_db()
+    session = SessionLocal()
+    prob_manager = ProbabilityManager(session)
+    prob_manager.process(4400)
 
 def main() -> None:
     init_db()

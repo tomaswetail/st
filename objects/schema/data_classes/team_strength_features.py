@@ -26,8 +26,9 @@ class TeamStrengthFeatures:
     recency_weighted_defence_rating: float | None
     opponent_adjusted_attack_strength: float | None = None
     opponent_adjusted_defence_strength: float | None = None
-    set_piece_xg_for: float | None = None
-    set_piece_xg_against: float | None = None
+    set_piece_attack_strength: float | None = None
+    set_piece_defence_strength: float | None = None
+    goalkeeper_prevention_rating: float | None = None
     goalkeeper_goals_prevented: float | None = None
     has_xg_data: bool = False
     has_xgot_data: bool = False

@@ -38,9 +38,8 @@ class STDrawManager:
     def __init__(
         self,
         session: Session,
-        client: SvenskaSpelClient | None = None,
     ) -> None:
-        self.client = client or SvenskaSpelClient()
+        self.client = SvenskaSpelClient()
         self.teams_repo = TeamRepository(session)
         self.leagues_repo = LeagueRepository(session)
         self.rounds_repo = STRoundRepository(session)

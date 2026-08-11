@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import date
 from typing import Literal
 
@@ -66,6 +68,29 @@ class HistoricalMatchRepository(BaseRepository[HistoricalMatchModel]):
                     self.model.home_team.in_(team_names),
                     self.model.away_team.in_(team_names),
                 ),
+            )
+            .order_by(self.model.match_date.desc())
+            .limit(limit)
+        )
+        return list(self.session.scalars(query).all())
+
+    def find_before_date_by_league_id(
+        self,
+        *,
+        league_id: int,
+        before_date: date,
+        limit: int = 500,
+    ) -> list[HistoricalMatchModel]:
+        """Newest-first league matches before cutoff (excludes cups/Europe)."""
+        league = self.league_repo.get(league_id)
+        if league is None:
+            return []
+        league_code = LEAGUE_NAMES_REV.get(league.name, league.name)
+        query = (
+            select(self.model)
+            .where(
+                self.model.match_date < before_date,
+                self.model.league == league_code,
             )
             .order_by(self.model.match_date.desc())
             .limit(limit)
@@ -266,10 +291,26 @@ class HistoricalMatchRepository(BaseRepository[HistoricalMatchModel]):
         t = result.one()
         return t[0] / num_teams
 
+    def get_home_goal_average_by_league_before_date(self, league_id: int, before_date: date):
+        num_teams = self.get_num_teams_by_league(league_id)
+        league = self.league_repo.get(league_id)
+        stmt = text(f"SELECT SUM(home_goals) FROM historical_matches WHERE league='{LEAGUE_NAMES_REV[league.name]}' AND match_date <= '{before_date}';") #TODO
+        result = self.session.execute(stmt)
+        t = result.one()
+        return t[0] / num_teams
+
     def get_away_goal_average_by_league(self, league_id: int):
         num_teams = self.get_num_teams_by_league(league_id)
         league = self.league_repo.get(league_id)
         stmt = text(f"SELECT SUM(away_goals) FROM historical_matches WHERE league='{LEAGUE_NAMES_REV[league.name]}' AND season IN {SEASONS};") #TODO
+        result = self.session.execute(stmt)
+        t = result.one()
+        return t[0] / num_teams
+
+    def get_away_goal_average_by_league(self, league_id: int, before_date: date):
+        num_teams = self.get_num_teams_by_league(league_id)
+        league = self.league_repo.get(league_id)
+        stmt = text(f"SELECT SUM(away_goals) FROM historical_matches WHERE league='{LEAGUE_NAMES_REV[league.name]}' AND match_date <= '{before_date}';") #TODO
         result = self.session.execute(stmt)
         t = result.one()
         return t[0] / num_teams
@@ -294,7 +335,6 @@ class HistoricalMatchRepository(BaseRepository[HistoricalMatchModel]):
         return away_goals
 
     def get_lost_home_goals_by_team(self, team: TeamModel):
-        from objects.repositories import LeagueRepository
 
         league = self.league_repo.get(team.league_id)
         team_name = fix_swedish_name(team.name)
@@ -323,7 +363,6 @@ class HistoricalMatchRepository(BaseRepository[HistoricalMatchModel]):
         return num_matches
 
     def get_lost_away_goals_by_team(self, team: TeamModel):
-        from objects.repositories import LeagueRepository
 
         league = self.league_repo.get(team.league_id)
         team_name = fix_swedish_name(team.name)
@@ -353,7 +392,6 @@ class HistoricalMatchRepository(BaseRepository[HistoricalMatchModel]):
 
 
     def get_lost_goal_average_by_team(self, team_name: str):
-        from objects.repositories import TeamRepository,LeagueRepository
         team = self.team_repo.get_by_name(team_name)
         if not team:
             return
