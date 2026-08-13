@@ -151,3 +151,38 @@ class DataSourceConfig(BaseModel):
     dixon_coles_rho: float = Field(
         default_factory=lambda: float(os.environ.get("DIXON_COLES_RHO", "-0.13")),
     )
+    home_advantage_shrinkage_matches: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("HOME_ADVANTAGE_SHRINKAGE_MATCHES", "30")
+        ),
+        ge=0,
+    )
+    max_team_home_advantage: float = Field(
+        default_factory=lambda: float(
+            os.environ.get("MAX_TEAM_HOME_ADVANTAGE", "0.30")
+        ),
+        gt=0.0,
+    )
+    home_advantage_epsilon: float = Field(
+        default_factory=lambda: float(
+            os.environ.get("HOME_ADVANTAGE_EPSILON", "0.05")
+        ),
+        gt=0.0,
+    )
+    home_advantage_recency_decay_rate: float = Field(
+        default_factory=lambda: float(
+            os.environ.get("HOME_ADVANTAGE_RECENCY_DECAY_RATE", "0.01")
+        ),
+        ge=0.0,
+    )
+    league_home_advantage_shrinkage_matches: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("LEAGUE_HOME_ADVANTAGE_SHRINKAGE_MATCHES", "30")
+        ),
+        ge=0,
+    )
+    league_home_advantage_global_prior: float = Field(
+        default_factory=lambda: float(
+            os.environ.get("LEAGUE_HOME_ADVANTAGE_GLOBAL_PRIOR", "0.20")
+        ),
+    )

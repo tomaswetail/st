@@ -601,7 +601,7 @@ def test_team_features_no_future_data_leakage():
             )
         ]
     )
-    calculator._league_averages = MagicMock(
+    calculator.league_averages = MagicMock(
         return_value={"attack": 1.0, "defence": 1.0, "npxg_for": 1.0, "npxg_against": 1.0}
     )
     cutoff = datetime(2025, 8, 10, tzinfo=timezone.utc)
