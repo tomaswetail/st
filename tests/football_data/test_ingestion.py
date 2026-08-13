@@ -161,7 +161,7 @@ def test_match_resolution_by_mapping():
         status="finished",
     )
     result = resolver.resolve_match(
-        provider_match, league_code="E0", home_team=None, away_team=None
+        provider_match, league_code="E0", home_team=None, away_team=None, league_id=47
     )
     assert result.method == "mapping"
     assert result.match.id == 55
@@ -211,6 +211,7 @@ def test_postponed_fixture_matching_via_season():
         home_team=home,
         away_team=away,
         season="2526",
+        league_id=47
     )
     assert result.match is not None
     assert result.match.id == 77
@@ -586,6 +587,10 @@ def test_team_features_no_future_data_leakage():
                 SimpleNamespace(
                     home_non_penalty_xg=1.0,
                     away_non_penalty_xg=0.5,
+                    home_shots=10,
+                    away_shots=8,
+                    home_shots_on_target=4,
+                    away_shots_on_target=3,
                     average_home_shot_xg=0.2,
                     average_away_shot_xg=0.1,
                     home_set_piece_xg=0.3,

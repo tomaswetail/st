@@ -321,6 +321,26 @@ class HistoricalMatchRepository(BaseRepository[HistoricalMatchModel]):
         goals_sum, match_count = result.one()
         return (goals_sum or 0, match_count or 0)
 
+    def get_goal_sums_by_league_before_date(
+        self, before_date: date
+    ) -> dict[str, tuple[int, int, int, int]]:
+        """Aggregate home/away goals and counts by league code before cutoff."""
+        rows = self.session.execute(
+            select(
+                self.model.league,
+                func.coalesce(func.sum(self.model.home_goals), 0),
+                func.count(),
+                func.coalesce(func.sum(self.model.away_goals), 0),
+                func.count(),
+            )
+            .where(self.model.match_date < before_date)
+            .group_by(self.model.league)
+        ).all()
+        return {
+            league: (int(sum_home), int(home_count), int(sum_away), int(away_count))
+            for league, sum_home, home_count, sum_away, away_count in rows
+        }
+
     def get_goal_average_by_league(self, league_id: int):
 
         num_teams = self.get_num_teams_by_league(league_id)

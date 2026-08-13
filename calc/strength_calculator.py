@@ -10,11 +10,10 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from sqlalchemy.orm import Session
 
-from database import SessionLocal
 from objects.models.historical_match import HistoricalMatchModel
 from objects.models.match_advanced_stats import MatchAdvancedStatsModel
 from objects.models.team import TeamModel
@@ -28,6 +27,10 @@ from objects.schema.data_classes.team_strength_features import (
     MatchStrengthFeatures,
     TeamStrengthFeatures,
 )
+from objects.schema.db.team import Team
+
+if TYPE_CHECKING:
+    from calc.home_advantage_calculator import HomeAdvantageCalculator
 from calc.strength_helpers import (
     WeightedObservation,
     append_observation,
@@ -93,10 +96,9 @@ def expected_goals_from_strengths(
     away_defence_strength: float | None,
     away_attack_strength: float | None,
     home_defence_strength: float | None,
-    league_home_goal_rate: float,
-    league_away_goal_rate: float,
+    league_goal_rate: float,
 ) -> tuple[float | None, float | None]:
-    """Build Poisson λ_home / λ_away from relative strengths and league rates."""
+    """Build venue-neutral Poisson λ_home / λ_away from relative strengths."""
     if None in (
         home_attack_strength,
         away_defence_strength,
@@ -109,8 +111,8 @@ def expected_goals_from_strengths(
     assert away_attack_strength is not None
     assert home_defence_strength is not None
     return (
-        league_home_goal_rate * home_attack_strength * away_defence_strength,
-        league_away_goal_rate * away_attack_strength * home_defence_strength,
+        league_goal_rate * home_attack_strength * away_defence_strength,
+        league_goal_rate * away_attack_strength * home_defence_strength,
     )
 
 
@@ -289,12 +291,17 @@ class StrengthCalculator:
     ) -> None:
         """Wire DB session, config, and repositories used for history loads."""
         self._owns_session = session is None
-        self.session = session or SessionLocal()
+        if session is None:
+            from database import SessionLocal
+
+            session = SessionLocal()
+        self.session = session
         self.config = config or DataSourceConfig()
         self.provider = provider or self.config.football_data_provider
         self.stats_repo = MatchAdvancedStatsRepository(self.session)
         self.team_repo = TeamRepository(self.session)
         self.historical_repo = HistoricalMatchRepository(self.session)
+        self._home_advantage_calculator: HomeAdvantageCalculator | None = None
 
     def close(self) -> None:
         """Close the session when this calculator created it."""
@@ -367,6 +374,38 @@ class StrengthCalculator:
             home_features=home_features,
             away_features=away_features,
             match_date=historical_match.match_date,
+            target_league_code=historical_match.league,
+        )
+
+    def get_fixture_features(
+        self,
+        home_team_id: int,
+        away_team_id: int,
+        before: date | datetime,
+        *,
+        match_id: int | None = None,
+        lookback_matches: int | None = None,
+        target_league_code: str | None = None,
+    ) -> MatchStrengthFeatures:
+        """Combine home/away team features for a fixture without a historical match row."""
+        home_team = self.team_repo.get(home_team_id)
+        away_team = self.team_repo.get(away_team_id)
+        cutoff_date = before.date() if isinstance(before, datetime) else before
+        feature_cutoff = datetime.combine(cutoff_date, datetime.min.time())
+        home_features = self._team_features_for_side(
+            home_team, feature_cutoff, "home", lookback_matches
+        )
+        away_features = self._team_features_for_side(
+            away_team, feature_cutoff, "away", lookback_matches
+        )
+        return self._assemble_match_features(
+            match_id=match_id,
+            home_team=home_team,
+            away_team=away_team,
+            home_features=home_features,
+            away_features=away_features,
+            match_date=cutoff_date,
+            target_league_code=target_league_code,
         )
 
     def explain(
@@ -398,15 +437,17 @@ class StrengthCalculator:
     def _assemble_match_features(
         self,
         *,
-        match_id: int,
+        match_id: int | None,
         home_team: TeamModel | None,
         away_team: TeamModel | None,
         home_features: TeamStrengthFeatures | None,
         away_features: TeamStrengthFeatures | None,
         match_date: date,
+        target_league_code: str | None = None,
     ) -> MatchStrengthFeatures:
         """Build MatchStrengthFeatures from side features and Dixon–Coles."""
         league_home, league_away = self._league_goal_rates(home_team, match_date)
+        league_goal_rate = (league_home + league_away) / 2.0
         league_npxg = (
             self.league_averages(home_team, match_date).get("npxg")
             if home_team is not None
@@ -415,10 +456,16 @@ class StrengthCalculator:
         expected_home, expected_away = self._match_expected_goals(
             home_features,
             away_features,
-            league_home,
-            league_away,
+            league_goal_rate,
             league_npxg,
         )
+        home_advantage_coefficient = self._home_advantage_coefficient(
+            home_team,
+            match_date,
+            target_league_code=target_league_code,
+        )
+        if expected_home is not None:
+            expected_home *= home_advantage_coefficient
         home_win, draw, away_win = self._dixon_coles_probs(expected_home, expected_away)
         return self._match_features_payload(
             match_id=match_id,
@@ -432,6 +479,36 @@ class StrengthCalculator:
             draw_probability=draw,
             away_win_probability=away_win,
         )
+
+    def _home_advantage_calculator_instance(self) -> HomeAdvantageCalculator:
+        """Lazy HomeAdvantageCalculator sharing this StrengthCalculator instance."""
+        if self._home_advantage_calculator is None:
+            from calc.home_advantage_calculator import HomeAdvantageCalculator
+
+            self._home_advantage_calculator = HomeAdvantageCalculator(
+                session=self.session,
+                config=self.config,
+                strength_calculator=self,
+            )
+        return self._home_advantage_calculator
+
+    def _home_advantage_coefficient(
+        self,
+        home_team: TeamModel | None,
+        match_date: date,
+        *,
+        target_league_code: str | None = None,
+    ) -> float:
+        """Multiplicative HA factor from HomeAdvantageCalculator (log HA → exp)."""
+        if home_team is None:
+            return 1.0
+        team = Team.model_validate(home_team)
+        result = self._home_advantage_calculator_instance().process(
+            team,
+            match_date,
+            target_league_code=target_league_code,
+        )
+        return math.exp(result.home_advantage)
 
     def _league_goal_rates(
         self,
@@ -465,18 +542,44 @@ class StrengthCalculator:
         self,
         home_features: TeamStrengthFeatures | None,
         away_features: TeamStrengthFeatures | None,
-        league_home_goal_rate: float,
-        league_away_goal_rate: float,
+        league_goal_rate: float,
         league_npxg: float | None,
     ) -> tuple[float | None, float | None]:
-        """Resolve side strengths then compute λ_home / λ_away."""
+        """Resolve venue-neutral strengths then compute λ_home / λ_away."""
         return expected_goals_from_strengths(
-            self._side_attack_strength(home_features, "home", league_npxg),
-            self._side_defence_strength(away_features, "away", league_npxg),
-            self._side_attack_strength(away_features, "away", league_npxg),
-            self._side_defence_strength(home_features, "home", league_npxg),
-            league_home_goal_rate,
-            league_away_goal_rate,
+            self._neutral_attack_strength(home_features, league_npxg),
+            self._neutral_defence_strength(away_features, league_npxg),
+            self._neutral_attack_strength(away_features, league_npxg),
+            self._neutral_defence_strength(home_features, league_npxg),
+            league_goal_rate,
+        )
+
+    def _neutral_attack_strength(
+        self,
+        features: TeamStrengthFeatures | None,
+        league_npxg: float | None,
+    ) -> float | None:
+        """Venue-neutral attack strength for Dixon–Coles λ (no home advantage)."""
+        if features is None:
+            return None
+        if features.opponent_adjusted_attack_strength is not None:
+            return features.opponent_adjusted_attack_strength
+        return normalize_strength(
+            features.recency_weighted_attack_rating, league_npxg
+        )
+
+    def _neutral_defence_strength(
+        self,
+        features: TeamStrengthFeatures | None,
+        league_npxg: float | None,
+    ) -> float | None:
+        """Venue-neutral defence strength for Dixon–Coles λ (no home advantage)."""
+        if features is None:
+            return None
+        if features.opponent_adjusted_defence_strength is not None:
+            return features.opponent_adjusted_defence_strength
+        return normalize_strength(
+            features.recency_weighted_defence_rating, league_npxg
         )
 
     def _side_attack_strength(
@@ -538,7 +641,7 @@ class StrengthCalculator:
     @staticmethod
     def _match_features_payload(
         *,
-        match_id: int,
+        match_id: int | None,
         home_team: TeamModel | None,
         away_team: TeamModel | None,
         home_features: TeamStrengthFeatures | None,

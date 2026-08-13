@@ -5,8 +5,6 @@ from typing import Generic, TypeVar
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from database import SessionLocal
-
 ModelT = TypeVar("ModelT")
 
 
@@ -16,8 +14,14 @@ class BaseRepository(Generic[ModelT]):
     model: type[ModelT]
 
     def __init__(self, session: Session | None = None) -> None:
-        self._session = session or SessionLocal()
-        self._owns_session = session is None
+        if session is None:
+            from database import SessionLocal
+
+            self._session = SessionLocal()
+            self._owns_session = True
+        else:
+            self._session = session
+            self._owns_session = False
 
     @property
     def session(self) -> Session:

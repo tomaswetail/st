@@ -35,4 +35,8 @@ class ProbabilityManager:
             base_probs = MarketProbabilities(match.match_odds).get_probs()
             features = StrengthCalculator(self.session).get_match_features(match_id)
 
+            result = home_advantage_calculator.process(team, current_date)
+
+            coefficient = result.home_advantage
+
 

@@ -186,3 +186,49 @@ class DataSourceConfig(BaseModel):
             os.environ.get("LEAGUE_HOME_ADVANTAGE_GLOBAL_PRIOR", "0.20")
         ),
     )
+    competition_ha_shrinkage_matches: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("COMPETITION_HA_SHRINKAGE_MATCHES", "30")
+        ),
+        ge=0,
+    )
+    max_competition_home_advantage: float = Field(
+        default_factory=lambda: float(
+            os.environ.get("MAX_COMPETITION_HOME_ADVANTAGE", "0.30")
+        ),
+        gt=0.0,
+    )
+    balance_recent_matches: int = Field(
+        default_factory=lambda: int(os.environ.get("BALANCE_RECENT_MATCHES", "10")),
+        ge=1,
+    )
+    balance_low_scoring_goal_threshold: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("BALANCE_LOW_SCORING_GOAL_THRESHOLD", "2")
+        ),
+        ge=0,
+    )
+    league_behavior_lookback_matches: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("LEAGUE_BEHAVIOR_LOOKBACK_MATCHES", "500")
+        ),
+        ge=1,
+    )
+    league_behavior_shrinkage_matches: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("LEAGUE_BEHAVIOR_SHRINKAGE_MATCHES", "50")
+        ),
+        ge=0,
+    )
+    league_behavior_min_team_matches_for_balance: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("LEAGUE_BEHAVIOR_MIN_TEAM_MATCHES_FOR_BALANCE", "3")
+        ),
+        ge=1,
+    )
+    league_behavior_quality_reference_matches: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("LEAGUE_BEHAVIOR_QUALITY_REFERENCE_MATCHES", "100")
+        ),
+        ge=1,
+    )

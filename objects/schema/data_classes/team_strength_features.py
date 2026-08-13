@@ -37,11 +37,11 @@ class TeamStrengthFeatures:
 
 @dataclass
 class MatchStrengthFeatures:
-    match_id: int
     home_team_id: int | None
     away_team_id: int | None
     home: TeamStrengthFeatures | None
     away: TeamStrengthFeatures | None
+    match_id: int | None = None
     home_npxg_for: float | None = None
     home_npxg_against: float | None = None
     away_npxg_for: float | None = None

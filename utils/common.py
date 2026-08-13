@@ -220,6 +220,34 @@ def odds_to_probabilities(
         "2": away / total,
     }
 
+
+def ensure_unit_probabilities(
+    market_probabilities: dict[str, float | None],
+) -> dict[str, float | None]:
+    """Return 1X2 values on the 0–1 scale. Reject mixed 0–1 / percentage inputs."""
+    present_values = [
+        value for value in market_probabilities.values() if value is not None
+    ]
+    if not present_values:
+        return dict(market_probabilities)
+    if any(value < 0 for value in present_values):
+        raise ValueError("Market probabilities must be non-negative")
+
+    all_unit_scale = all(value <= 1 for value in present_values)
+    all_percent_scale = any(value > 1 for value in present_values) and all(
+        value == 0 or value > 1 for value in present_values
+    )
+    if all_unit_scale:
+        return dict(market_probabilities)
+    if all_percent_scale:
+        if any(value > 100 for value in present_values):
+            raise ValueError("Percentage-style market probabilities must be <= 100")
+        return {
+            key: None if value is None else value / 100.0
+            for key, value in market_probabilities.items()
+        }
+    raise ValueError("Mixed 0–1 and percentage market probability scales")
+
 def probabilities_to_result(
     win_home: float,
     draw: float,

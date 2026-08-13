@@ -22,6 +22,7 @@ from objects.schema.data_classes.data_sources import DataSourceConfig
 from objects.schema.data_classes.team_strength_features import TeamStrengthFeatures
 from objects.schema.db.team import Team
 from utils.common import LEAGUE_NAMES_REV
+from utils.competition_type import competition_type_flags, is_league_match
 
 
 @dataclass
@@ -42,6 +43,10 @@ class HomeAdvantageResult:
     raw_league_season_home_advantage: float = 0.0
     league_home_advantage_shrinkage_weight: float = 0.0
     league_home_advantage_sample_size: int = 0
+    competition_home_advantage: float = 0.0
+    raw_competition_home_advantage: float = 0.0
+    competition_home_advantage_shrinkage_weight: float = 0.0
+    competition_home_advantage_sample_size: int = 0
 
 
 class _MatchNpxg(NamedTuple):
@@ -76,11 +81,39 @@ class HomeAdvantageCalculator:
         self._league_baselines_cache: dict[
             tuple[int, str, date], dict[str, float]
         ] = {}
+        self._competition_beta_cache: dict[
+            date, dict[str, tuple[float, float, float, int]]
+        ] = {}
 
-    def process(self, team: Team, current_date: date) -> HomeAdvantageResult:
-        """Return combined league + team home advantage before ``current_date``."""
+    def process(
+        self,
+        team: Team,
+        current_date: date,
+        *,
+        target_league_code: str | None = None,
+    ) -> HomeAdvantageResult:
+        """Return combined league + team + competition home advantage before cutoff."""
+        competition = self._calc_competition_home_advantage(
+            target_league_code, current_date
+        )
+        competition_home_advantage = float(
+            competition["competition_home_advantage"]
+        )
+
         if team.league_id is None:
-            return self._empty_result(0.0)
+            return self._empty_result(
+                0.0,
+                competition_home_advantage=competition_home_advantage,
+                raw_competition_home_advantage=float(
+                    competition["raw_competition_home_advantage"]
+                ),
+                competition_home_advantage_shrinkage_weight=float(
+                    competition["competition_home_advantage_shrinkage_weight"]
+                ),
+                competition_home_advantage_sample_size=int(
+                    competition["competition_home_advantage_sample_size"]
+                ),
+            )
 
         season = self._resolve_season_from_team_history(team, current_date)
         if season is None:
@@ -105,7 +138,11 @@ class HomeAdvantageCalculator:
             league_season_home_advantage=league_ha,
         )
         return HomeAdvantageResult(
-            home_advantage=league_ha + team_result.team_home_advantage,
+            home_advantage=(
+                league_ha
+                + team_result.team_home_advantage
+                + competition_home_advantage
+            ),
             league_season_home_advantage=league_ha,
             team_home_advantage=team_result.team_home_advantage,
             raw_team_home_advantage=team_result.raw_team_home_advantage,
@@ -129,7 +166,157 @@ class HomeAdvantageCalculator:
             league_home_advantage_sample_size=league_ha_result[
                 "league_home_advantage_sample_size"
             ],
+            competition_home_advantage=competition_home_advantage,
+            raw_competition_home_advantage=float(
+                competition["raw_competition_home_advantage"]
+            ),
+            competition_home_advantage_shrinkage_weight=float(
+                competition["competition_home_advantage_shrinkage_weight"]
+            ),
+            competition_home_advantage_sample_size=int(
+                competition["competition_home_advantage_sample_size"]
+            ),
         )
+
+    def _calc_competition_home_advantage(
+        self,
+        target_league_code: str | None,
+        before_date: date,
+    ) -> dict[str, float | int]:
+        """Learn shrunk competition-type effects and apply to the target fixture."""
+        zero = {
+            "competition_home_advantage": 0.0,
+            "raw_competition_home_advantage": 0.0,
+            "competition_home_advantage_shrinkage_weight": 0.0,
+            "competition_home_advantage_sample_size": 0,
+        }
+        if target_league_code is None or is_league_match(target_league_code):
+            return zero
+
+        betas = self._learn_competition_betas(before_date)
+        is_domestic, is_international, is_friendly = competition_type_flags(
+            target_league_code
+        )
+        competition_home_advantage = (
+            betas["domestic"][0] * float(is_domestic)
+            + betas["international"][0] * float(is_international)
+            + betas["friendly"][0] * float(is_friendly)
+        )
+        max_ha = self.config.max_competition_home_advantage
+        competition_home_advantage = max(
+            -max_ha, min(max_ha, competition_home_advantage)
+        )
+
+        if is_domestic:
+            active = betas["domestic"]
+        elif is_international:
+            active = betas["international"]
+        elif is_friendly:
+            active = betas["friendly"]
+        else:
+            return zero
+
+        _beta, raw_effect, weight, sample_size = active
+        return {
+            "competition_home_advantage": competition_home_advantage,
+            "raw_competition_home_advantage": raw_effect,
+            "competition_home_advantage_shrinkage_weight": weight,
+            "competition_home_advantage_sample_size": sample_size,
+        }
+
+    def _learn_competition_betas(
+        self, before_date: date
+    ) -> dict[str, tuple[float, float, float, int]]:
+        """Return per-type (beta, raw_effect, weight, sample_size) before cutoff."""
+        cached = self._competition_beta_cache.get(before_date)
+        if cached is not None:
+            return cached
+
+        goal_sums = self.historical_match_repo.get_goal_sums_by_league_before_date(
+            before_date
+        )
+        buckets = self._bucket_goal_sums_by_competition_type(goal_sums)
+        league_reference_ha = self._log_home_advantage_from_bucket(
+            buckets["league"]
+        )
+        shrinkage_matches = self.config.competition_ha_shrinkage_matches
+
+        betas: dict[str, tuple[float, float, float, int]] = {}
+        for bucket_name in ("domestic", "international", "friendly"):
+            sum_home, home_count, sum_away, away_count = buckets[bucket_name]
+            sample_size = min(home_count, away_count)
+            if sample_size <= 0 or home_count <= 0 or away_count <= 0:
+                betas[bucket_name] = (0.0, 0.0, 0.0, 0)
+                continue
+
+            home_rate = sum_home / home_count
+            away_rate = sum_away / away_count
+            if home_rate <= 0 or away_rate <= 0:
+                betas[bucket_name] = (0.0, 0.0, 0.0, sample_size)
+                continue
+
+            raw_effect = log(home_rate / away_rate) - league_reference_ha
+            if shrinkage_matches <= 0:
+                weight = 1.0
+            else:
+                weight = sample_size / (sample_size + shrinkage_matches)
+            beta = raw_effect * weight
+            betas[bucket_name] = (beta, raw_effect, weight, sample_size)
+
+        self._competition_beta_cache[before_date] = betas
+        return betas
+
+    @staticmethod
+    def _bucket_goal_sums_by_competition_type(
+        goal_sums: dict[str, tuple[int, int, int, int]],
+    ) -> dict[str, tuple[int, int, int, int]]:
+        buckets = {
+            "league": (0, 0, 0, 0),
+            "domestic": (0, 0, 0, 0),
+            "international": (0, 0, 0, 0),
+            "friendly": (0, 0, 0, 0),
+        }
+        for league_code, totals in goal_sums.items():
+            is_domestic, is_international, is_friendly = competition_type_flags(
+                league_code
+            )
+            if is_domestic:
+                bucket_key = "domestic"
+            elif is_international:
+                bucket_key = "international"
+            elif is_friendly:
+                bucket_key = "friendly"
+            else:
+                bucket_key = "league"
+            buckets[bucket_key] = HomeAdvantageCalculator._merge_goal_bucket(
+                buckets[bucket_key], totals
+            )
+        return buckets
+
+    @staticmethod
+    def _merge_goal_bucket(
+        left: tuple[int, int, int, int],
+        right: tuple[int, int, int, int],
+    ) -> tuple[int, int, int, int]:
+        return (
+            left[0] + right[0],
+            left[1] + right[1],
+            left[2] + right[2],
+            left[3] + right[3],
+        )
+
+    @staticmethod
+    def _log_home_advantage_from_bucket(
+        bucket: tuple[int, int, int, int],
+    ) -> float:
+        sum_home, home_count, sum_away, away_count = bucket
+        if home_count <= 0 or away_count <= 0:
+            return 0.0
+        home_rate = sum_home / home_count
+        away_rate = sum_away / away_count
+        if home_rate <= 0 or away_rate <= 0:
+            return 0.0
+        return log(home_rate / away_rate)
 
     def calc_league_season_home_advantage(
         self,
@@ -605,9 +792,13 @@ class HomeAdvantageCalculator:
         raw_league_season_home_advantage: float = 0.0,
         league_home_advantage_shrinkage_weight: float = 0.0,
         league_home_advantage_sample_size: int = 0,
+        competition_home_advantage: float = 0.0,
+        raw_competition_home_advantage: float = 0.0,
+        competition_home_advantage_shrinkage_weight: float = 0.0,
+        competition_home_advantage_sample_size: int = 0,
     ) -> HomeAdvantageResult:
         return HomeAdvantageResult(
-            home_advantage=league_season_home_advantage,
+            home_advantage=league_season_home_advantage + competition_home_advantage,
             league_season_home_advantage=league_season_home_advantage,
             team_home_advantage=0.0,
             raw_team_home_advantage=0.0,
@@ -623,4 +814,10 @@ class HomeAdvantageCalculator:
             raw_league_season_home_advantage=raw_league_season_home_advantage,
             league_home_advantage_shrinkage_weight=league_home_advantage_shrinkage_weight,
             league_home_advantage_sample_size=league_home_advantage_sample_size,
+            competition_home_advantage=competition_home_advantage,
+            raw_competition_home_advantage=raw_competition_home_advantage,
+            competition_home_advantage_shrinkage_weight=(
+                competition_home_advantage_shrinkage_weight
+            ),
+            competition_home_advantage_sample_size=competition_home_advantage_sample_size,
         )
