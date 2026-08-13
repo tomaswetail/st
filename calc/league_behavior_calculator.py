@@ -6,7 +6,7 @@ import statistics
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Sequence
+from typing import Any, Sequence
 
 from sqlalchemy.orm import Session
 
@@ -22,15 +22,22 @@ from utils.common import odds_to_probabilities
 @dataclass(frozen=True)
 class _RawLeagueStats:
     sample_size: int
+    result_sample_size: int
+    goal_sample_size: int
+    market_data_sample_size: int
+    favourite_result_sample_size: int
+    balance_sample_size: int
+    promotion_sample_size: int
     draw_rate: float | None
     home_win_rate: float | None
     away_win_rate: float | None
     avg_goals: float | None
     goal_std: float | None
     favourite_win_rate: float | None
-    market_sample_size: int
     competitive_balance: float | None
+    promoted_team_effect: float | None
     result_completeness: float
+    goal_completeness: float
     market_completeness: float
     balance_completeness: float
 
@@ -58,6 +65,8 @@ class LeagueBehaviorCalculator:
         if match.home_team.league_id is None:
             raise ValueError(f"Missing league_id on home_team for match id={match.id}")
 
+        # Historical matches store calendar dates only, so the cutoff is a date.
+        # Strict `<` excludes same-day fixtures (no datetime kickoff on history rows).
         cutoff = (
             match.start_time.date()
             if isinstance(match.start_time, datetime)
@@ -70,10 +79,16 @@ class LeagueBehaviorCalculator:
             return cached
 
         lookback = self.config.league_behavior_lookback_matches
-        league_matches = self.historical_repo.find_before_date_by_league_id(
-            league_id=league_id,
-            before_date=cutoff,
-            limit=lookback,
+        league_matches = self._newest_lookback(
+            self._matches_strictly_before(
+                self.historical_repo.find_before_date_by_league_id(
+                    league_id=league_id,
+                    before_date=cutoff,
+                    limit=lookback,
+                ),
+                cutoff=cutoff,
+            ),
+            lookback=lookback,
         )
         league_stats = self._compute_raw_stats(league_matches)
         global_stats = self._global_stats(cutoff)
@@ -87,12 +102,46 @@ class LeagueBehaviorCalculator:
             return cached
 
         lookback = self.config.league_behavior_lookback_matches
-        all_before = self.historical_repo.get_filtered(before_date=cutoff)
-        # get_filtered is oldest-first; take newest lookback window.
-        sample = all_before[-lookback:] if len(all_before) > lookback else all_before
+        sample = self._newest_lookback(
+            self._matches_strictly_before(
+                self.historical_repo.get_filtered(
+                    before_date=cutoff,
+                    limit=lookback,
+                ),
+                cutoff=cutoff,
+            ),
+            lookback=lookback,
+        )
         stats = self._compute_raw_stats(sample)
         self._global_stats_cache[cutoff] = stats
         return stats
+
+    @staticmethod
+    def _matches_strictly_before(
+        matches: Sequence[HistoricalMatchModel],
+        *,
+        cutoff: date,
+    ) -> list[HistoricalMatchModel]:
+        """Defense-in-depth: keep only match_date < cutoff (never <=)."""
+        return [
+            historical_match
+            for historical_match in matches
+            if historical_match.match_date < cutoff
+        ]
+
+    @staticmethod
+    def _newest_lookback(
+        matches: Sequence[HistoricalMatchModel],
+        *,
+        lookback: int,
+    ) -> list[HistoricalMatchModel]:
+        """Keep the newest ``lookback`` matches after a strict-before filter."""
+        newest_first = sorted(
+            matches,
+            key=lambda historical_match: historical_match.match_date,
+            reverse=True,
+        )
+        return newest_first[:lookback]
 
     def _assemble_features(
         self,
@@ -106,17 +155,22 @@ class LeagueBehaviorCalculator:
             if (sample_size + prior_strength) > 0
             else 0.0
         )
+        global_promotion = (
+            global_stats.promoted_team_effect
+            if global_stats.promoted_team_effect is not None
+            else 0.0
+        )
 
         return LeagueBehaviorFeatures(
             league_draw_rate=self._shrink_toward(
                 league_stats.draw_rate,
-                sample_size,
+                league_stats.result_sample_size,
                 global_stats.draw_rate if global_stats.draw_rate is not None else 0.25,
                 prior_strength,
             ),
             league_home_win_rate=self._shrink_toward(
                 league_stats.home_win_rate,
-                sample_size,
+                league_stats.result_sample_size,
                 (
                     global_stats.home_win_rate
                     if global_stats.home_win_rate is not None
@@ -126,7 +180,7 @@ class LeagueBehaviorCalculator:
             ),
             league_away_win_rate=self._shrink_toward(
                 league_stats.away_win_rate,
-                sample_size,
+                league_stats.result_sample_size,
                 (
                     global_stats.away_win_rate
                     if global_stats.away_win_rate is not None
@@ -136,19 +190,19 @@ class LeagueBehaviorCalculator:
             ),
             league_avg_goals=self._shrink_toward(
                 league_stats.avg_goals,
-                sample_size,
+                league_stats.goal_sample_size,
                 global_stats.avg_goals if global_stats.avg_goals is not None else 2.5,
                 prior_strength,
             ),
             league_goal_std=self._shrink_toward(
                 league_stats.goal_std,
-                sample_size if league_stats.goal_std is not None else 0,
+                league_stats.goal_sample_size if league_stats.goal_std is not None else 0,
                 global_stats.goal_std if global_stats.goal_std is not None else 1.5,
                 prior_strength,
             ),
             league_favourite_win_rate=self._shrink_toward(
                 league_stats.favourite_win_rate,
-                league_stats.market_sample_size,
+                league_stats.favourite_result_sample_size,
                 (
                     global_stats.favourite_win_rate
                     if global_stats.favourite_win_rate is not None
@@ -158,7 +212,7 @@ class LeagueBehaviorCalculator:
             ),
             league_competitive_balance=self._shrink_toward(
                 league_stats.competitive_balance,
-                sample_size if league_stats.competitive_balance is not None else 0,
+                league_stats.balance_sample_size,
                 (
                     global_stats.competitive_balance
                     if global_stats.competitive_balance is not None
@@ -166,7 +220,12 @@ class LeagueBehaviorCalculator:
                 ),
                 prior_strength,
             ),
-            league_promoted_team_effect=0.0,
+            league_promoted_team_effect=self._shrink_toward(
+                league_stats.promoted_team_effect,
+                league_stats.promotion_sample_size,
+                global_promotion,
+                prior_strength,
+            ),
             league_sample_size=sample_size,
             league_data_quality=self._data_quality(league_stats),
             league_prior_weight=prior_weight,
@@ -200,10 +259,11 @@ class LeagueBehaviorCalculator:
                 (
                     sample_term
                     + stats.result_completeness
+                    + stats.goal_completeness
                     + stats.market_completeness
                     + stats.balance_completeness
                 )
-                / 4.0,
+                / 5.0,
             ),
         )
 
@@ -214,15 +274,22 @@ class LeagueBehaviorCalculator:
         if sample_size == 0:
             return _RawLeagueStats(
                 sample_size=0,
+                result_sample_size=0,
+                goal_sample_size=0,
+                market_data_sample_size=0,
+                favourite_result_sample_size=0,
+                balance_sample_size=0,
+                promotion_sample_size=0,
                 draw_rate=None,
                 home_win_rate=None,
                 away_win_rate=None,
                 avg_goals=None,
                 goal_std=None,
                 favourite_win_rate=None,
-                market_sample_size=0,
                 competitive_balance=None,
+                promoted_team_effect=None,
                 result_completeness=0.0,
+                goal_completeness=0.0,
                 market_completeness=0.0,
                 balance_completeness=0.0,
             )
@@ -230,16 +297,18 @@ class LeagueBehaviorCalculator:
         draw_count = 0
         home_win_count = 0
         away_win_count = 0
-        usable_result_count = 0
+        result_sample_size = 0
         goal_totals: list[float] = []
         favourite_wins = 0
-        market_sample_size = 0
+        market_data_sample_size = 0
+        favourite_result_sample_size = 0
         team_goal_diffs: dict[str, list[float]] = defaultdict(list)
+        promoted_vs_established_diffs: list[float] = []
 
         for historical_match in matches:
             outcome = self._match_outcome(historical_match)
             if outcome is not None:
-                usable_result_count += 1
+                result_sample_size += 1
                 if outcome == "X":
                     draw_count += 1
                 elif outcome == "1":
@@ -261,45 +330,135 @@ class LeagueBehaviorCalculator:
                 team_goal_diffs[historical_match.home_team].append(goal_diff)
                 team_goal_diffs[historical_match.away_team].append(-goal_diff)
 
-            favourite_side = self._market_favourite_side(historical_match)
-            if favourite_side is not None and outcome is not None:
-                market_sample_size += 1
-                if favourite_side == outcome:
-                    favourite_wins += 1
+                promoted_goal_diff = self._promoted_vs_established_goal_diff(
+                    historical_match
+                )
+                if promoted_goal_diff is not None:
+                    promoted_vs_established_diffs.append(promoted_goal_diff)
 
+            favourite_side = self._market_favourite_side(historical_match)
+            if favourite_side is not None:
+                market_data_sample_size += 1
+                if outcome is not None:
+                    favourite_result_sample_size += 1
+                    if favourite_side == outcome:
+                        favourite_wins += 1
+
+        goal_sample_size = len(goal_totals)
         min_team_matches = self.config.league_behavior_min_team_matches_for_balance
-        team_means = [
-            statistics.fmean(diffs)
-            for diffs in team_goal_diffs.values()
+        qualifying_diffs = {
+            team: diffs
+            for team, diffs in team_goal_diffs.items()
             if len(diffs) >= min_team_matches
-        ]
+        }
+        team_means = [statistics.fmean(diffs) for diffs in qualifying_diffs.values()]
         teams_seen = len(team_goal_diffs)
         balance_completeness = (
             len(team_means) / teams_seen if teams_seen > 0 else 0.0
         )
+        balance_sample_size = sum(len(diffs) for diffs in qualifying_diffs.values())
         competitive_balance = None
         if len(team_means) >= 2:
             strength_std = statistics.pstdev(team_means)
             competitive_balance = 1.0 / (1.0 + strength_std)
+        else:
+            balance_sample_size = 0
+
+        promotion_sample_size = len(promoted_vs_established_diffs)
+        promoted_team_effect = (
+            statistics.fmean(promoted_vs_established_diffs)
+            if promoted_vs_established_diffs
+            else None
+        )
 
         return _RawLeagueStats(
             sample_size=sample_size,
-            draw_rate=draw_count / sample_size if usable_result_count else None,
-            home_win_rate=home_win_count / sample_size if usable_result_count else None,
-            away_win_rate=away_win_count / sample_size if usable_result_count else None,
+            result_sample_size=result_sample_size,
+            goal_sample_size=goal_sample_size,
+            market_data_sample_size=market_data_sample_size,
+            favourite_result_sample_size=favourite_result_sample_size,
+            balance_sample_size=balance_sample_size,
+            promotion_sample_size=promotion_sample_size,
+            draw_rate=(
+                draw_count / result_sample_size if result_sample_size else None
+            ),
+            home_win_rate=(
+                home_win_count / result_sample_size if result_sample_size else None
+            ),
+            away_win_rate=(
+                away_win_count / result_sample_size if result_sample_size else None
+            ),
             avg_goals=statistics.fmean(goal_totals) if goal_totals else None,
             goal_std=(
                 statistics.pstdev(goal_totals) if len(goal_totals) >= 2 else None
             ),
             favourite_win_rate=(
-                favourite_wins / market_sample_size if market_sample_size else None
+                favourite_wins / favourite_result_sample_size
+                if favourite_result_sample_size
+                else None
             ),
-            market_sample_size=market_sample_size,
             competitive_balance=competitive_balance,
-            result_completeness=usable_result_count / sample_size,
-            market_completeness=market_sample_size / sample_size,
+            promoted_team_effect=promoted_team_effect,
+            result_completeness=result_sample_size / sample_size,
+            goal_completeness=goal_sample_size / sample_size,
+            market_completeness=market_data_sample_size / sample_size,
             balance_completeness=balance_completeness,
         )
+
+    def _promoted_vs_established_goal_diff(
+        self, historical_match: HistoricalMatchModel
+    ) -> float | None:
+        """One observation per promoted-vs-established match (non-overlapping)."""
+        if (
+            historical_match.home_goals is None
+            or historical_match.away_goals is None
+        ):
+            return None
+        home_promoted, away_promoted = self._promotion_flags(historical_match)
+        if home_promoted is True and away_promoted is False:
+            return float(historical_match.home_goals - historical_match.away_goals)
+        if away_promoted is True and home_promoted is False:
+            return float(historical_match.away_goals - historical_match.home_goals)
+        return None
+
+    @staticmethod
+    def _promotion_flags(
+        historical_match: HistoricalMatchModel,
+    ) -> tuple[bool | None, bool | None]:
+        """Read optional promotion status; None means unavailable (do not invent)."""
+        home = LeagueBehaviorCalculator._coerce_promotion_flag(
+            getattr(historical_match, "home_promoted", None)
+        )
+        away = LeagueBehaviorCalculator._coerce_promotion_flag(
+            getattr(historical_match, "away_promoted", None)
+        )
+        raw_data = getattr(historical_match, "raw_data", None)
+        if isinstance(raw_data, dict):
+            if home is None:
+                home = LeagueBehaviorCalculator._coerce_promotion_flag(
+                    raw_data.get("home_promoted")
+                )
+            if away is None:
+                away = LeagueBehaviorCalculator._coerce_promotion_flag(
+                    raw_data.get("away_promoted")
+                )
+        return home, away
+
+    @staticmethod
+    def _coerce_promotion_flag(value: Any) -> bool | None:
+        if value is None:
+            return None
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, (int, float)) and value in (0, 1):
+            return bool(value)
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"1", "true", "yes", "promoted"}:
+                return True
+            if normalized in {"0", "false", "no", "established"}:
+                return False
+        return None
 
     @staticmethod
     def _match_outcome(historical_match: HistoricalMatchModel) -> str | None:

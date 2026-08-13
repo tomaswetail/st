@@ -82,7 +82,11 @@ class HistoricalMatchRepository(BaseRepository[HistoricalMatchModel]):
         season: str | None = None,
         limit: int = 500,
     ) -> list[HistoricalMatchModel]:
-        """Newest-first league matches before cutoff (excludes cups/Europe)."""
+        """Newest-first league matches with match_date < before_date, then limit.
+
+        The strict ``<`` cutoff is applied in SQL before ``ORDER BY`` / ``LIMIT``,
+        so the lookback window is the newest N matches strictly before the cutoff.
+        """
         league = self.league_repo.get(league_id)
         if league is None:
             return []
@@ -257,8 +261,14 @@ class HistoricalMatchRepository(BaseRepository[HistoricalMatchModel]):
         leagues: list[str] | None = None,
         seasons: list[str] | None = None,
         before_date: date | None = None,
+        limit: int | None = None,
     ) -> list[HistoricalMatchModel]:
-        print(f"Pre get_filtered")
+        """Return historical matches, optionally capped to newest ``limit`` rows.
+
+        When ``before_date`` is set, only ``match_date < before_date`` rows are
+        included (strict). When ``limit`` is set, the newest matching rows are
+        returned (newest-first).
+        """
         query = select(self.model)
         if leagues:
             query = query.where(self.model.league.in_(leagues))
@@ -266,7 +276,10 @@ class HistoricalMatchRepository(BaseRepository[HistoricalMatchModel]):
             query = query.where(self.model.season.in_(seasons))
         if before_date:
             query = query.where(self.model.match_date < before_date)
-        query = query.order_by(self.model.match_date.asc())
+        if limit is not None:
+            query = query.order_by(self.model.match_date.desc()).limit(limit)
+        else:
+            query = query.order_by(self.model.match_date.asc())
         return list(self.session.scalars(query).all())
 
     def get_matches_by_team(self, team: TeamModel) -> list[HistoricalMatch]:

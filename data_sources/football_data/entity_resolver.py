@@ -53,7 +53,7 @@ class EntityResolver:
     ) -> None:
         """Wire repositories and team-name aliases for a provider."""
         self.session = session
-        self.config = DataSourceConfig()
+        self.config = config or DataSourceConfig()
         self.provider = provider
         self.mapping_repo = ExternalEntityMappingRepository(session)
         self.team_repo = TeamRepository(session)
@@ -310,6 +310,7 @@ class EntityResolver:
             team = self.team_repo.get_by_name_and_league(name, league_id)
             if team is not None:
                 return team
+        return self.team_repo.get_by_name(name)
 
     def _get_team_by_name_fuzzy(
             self, name: str

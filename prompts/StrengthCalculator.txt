@@ -1,0 +1,1088 @@
+Implement a team-strength feature system for the football prediction engine.
+
+The goal is to improve 1/X/2 probabilities by measuring **underlying attacking and defensive performance**, rather than relying mainly on recent results.
+
+The implementation must use the project's existing:
+
+* `Match`
+* `Team`
+* `League`
+* historical FotMob/SofaScore match data
+* xG / shot data tables
+* database/session architecture
+* prediction pipeline
+* repository/service patterns
+* configuration patterns
+
+Inspect the existing codebase first. Do not duplicate models or introduce a parallel prediction architecture.
+
+# Objective
+
+For every upcoming match, calculate historical pre-match features describing:
+
+```text
+non_penalty_xg_for
+non_penalty_xg_against
+
+shot_quality_for
+shot_quality_conceded
+
+home_attack_strength
+home_defence_strength
+
+away_attack_strength
+away_defence_strength
+
+opponent_adjusted_attack_strength
+opponent_adjusted_defence_strength
+
+recency_weighted_attack_rating
+recency_weighted_defence_rating
+
+set_piece_xg_for
+set_piece_xg_against
+
+goalkeeper_goals_prevented
+goalkeeper_prevention_rating
+```
+
+Also implement a Dixon-Coles goal model capable of producing:
+
+```text
+expected_home_goals
+expected_away_goals
+
+p_home
+p_draw
+p_away
+```
+
+These features must be calculated using **only information available before the target match**.
+
+No future-data leakage is allowed.
+
+---
+
+# 1. Create a TeamStrengthFeatureService
+
+Create one public interface similar to:
+
+```python
+class TeamStrengthFeatureService:
+
+    def get_match_features(
+        self,
+        match_id: int,
+        lookback_matches: int = 20,
+    ) -> MatchStrengthFeatures:
+        ...
+
+    def get_team_features(
+        self,
+        team_id: int,
+        before: datetime,
+        venue: Literal["home", "away"] | None = None,
+        lookback_matches: int = 20,
+    ) -> TeamStrengthFeatures:
+        ...
+```
+
+Adapt naming and sync/async behaviour to the existing project.
+
+The service must query historical matches strictly where:
+
+```text
+historical_match.kickoff_at < target_match.kickoff_at
+```
+
+Never include the target match itself.
+
+---
+
+# 2. Non-penalty xG
+
+Calculate separately:
+
+```text
+npxg_for
+npxg_against
+```
+
+For each historical match:
+
+```python
+npxg_for = sum(
+    shot.xg
+    for shot in team_shots
+    if not shot.is_penalty
+)
+
+npxg_against = sum(
+    shot.xg
+    for shot in opponent_shots
+    if not shot.is_penalty
+)
+```
+
+If reliable match-level non-penalty xG already exists, reuse it.
+
+Do not estimate missing xG as zero.
+
+Missing data must remain `None` or be excluded according to a clearly documented rule.
+
+Calculate:
+
+```text
+npxg_for_per_match
+npxg_against_per_match
+npxg_difference
+```
+
+---
+
+# 3. Shot quality
+
+Measure shot quality separately from shot volume.
+
+Calculate:
+
+```python
+average_shot_xg_for = total_xg_for / shots_for
+
+average_shot_xg_against = total_xg_against / shots_against
+```
+
+The defensive metric:
+
+```text
+shot_quality_conceded
+```
+
+should therefore represent the average xG value of shots allowed.
+
+Also expose:
+
+```text
+shots_for_per_match
+shots_against_per_match
+
+shots_on_target_for_per_match
+shots_on_target_against_per_match
+```
+
+This helps distinguish:
+
+```text
+Team A:
+15 shots
+0.8 xG
+
+Team B:
+8 shots
+1.6 xG
+```
+
+Team B is generating much better chances despite taking fewer shots.
+
+---
+
+# 4. Recency weighting
+
+Recent matches should matter more than older matches.
+
+Implement configurable exponential weighting:
+
+```python
+weight = decay ** matches_ago
+```
+
+Default:
+
+```text
+decay = 0.90
+```
+
+Example:
+
+```text
+most recent match: 1.00
+1 match ago:       0.90
+2 matches ago:     0.81
+3 matches ago:     0.729
+...
+```
+
+Implement a reusable weighted mean:
+
+```python
+weighted_mean(values, weights)
+```
+
+Use recency weighting for:
+
+```text
+npxg_for
+npxg_against
+
+xg_for
+xg_against
+
+shot_quality_for
+shot_quality_conceded
+
+set_piece_xg_for
+set_piece_xg_against
+```
+
+Expose:
+
+```text
+recency_weighted_attack_rating
+recency_weighted_defence_rating
+```
+
+Do not weight based simply on calendar days unless the existing architecture already does so.
+
+---
+
+# 5. Separate home and away strength
+
+Do not calculate only one generic team-strength rating.
+
+Calculate:
+
+```text
+home_attack_strength
+home_defence_strength
+
+away_attack_strength
+away_defence_strength
+```
+
+For example:
+
+```python
+home_attack_strength =
+    team's weighted home npxG_for
+    / league weighted home npxG average
+
+home_defence_strength =
+    team's weighted home npxG_against
+    / league weighted away npxG average
+```
+
+Equivalent calculations should exist for away performance.
+
+Interpretation:
+
+```text
+attack > 1.0 = above-average attack
+
+attack < 1.0 = below-average attack
+
+defence < 1.0 = better-than-average defence
+
+defence > 1.0 = worse-than-average defence
+```
+
+Document the semantics clearly.
+
+Apply minimum-sample safeguards.
+
+If home/away samples are too small, shrink toward the team's overall rating.
+
+---
+
+# 6. Regression / shrinkage
+
+Small samples must not produce extreme ratings.
+
+Implement configurable Bayesian-style shrinkage:
+
+```python
+shrunk_rating = (
+    sample_size * observed_rating
+    + prior_strength * prior_rating
+) / (
+    sample_size + prior_strength
+)
+```
+
+Default prior:
+
+```text
+prior_rating = 1.0
+```
+
+Example configurable value:
+
+```text
+prior_strength = 8 matches
+```
+
+Apply shrinkage to:
+
+```text
+home attack
+home defence
+away attack
+away defence
+goalkeeper ratings
+set-piece ratings
+```
+
+Do not allow a newly promoted team with two matches to receive extreme ratings solely from those two observations.
+
+---
+
+# 7. Opponent-adjusted performance
+
+Raw xG can be misleading because fixture difficulty differs.
+
+Example:
+
+```text
+1.4 xG against Manchester City
+
+may represent a much better attacking performance than:
+
+1.8 xG against the weakest defence in the league
+```
+
+Create opponent-adjusted ratings.
+
+At minimum, calculate an adjustment based on the opponent's historical defensive/attacking strength before that historical match.
+
+Example concept:
+
+```python
+adjusted_attacking_performance =
+    observed_npxg_for / opponent_expected_npxg_conceded
+```
+
+and:
+
+```python
+adjusted_defensive_performance =
+    observed_npxg_against / opponent_expected_npxg_created
+```
+
+Then calculate recency-weighted averages.
+
+Avoid circular calculations where possible.
+
+A preferred implementation is an iterative rating approach:
+
+```text
+1. Initialize all teams at league average.
+
+2. Calculate attack/defence performance.
+
+3. Adjust each historical match for opponent quality.
+
+4. Recalculate ratings.
+
+5. Repeat until ratings stabilize or max iterations are reached.
+```
+
+Expose:
+
+```text
+opponent_adjusted_attack_strength
+opponent_adjusted_defence_strength
+```
+
+Make:
+
+```text
+max_iterations
+convergence_tolerance
+```
+
+configurable.
+
+Do not use the opponent's future rating.
+
+---
+
+# 8. Set-piece performance
+
+Using shot-level situation data when available, calculate:
+
+```text
+set_piece_xg_for
+set_piece_xg_against
+```
+
+Include situations such as:
+
+```text
+corner
+free kick
+indirect free kick
+set piece
+```
+
+according to the normalized provider model.
+
+Keep penalties separate.
+
+Prefer:
+
+```text
+open_play_xg
+set_piece_xg
+penalty_xg
+```
+
+as distinct categories.
+
+Expose recency-weighted and per-match values.
+
+Example:
+
+```text
+set_piece_xg_for_per_match
+set_piece_xg_against_per_match
+set_piece_attack_strength
+set_piece_defence_strength
+```
+
+If situation classification is unavailable, leave these values missing.
+
+Do not infer set-piece xG from total xG.
+
+---
+
+# 9. Goalkeeper prevention
+
+When xGOT / post-shot xG is available, calculate goalkeeper performance.
+
+At the match level:
+
+```python
+goals_prevented =
+    xgot_faced - goals_conceded
+```
+
+Positive:
+
+```text
+keeper prevented more goals than expected
+```
+
+Negative:
+
+```text
+keeper conceded more goals than expected
+```
+
+Calculate:
+
+```text
+goalkeeper_xgot_faced
+goalkeeper_goals_conceded
+goalkeeper_goals_prevented
+goalkeeper_goals_prevented_per_90
+```
+
+Do not rely heavily on raw goalkeeper prevention over small samples.
+
+Apply aggressive regression toward league average.
+
+Example:
+
+```python
+regressed_keeper_rating = (
+    shots_faced * observed_rating
+    + prior_shots * league_average_rating
+) / (
+    shots_faced + prior_shots
+)
+```
+
+Make `prior_shots` configurable.
+
+If the expected goalkeeper for an upcoming match is known, use that goalkeeper.
+
+Otherwise use a team-level weighted goalkeeper rating based on recent minutes.
+
+Never treat missing xGOT as zero.
+
+---
+
+# 10. Performance versus results
+
+The model must distinguish actual results from underlying performance.
+
+Example:
+
+```text
+Team A last 3:
+
+Won 1-0
+xG: 0.6 - 1.8
+
+Won 2-1
+xG: 0.8 - 1.7
+
+Won 1-0
+xG: 0.5 - 1.4
+```
+
+This should NOT produce the same strength increase as:
+
+```text
+Team B last 3:
+
+Won 2-0
+xG: 2.1 - 0.7
+
+Won 3-1
+xG: 2.5 - 0.9
+
+Won 2-0
+xG: 1.9 - 0.5
+```
+
+Underlying xG performance should dominate short-term win/loss streaks in the team-strength model.
+
+Do not create a feature equivalent to:
+
+```text
+last_5_wins
+```
+
+and allow it to dominate the ratings.
+
+Results may exist as secondary features, but underlying performance must be kept separate.
+
+---
+
+# 11. League baselines
+
+Calculate rolling league-level baselines:
+
+```text
+league_home_npxg
+league_away_npxg
+
+league_home_xg
+league_away_xg
+
+league_set_piece_xg
+
+league_shot_quality
+
+league_home_advantage
+```
+
+These baselines must only use matches played before the target match.
+
+Use them to normalize team ratings.
+
+Where league data is sparse, shrink league values toward broader historical priors.
+
+---
+
+# 12. Dixon-Coles model
+
+Implement a separate Dixon-Coles goal model.
+
+It should estimate:
+
+```text
+home_attack
+home_defence
+away_attack
+away_defence
+home_advantage
+rho
+```
+
+Use historical scorelines to fit the model.
+
+Expected goals should be calculated approximately as:
+
+```python
+lambda_home = (
+    league_home_goal_rate
+    * home_attack_strength
+    * away_defence_strength
+)
+
+lambda_away = (
+    league_away_goal_rate
+    * away_attack_strength
+    * home_defence_strength
+)
+```
+
+Adapt the exact parameterization to a standard Dixon-Coles implementation.
+
+Calculate Poisson score probabilities:
+
+```text
+0-0
+1-0
+0-1
+1-1
+2-0
+0-2
+2-1
+1-2
+...
+```
+
+up to a configurable maximum score, for example:
+
+```text
+max_goals = 10
+```
+
+Apply the Dixon-Coles low-score correction to:
+
+```text
+0-0
+1-0
+0-1
+1-1
+```
+
+using parameter:
+
+```text
+rho
+```
+
+Then aggregate:
+
+```python
+p_home = sum(P(home_goals > away_goals))
+
+p_draw = sum(P(home_goals == away_goals))
+
+p_away = sum(P(home_goals < away_goals))
+```
+
+Ensure:
+
+```python
+p_home + p_draw + p_away == 1
+```
+
+within floating-point tolerance.
+
+---
+
+# 13. Combine xG strength with Dixon-Coles
+
+Do not replace the xG strength model with Dixon-Coles.
+
+Keep both.
+
+Produce features such as:
+
+```text
+xg_expected_home_goals
+xg_expected_away_goals
+
+dixon_coles_expected_home_goals
+dixon_coles_expected_away_goals
+
+dixon_coles_home_probability
+dixon_coles_draw_probability
+dixon_coles_away_probability
+```
+
+These should later be available to the ML model.
+
+The ML layer should be able to learn where:
+
+```text
+xG strength model
+vs
+Dixon-Coles score model
+vs
+market probabilities
+```
+
+disagree.
+
+---
+
+# 14. Match feature object
+
+Create a structured output similar to:
+
+```python
+@dataclass
+class MatchStrengthFeatures:
+
+    home_npxg_for: float | None
+    home_npxg_against: float | None
+
+    away_npxg_for: float | None
+    away_npxg_against: float | None
+
+    home_shot_quality_for: float | None
+    home_shot_quality_conceded: float | None
+
+    away_shot_quality_for: float | None
+    away_shot_quality_conceded: float | None
+
+    home_attack_strength: float | None
+    home_defence_strength: float | None
+
+    away_attack_strength: float | None
+    away_defence_strength: float | None
+
+    home_opponent_adjusted_attack: float | None
+    home_opponent_adjusted_defence: float | None
+
+    away_opponent_adjusted_attack: float | None
+    away_opponent_adjusted_defence: float | None
+
+    home_set_piece_attack: float | None
+    home_set_piece_defence: float | None
+
+    away_set_piece_attack: float | None
+    away_set_piece_defence: float | None
+
+    home_goalkeeper_prevention: float | None
+    away_goalkeeper_prevention: float | None
+
+    expected_home_goals: float | None
+    expected_away_goals: float | None
+
+    dixon_coles_home_probability: float | None
+    dixon_coles_draw_probability: float | None
+    dixon_coles_away_probability: float | None
+```
+
+Adapt this to existing project conventions.
+
+---
+
+# 15. Cache/store calculated features
+
+Historical feature generation will be expensive during ML training.
+
+Do not recalculate everything from raw shots repeatedly if avoidable.
+
+Inspect the current architecture and determine whether to:
+
+```text
+A. cache calculated team ratings
+
+or
+
+B. materialize pre-match features
+```
+
+A useful structure could be:
+
+```text
+team_strength_snapshot
+
+team_id
+league_id
+calculated_at
+before_match_id
+
+attack_strength
+defence_strength
+
+home_attack_strength
+home_defence_strength
+
+away_attack_strength
+away_defence_strength
+
+opponent_adjusted_attack
+opponent_adjusted_defence
+
+recency_attack
+recency_defence
+
+set_piece_attack
+set_piece_defence
+
+goalkeeper_prevention
+```
+
+Do not create this table if an equivalent feature-storage mechanism already exists.
+
+Snapshots must represent information available at that historical point in time.
+
+---
+
+# 16. ML integration
+
+Expose all new features to the existing ML feature-generation pipeline.
+
+Do not immediately force them into the production model.
+
+Add them in a way that allows controlled backtesting.
+
+Feature names should be stable and explicit.
+
+Include:
+
+```text
+home_npxg_for
+home_npxg_against
+away_npxg_for
+away_npxg_against
+
+npxg_difference
+
+home_attack_strength
+home_defence_strength
+away_attack_strength
+away_defence_strength
+
+attack_strength_difference
+defence_strength_difference
+
+home_opponent_adjusted_attack
+away_opponent_adjusted_attack
+
+home_recency_attack
+home_recency_defence
+away_recency_attack
+away_recency_defence
+
+home_shot_quality_for
+home_shot_quality_conceded
+away_shot_quality_for
+away_shot_quality_conceded
+
+home_set_piece_attack
+home_set_piece_defence
+away_set_piece_attack
+away_set_piece_defence
+
+home_goalkeeper_prevention
+away_goalkeeper_prevention
+
+expected_goal_difference
+expected_goal_total
+
+dixon_coles_home_probability
+dixon_coles_draw_probability
+dixon_coles_away_probability
+```
+
+---
+
+# 17. Missing-data handling
+
+Different leagues have different FotMob/SofaScore coverage.
+
+The system must handle this explicitly.
+
+For each feature:
+
+```text
+do not convert missing value to zero
+```
+
+Where useful, add availability indicators:
+
+```text
+has_xg_data
+has_shot_data
+has_xgot_data
+has_set_piece_data
+```
+
+Allow ML preprocessing to impute missing values later.
+
+---
+
+# 18. Configuration
+
+Make important parameters configurable:
+
+```text
+TEAM_STRENGTH_LOOKBACK_MATCHES=20
+
+TEAM_STRENGTH_RECENCY_DECAY=0.90
+
+TEAM_STRENGTH_PRIOR_MATCHES=8
+
+GOALKEEPER_PRIOR_SHOTS=100
+
+OPPONENT_ADJUSTMENT_MAX_ITERATIONS=20
+
+OPPONENT_ADJUSTMENT_TOLERANCE=0.0001
+
+DIXON_COLES_LOOKBACK_DAYS=730
+
+DIXON_COLES_MAX_GOALS=10
+```
+
+Use the project's existing configuration system.
+
+---
+
+# 19. Tests
+
+Add unit and integration tests for at least:
+
+1. Non-penalty xG calculation
+2. Penalties excluded correctly
+3. Shot quality calculation
+4. Shot quality conceded
+5. Home-only strength
+6. Away-only strength
+7. League normalization
+8. Recency weighting
+9. Shrinkage toward league average
+10. Opponent adjustment
+11. Set-piece xG
+12. Missing set-piece classification
+13. Goalkeeper goals prevented
+14. Goalkeeper regression
+15. Missing xGOT
+16. Dixon-Coles probability matrix
+17. Dixon-Coles low-score adjustment
+18. 1/X/2 probabilities sum to 1
+19. Historical feature generation
+20. Strict prevention of future-data leakage
+
+Especially test:
+
+```python
+assert all(
+    source_match.kickoff_at < target_match.kickoff_at
+    for source_match in feature_source_matches
+)
+```
+
+---
+
+# 20. Backtesting
+
+Add tooling to compare the prediction engine:
+
+```text
+baseline model
+
+vs
+
+baseline + underlying-strength features
+
+vs
+
+baseline + underlying-strength + Dixon-Coles
+```
+
+Use chronological / walk-forward validation.
+
+Primary metric:
+
+```text
+multiclass log loss
+```
+
+Also report:
+
+```text
+Brier score
+
+1 calibration
+X calibration
+2 calibration
+
+home log loss
+draw log loss
+away log loss
+```
+
+Do not judge this feature implementation by raw accuracy alone.
+
+Output something similar to:
+
+```text
+                         Log loss
+Baseline                  1.041
++ underlying strength     1.016
++ Dixon-Coles             1.009
+```
+
+Only consider the change beneficial if it improves out-of-sample results.
+
+---
+
+# 21. Debugging/explainability
+
+Provide a way to inspect why a team received a particular rating.
+
+Example:
+
+```text
+Arsenal before Match 123
+
+Matches used: 20
+
+Weighted npxG for:          1.84
+Weighted npxG against:      0.91
+
+Home attack strength:       1.31
+Home defence strength:      0.78
+
+Opponent-adjusted attack:   1.24
+Opponent-adjusted defence:  0.82
+
+Set-piece attack:           1.18
+
+Goalkeeper prevention:      +0.14 / match
+
+Dixon-Coles λ home:         1.78
+Dixon-Coles λ away:         0.86
+
+Dixon-Coles:
+1 = 58.4%
+X = 24.1%
+2 = 17.5%
+```
+
+This should make it possible to debug strange predictions.
+
+---
+
+# Implementation requirements
+
+Before changing code:
+
+1. Inspect how existing `Match`, `Team`, `League`, xG and shot data are stored.
+2. Inspect the existing prediction/ML feature pipeline.
+3. Identify reusable repositories/services.
+4. Show the proposed files/classes that need to be added or modified.
+5. Explain how historical leakage will be prevented.
+
+Then implement the feature system.
+
+Keep these concerns separated:
+
+```text
+raw data ingestion
+        ↓
+historical statistics
+        ↓
+team-strength calculations
+        ↓
+Dixon-Coles
+        ↓
+ML feature generation
+        ↓
+probability model
+```
+
+Do not mix HTTP/FotMob/SofaScore fetching into the strength calculation layer.
+
+The strength layer should operate entirely on normalized data already stored in the database.
+
+Prioritize correctness, historical reproducibility, no data leakage, and testability over clever abstractions.

@@ -109,15 +109,20 @@ def test_team_resolution_order_mapping_then_exact():
 
     resolver.mapping_repo.get_by_external = MagicMock(return_value=None)
     resolver._team_name_cache = ["Manchester City", "Arsenal"]
+    resolver._aliases = {}
     resolver.team_repo.get_by_name = MagicMock(
         return_value=SimpleNamespace(id=11, name="Arsenal")
     )
     resolver.team_repo.get_by_name_and_league = MagicMock(return_value=None)
+    resolver.team_repo.team_name_wide_search = MagicMock(return_value=None)
+    resolver.team_repo.get_by_machine_name = MagicMock(return_value=None)
+    resolver.team_repo.team_likely_name_wide_search = MagicMock(return_value=None)
     result = resolver.resolve_team(
         provider_team_id="999",
         provider_team_name="Arsenal FC",
     )
     assert result.method == "exact_name"
+    assert result.team.id == 11
 
 
 def test_team_resolution_unresolved_low_confidence(caplog):
@@ -126,8 +131,12 @@ def test_team_resolution_unresolved_low_confidence(caplog):
     resolver = EntityResolver(session, config=config, provider="fotmob")
     resolver.mapping_repo.get_by_external = MagicMock(return_value=None)
     resolver._team_name_cache = ["Arsenal"]
+    resolver._aliases = {}
     resolver.team_repo.get_by_name = MagicMock(return_value=None)
     resolver.team_repo.get_by_name_and_league = MagicMock(return_value=None)
+    resolver.team_repo.team_name_wide_search = MagicMock(return_value=None)
+    resolver.team_repo.get_by_machine_name = MagicMock(return_value=None)
+    resolver.team_repo.team_likely_name_wide_search = MagicMock(return_value=None)
     result = resolver.resolve_team(
         provider_team_id="1",
         provider_team_name="Completely Unknown United",
@@ -178,18 +187,10 @@ def test_postponed_fixture_matching_via_season():
         home_team="Chelsea",
         away_team="Liverpool",
     )
-
-    def scalar_side_effect(statement):
-        # First query (date window) empty; second (season) returns postponed match.
-        sql = str(statement)
-        return None
-
-    # session.scalars().all() pattern
-    empty = MagicMock()
-    empty.all.return_value = []
-    season_result = MagicMock()
-    season_result.all.return_value = [postponed]
-    session.scalars.side_effect = [empty, season_result]
+    resolver.historical_repo.find_by_date_range_and_teams = MagicMock(return_value=[])
+    resolver.historical_repo.find_by_season_and_teams = MagicMock(
+        return_value=[postponed]
+    )
 
     provider_match = ProviderMatch(
         provider_match_id="4000002",
@@ -205,13 +206,14 @@ def test_postponed_fixture_matching_via_season():
     home = SimpleNamespace(id=1, name="Chelsea", short_name=None, medium_name=None)
     away = SimpleNamespace(id=2, name="Liverpool", short_name=None, medium_name=None)
     resolver.team_repo.to_football_data_name = MagicMock(side_effect=lambda n: n)
+    resolver.team_repo.team_name_wide_search = MagicMock(return_value=None)
     result = resolver.resolve_match(
         provider_match,
         league_code="E0",
         home_team=home,
         away_team=away,
         season="2526",
-        league_id=47
+        league_id=47,
     )
     assert result.match is not None
     assert result.match.id == 77

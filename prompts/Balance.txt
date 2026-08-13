@@ -1,0 +1,157 @@
+Implement **Match balance and expected goal environment** as a new class.
+
+## Goal
+
+Create a new file containing:
+
+```python
+class BalanceAndEnvironment:
+    ...
+```
+
+The class should calculate features that describe how balanced and low-scoring a match is, with particular focus on improving prediction of **draws (X)**.
+
+### Core features
+
+Implement at minimum:
+
+```python
+strength_difference = abs(home_strength - away_strength)
+
+expected_goal_difference = abs(home_xg - away_xg)
+
+expected_goal_total = home_xg + away_xg
+
+market_balance = abs(
+    market_home_probability - market_away_probability
+)
+```
+
+Also implement features for:
+
+* Defensive strength difference/balance
+* Favourite strength, e.g. how far the strongest team is from 50% market probability
+* Recent draw rate for both teams
+* Frequency of close matches
+* Frequency of one-goal matches
+* Low-scoring match tendency
+
+## StrengthCalculator integration
+
+**Do not duplicate strength calculations.**
+
+Inspect the existing `StrengthCalculator` and reuse it whenever `BalanceAndEnvironment` needs values that it already calculates or can derive, including for example:
+
+* `home_strength`
+* `away_strength`
+* attacking strength
+* defensive strength
+* expected goals / xG-related strength estimates
+
+If a required value logically belongs to `StrengthCalculator`, obtain it from there rather than implementing another independent strength model inside `BalanceAndEnvironment`.
+
+`BalanceAndEnvironment` should primarily **combine existing strength information into match-balance/environment features**.
+
+## Historical calculations
+
+All historical/team-form features must be calculated using **only matches before the target match**.
+
+No future-data leakage is allowed.
+
+For recent metrics, use a configurable rolling window, for example:
+
+```python
+recent_matches = 10
+```
+
+Examples:
+
+```python
+home_recent_draw_rate
+away_recent_draw_rate
+
+home_one_goal_match_rate
+away_one_goal_match_rate
+
+home_close_match_rate
+away_close_match_rate
+
+home_low_scoring_rate
+away_low_scoring_rate
+```
+
+Define "one-goal match" as:
+
+```python
+abs(goals_for - goals_against) == 1
+```
+
+Define "close match" as:
+
+```python
+abs(goals_for - goals_against) <= 1
+```
+
+Define "low-scoring match" using a configurable threshold, default:
+
+```python
+total_goals <= 2
+```
+
+Also expose combined versions where useful, e.g.:
+
+```python
+combined_draw_rate
+combined_close_match_rate
+combined_one_goal_match_rate
+combined_low_scoring_rate
+```
+
+Prefer simple averages for the combined versions.
+
+## API
+
+Provide one clear public entry point, for example:
+
+```python
+features = calculator.calculate(
+    match=match,
+    historical_matches=historical_matches,
+    market_probabilities=market_probabilities,
+)
+```
+
+Return a typed object/dataclass or dictionary containing all calculated features.
+
+The implementation should fit the project's existing models/interfaces instead of introducing parallel `Match`, `Team`, or `League` representations.
+
+## Important modelling rules
+
+These features should describe conditions associated with draws:
+
+* Small `strength_difference` → more balanced match
+* Small `expected_goal_difference` → more balanced expected score
+* Low `expected_goal_total` → generally more draw-friendly
+* Small defensive-strength difference → more balanced
+* Small `market_balance` → neither team is a strong favourite
+* High recent close-match frequency → stronger draw signal
+
+Do **not** manually increase `p_draw` inside this class.
+
+`BalanceAndEnvironment` is a **feature calculator**, not a probability correction layer.
+
+If a specialist draw model exists or is added later, its output should be blended and recalibrated with the main model rather than directly added to `p_draw`.
+
+## Implementation quality
+
+* Reuse existing helpers and `StrengthCalculator`.
+* Avoid duplicated calculations.
+* Add type hints.
+* Handle missing/insufficient history gracefully.
+* Avoid look-ahead/data leakage.
+* Keep calculations deterministic.
+* Add unit tests for each feature.
+* Add tests explicitly proving that the target match and future matches are excluded.
+* Follow the existing project's naming/style conventions.
+
+Before implementing, inspect the existing `StrengthCalculator` API and related strength objects and wire `BalanceAndEnvironment` into them rather than guessing or recreating their functionality.
