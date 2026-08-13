@@ -79,6 +79,7 @@ class HistoricalMatchRepository(BaseRepository[HistoricalMatchModel]):
         *,
         league_id: int,
         before_date: date,
+        season: str | None = None,
         limit: int = 500,
     ) -> list[HistoricalMatchModel]:
         """Newest-first league matches before cutoff (excludes cups/Europe)."""
@@ -86,16 +87,38 @@ class HistoricalMatchRepository(BaseRepository[HistoricalMatchModel]):
         if league is None:
             return []
         league_code = LEAGUE_NAMES_REV.get(league.name, league.name)
+        filters = [
+            self.model.match_date < before_date,
+            self.model.league == league_code,
+        ]
+        if season is not None:
+            filters.append(self.model.season == self._to_season_code(season))
         query = (
             select(self.model)
-            .where(
-                self.model.match_date < before_date,
-                self.model.league == league_code,
-            )
+            .where(*filters)
             .order_by(self.model.match_date.desc())
             .limit(limit)
         )
         return list(self.session.scalars(query).all())
+
+    @staticmethod
+    def _to_season_code(season: str) -> str:
+        """Normalize start-year or football-data season codes to DB season codes."""
+        text = str(season).strip()
+        if len(text) == 4 and text.isdigit():
+            start = int(text[:2])
+            end = int(text[2:])
+            if end == (start + 1) % 100:
+                return text
+            if int(text) >= 1900:
+                try:
+                    return get_season(text)
+                except KeyError:
+                    return text
+        try:
+            return get_season(text)
+        except KeyError:
+            return text
 
     @staticmethod
     def _venue_filters(
@@ -273,6 +296,30 @@ class HistoricalMatchRepository(BaseRepository[HistoricalMatchModel]):
         result = self.session.execute(stmt)
         t = result.one()[0]
         return t
+
+    def get_home_goals_sum_by_league(
+        self, league_id: int, season: str, before_date: date
+    ) -> tuple[int, int]:
+        league = self.league_repo.get(league_id)
+        season = get_season(season)
+        stmt = text(
+            f"SELECT SUM(home_goals), COUNT(*) FROM historical_matches WHERE league='{LEAGUE_NAMES_REV[league.name]}' AND season='{season}' AND match_date < '{before_date}';"
+        )
+        result = self.session.execute(stmt)
+        goals_sum, match_count = result.one()
+        return (goals_sum or 0, match_count or 0)
+
+    def get_away_goals_sum_by_league(
+        self, league_id: int, season: str, before_date: date
+    ) -> tuple[int, int]:
+        league = self.league_repo.get(league_id)
+        season = get_season(season)
+        stmt = text(
+            f"SELECT SUM(away_goals), COUNT(*) FROM historical_matches WHERE league='{LEAGUE_NAMES_REV[league.name]}' AND season='{season}' AND match_date < '{before_date}';"
+        )
+        result = self.session.execute(stmt)
+        goals_sum, match_count = result.one()
+        return (goals_sum or 0, match_count or 0)
 
     def get_goal_average_by_league(self, league_id: int):
 
@@ -487,14 +534,3 @@ class HistoricalMatchRepository(BaseRepository[HistoricalMatchModel]):
                 market_probabilities["2"] if market_probabilities else None
             ),
         )
-
-    def get_home_advantage(self):
-        stmt = text(
-            f"SELECT COUNT(*) FROM historical_matches WHERE home_goals > away_goals;")
-        result = self.session.execute(stmt)
-        num_home_wins = result.one()[0]
-        stmt = text(
-            f"SELECT COUNT(*) FROM historical_matches WHERE home_goals < away_goals;")
-        result = self.session.execute(stmt)
-        num_away_wins = result.one()[0]
-        return float(num_home_wins/num_away_wins) - 1

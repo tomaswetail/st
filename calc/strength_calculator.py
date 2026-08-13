@@ -28,9 +28,16 @@ from objects.schema.data_classes.team_strength_features import (
     MatchStrengthFeatures,
     TeamStrengthFeatures,
 )
+from calc.strength_helpers import (
+    WeightedObservation,
+    append_observation,
+    baselines_from_stats,
+    normalize_strength,
+    recency_weights,
+    shrink,
+    weighted_mean_from_pairs,
+)
 
-# (metric_value, recency_weight) pairs, newest match first.
-WeightedObservation = tuple[float, float]
 # (xg, shots, recency_weight) for average shot xG = sum(w*xg) / sum(w*shots).
 ShotQualityObservation = tuple[float, float, float]
 MatchStatRow = tuple[HistoricalMatchModel, MatchAdvancedStatsModel, bool]
@@ -79,53 +86,6 @@ class _ObservationBuckets:
     shots_on_target_faced_values: list[WeightedObservation] = field(
         default_factory=list
     )
-
-
-def weighted_mean(
-    values: list[float],
-    weights: list[float],
-) -> float | None:
-    """Return the weighted arithmetic mean, or None if inputs are unusable."""
-    if not values or not weights or len(values) != len(weights):
-        return None
-    total_weight = sum(weights)
-    if total_weight <= 0:
-        return None
-    return sum(value * weight for value, weight in zip(values, weights)) / total_weight
-
-
-def shrink(
-    observed: float | None,
-    sample_size: int,
-    *,
-    prior_rating: float = 1.0,
-    prior_strength: int = 8,
-) -> float | None:
-    """Shrink ``observed`` toward ``prior_rating`` using sample vs prior strength."""
-    if observed is None:
-        return None
-    if prior_strength <= 0:
-        return observed
-    return (
-        sample_size * observed + prior_strength * prior_rating
-    ) / (sample_size + prior_strength)
-
-
-def recency_weights(match_count: int, decay: float = 0.9) -> list[float]:
-    """Newest-first exponential weights: ``decay ** matches_ago``."""
-    if match_count <= 0:
-        return []
-    return [decay**matches_ago for matches_ago in range(match_count)]
-
-
-def normalize_strength(
-    team_rate: float | None,
-    league_rate: float | None,
-) -> float | None:
-    """Return team rate relative to league rate (1.0 = average)."""
-    if team_rate is None or league_rate is None or league_rate <= 0:
-        return None
-    return team_rate / league_rate
 
 
 def expected_goals_from_strengths(
@@ -248,16 +208,6 @@ def _mean(values: list[float]) -> float | None:
     return sum(values) / len(values)
 
 
-def _weighted_mean_from_pairs(observations: list[WeightedObservation]) -> float | None:
-    """Weighted mean from (value, weight) pairs."""
-    if not observations:
-        return None
-    return weighted_mean(
-        [value for value, _weight in observations],
-        [weight for _value, weight in observations],
-    )
-
-
 def _weighted_shot_quality(
     observations: list[ShotQualityObservation],
 ) -> float | None:
@@ -328,16 +278,6 @@ def _extract_side_metrics(
     )
 
 
-def _append_observation(
-    bucket: list[WeightedObservation],
-    value: float | None,
-    weight: float,
-) -> None:
-    """Append a weighted observation when the metric is present."""
-    if value is not None:
-        bucket.append((value, weight))
-
-
 class StrengthCalculator:
     """Compute leakage-safe team and match strength features from stored xG stats."""
 
@@ -390,7 +330,7 @@ class StrengthCalculator:
             venue=venue,
             lookback_matches=lookback,
             match_stat_rows=match_stat_rows,
-            league_baselines=self._league_averages(team, before_date),
+            league_baselines=self.league_averages(team, before_date),
         )
 
     def get_match_features(
@@ -468,7 +408,7 @@ class StrengthCalculator:
         """Build MatchStrengthFeatures from side features and Dixon–Coles."""
         league_home, league_away = self._league_goal_rates(home_team, match_date)
         league_npxg = (
-            self._league_averages(home_team, match_date).get("npxg")
+            self.league_averages(home_team, match_date).get("npxg")
             if home_team is not None
             else None
         )
@@ -731,16 +671,16 @@ class StrengthCalculator:
         match_weight: float,
     ) -> None:
         """Add one match's metrics into the observation buckets."""
-        _append_observation(
+        append_observation(
             buckets.non_penalty_xg_for, metrics.non_penalty_xg_for, match_weight
         )
-        _append_observation(
+        append_observation(
             buckets.non_penalty_xg_against, metrics.non_penalty_xg_against, match_weight
         )
-        _append_observation(
+        append_observation(
             buckets.set_piece_xg_for, metrics.set_piece_xg_for, match_weight
         )
-        _append_observation(
+        append_observation(
             buckets.set_piece_xg_against, metrics.set_piece_xg_against, match_weight
         )
         self._accumulate_shot_quality(buckets, metrics, match_weight)
@@ -816,7 +756,7 @@ class StrengthCalculator:
         if not matches:
             return None, None, None
 
-        rows = self._attach_advanced_stats(matches, opponent_team_name)
+        rows = self.attach_advanced_stats(matches, opponent_team_name)
         if not rows:
             return None, None, None
 
@@ -831,21 +771,21 @@ class StrengthCalculator:
         for weight, (match, stats, played_at_home) in zip(weights, rows):
             metrics = _extract_side_metrics(match, stats, played_at_home)
 
-            _append_observation(
+            append_observation(
                 attack,
                 metrics.non_penalty_xg_for,
                 weight,
             )
-            _append_observation(
+            append_observation(
                 defence,
                 metrics.non_penalty_xg_against,
                 weight,
             )
 
-        attack_npxg = _weighted_mean_from_pairs(attack)
-        defence_npxg = _weighted_mean_from_pairs(defence)
+        attack_npxg = weighted_mean_from_pairs(attack)
+        defence_npxg = weighted_mean_from_pairs(defence)
 
-        baselines = self._league_averages(team, before_date)
+        baselines = self.league_averages(team, before_date)
 
         league_npxg = baselines.get("npxg")
         if league_npxg is None or league_npxg <= 0:
@@ -949,27 +889,27 @@ class StrengthCalculator:
         """Recency, opponent-adjusted, set-piece, GK, and coverage flags."""
         league_set_piece_xg = league_baselines.get("set_piece_xg")
         return {
-            "recency_weighted_attack_rating": _weighted_mean_from_pairs(
+            "recency_weighted_attack_rating": weighted_mean_from_pairs(
                 buckets.attack_xg
             ),
-            "recency_weighted_defence_rating": _weighted_mean_from_pairs(
+            "recency_weighted_defence_rating": weighted_mean_from_pairs(
                 buckets.defence_xg
             ),
             "opponent_adjusted_attack_strength": shrink(
-                _weighted_mean_from_pairs(buckets.opponent_adjusted_attack),
+                weighted_mean_from_pairs(buckets.opponent_adjusted_attack),
                 len(buckets.opponent_adjusted_attack),
                 prior_rating=1.0,
                 prior_strength=prior_match_count,
             ),
             "opponent_adjusted_defence_strength": shrink(
-                _weighted_mean_from_pairs(buckets.opponent_adjusted_defence),
+                weighted_mean_from_pairs(buckets.opponent_adjusted_defence),
                 len(buckets.opponent_adjusted_defence),
                 prior_rating=1.0,
                 prior_strength=prior_match_count,
             ),
             "set_piece_attack_strength": shrink(
                 normalize_strength(
-                    _weighted_mean_from_pairs(buckets.set_piece_xg_for),
+                    weighted_mean_from_pairs(buckets.set_piece_xg_for),
                     league_set_piece_xg,
                 ),
                 len(buckets.set_piece_xg_for),
@@ -978,7 +918,7 @@ class StrengthCalculator:
             ),
             "set_piece_defence_strength": shrink(
                 normalize_strength(
-                    _weighted_mean_from_pairs(buckets.set_piece_xg_against),
+                    weighted_mean_from_pairs(buckets.set_piece_xg_against),
                     league_set_piece_xg,
                 ),
                 len(buckets.set_piece_xg_against),
@@ -1009,10 +949,10 @@ class StrengthCalculator:
     ) -> dict[str, float | None]:
         """npxG and shot-quality fields derived from observation buckets."""
         return {
-            "non_penalty_xg_for": _weighted_mean_from_pairs(
+            "non_penalty_xg_for": weighted_mean_from_pairs(
                 buckets.non_penalty_xg_for
             ),
-            "non_penalty_xg_against": _weighted_mean_from_pairs(
+            "non_penalty_xg_against": weighted_mean_from_pairs(
                 buckets.non_penalty_xg_against
             ),
             "average_shot_xg_for": _weighted_shot_quality(buckets.shot_quality_for),
@@ -1036,8 +976,8 @@ class StrengthCalculator:
         away_attack_baseline = league_baselines.get("away_npxg") or 1.0
         away_defence_baseline = league_baselines.get("home_npxg") or 1.0
 
-        overall_attack = _weighted_mean_from_pairs(buckets.attack_xg)
-        overall_defence = _weighted_mean_from_pairs(buckets.defence_xg)
+        overall_attack = weighted_mean_from_pairs(buckets.attack_xg)
+        overall_defence = weighted_mean_from_pairs(buckets.defence_xg)
         overall_npxg = league_baselines.get("npxg")
         overall_attack_strength = (
             overall_attack / overall_npxg
@@ -1119,7 +1059,7 @@ class StrengthCalculator:
         minimum_venue_matches: int,
     ) -> float | None:
         """League-relative venue strength; small samples shrink toward overall."""
-        venue_mean = _weighted_mean_from_pairs(venue_rates)
+        venue_mean = weighted_mean_from_pairs(venue_rates)
         if venue_mean is None or league_baseline <= 0:
             return None
         venue_ratio = venue_mean / league_baseline
@@ -1153,9 +1093,9 @@ class StrengthCalculator:
         )
         if not historical_matches:
             return []
-        return self._attach_advanced_stats(historical_matches, team.name)
+        return self.attach_advanced_stats(historical_matches, team.name)
 
-    def _attach_advanced_stats(
+    def attach_advanced_stats(
         self,
         historical_matches: list[HistoricalMatchModel],
         team_name: str,
@@ -1181,15 +1121,27 @@ class StrengthCalculator:
             )
         return match_stat_rows
 
-    def _league_averages(
-        self, team: TeamModel, before_date: date
+    def league_averages(
+        self, team: TeamModel, before_date: date, season: str | None = None
     ) -> dict[str, float]:
         """League baselines from league matches played before the cutoff (no leakage)."""
         if team.league_id is None:
             return {}
+        return self.league_averages_by_league_id(
+            team.league_id, before_date, season=season
+        )
+
+    def league_averages_by_league_id(
+        self,
+        league_id: int,
+        before_date: date,
+        season: str | None = None,
+    ) -> dict[str, float]:
+        """League npxG baselines for ``league_id`` (optionally one season) before cutoff."""
         league_matches = self.historical_repo.find_before_date_by_league_id(
-            league_id=team.league_id,
+            league_id=league_id,
             before_date=before_date,
+            season=season,
             limit=500,
         )
         if not league_matches:
@@ -1206,55 +1158,10 @@ class StrengthCalculator:
             for match in league_matches
             if match.id in stats_by_match_id
         ]
-        return self._baselines_from_stats(
+        return baselines_from_stats(
             ordered_stats,
             decay=self.config.team_strength_recency_decay,
         )
-
-    @staticmethod
-    def _baselines_from_stats(
-        advanced_stats_rows: list[MatchAdvancedStatsModel],
-        decay: float,
-    ) -> dict[str, float]:
-        """Compute recency-weighted attack/defence/npxG league baselines."""
-        match_weights = recency_weights(len(advanced_stats_rows), decay)
-
-        home_xg: list[WeightedObservation] = []
-        away_xg: list[WeightedObservation] = []
-        home_npxg: list[WeightedObservation] = []
-        away_npxg: list[WeightedObservation] = []
-        home_set_piece: list[WeightedObservation] = []
-        away_set_piece: list[WeightedObservation] = []
-
-        for weight, row in zip(match_weights, advanced_stats_rows):
-            _append_observation(home_xg, row.home_xg, weight)
-            _append_observation(away_xg, row.away_xg, weight)
-            _append_observation(home_npxg, row.home_non_penalty_xg, weight)
-            _append_observation(away_npxg, row.away_non_penalty_xg, weight)
-            _append_observation(home_set_piece, row.home_set_piece_xg, weight)
-            _append_observation(away_set_piece, row.away_set_piece_xg, weight)
-
-        baselines: dict[str, float] = {}
-        attack = _weighted_mean_from_pairs(home_xg)
-        defence = _weighted_mean_from_pairs(away_xg)
-        home_npxg_mean = _weighted_mean_from_pairs(home_npxg)
-        away_npxg_mean = _weighted_mean_from_pairs(away_npxg)
-        overall_npxg = _weighted_mean_from_pairs(home_npxg + away_npxg)
-        set_piece_xg = _weighted_mean_from_pairs(home_set_piece + away_set_piece)
-
-        if attack is not None:
-            baselines["attack"] = attack
-        if defence is not None:
-            baselines["defence"] = defence
-        if home_npxg_mean is not None:
-            baselines["home_npxg"] = home_npxg_mean
-        if away_npxg_mean is not None:
-            baselines["away_npxg"] = away_npxg_mean
-        if overall_npxg is not None:
-            baselines["npxg"] = overall_npxg
-        if set_piece_xg is not None:
-            baselines["set_piece_xg"] = set_piece_xg
-        return baselines
 
     @staticmethod
     def _empty_team_features(
