@@ -1,0 +1,125 @@
+Implement a new `RestCongestionCalculator` responsible only for **rest, fixture congestion and fatigue context**.
+
+### Required features
+
+For a target match, calculate:
+
+```python
+home_rest_days
+away_rest_days
+rest_day_difference
+
+home_matches_last_14_days
+away_matches_last_14_days
+
+home_extra_time_in_previous_match
+away_extra_time_in_previous_match
+```
+
+All calculations must use **only matches played before the target match datetime** to prevent data leakage.
+
+### Calculations
+
+**Rest days**
+
+Find each team's most recent match before the target match:
+
+```python
+rest_days = (target_match_date - previous_match_date).days
+rest_day_difference = home_rest_days - away_rest_days
+```
+
+If no previous match exists, return a documented neutral/default value rather than using future data.
+
+**Fixture congestion**
+
+Count matches played by each team during:
+
+```python
+[target_match_datetime - 14 days, target_match_datetime)
+```
+
+Return:
+
+```python
+home_matches_last_14_days
+away_matches_last_14_days
+```
+
+Also internally derive useful fatigue signals such as:
+
+```python
+home_short_rest = max(0, 4 - home_rest_days)
+away_short_rest = max(0, 4 - away_rest_days)
+
+home_congestion = max(0, home_matches_last_14_days - 3)
+away_congestion = max(0, away_matches_last_14_days - 3)
+```
+
+Do **not** use arbitrary hard penalties on match probabilities. These should be model features.
+
+
+### Previous-match extra time
+
+Determine whether each team's immediately preceding match went to extra time:
+
+```python
+home_extra_time_in_previous_match: bool
+away_extra_time_in_previous_match: bool
+```
+
+Extra time must amplify fatigue from short rest. For example, expose an interaction feature such as:
+
+```python
+home_extra_time_short_rest =
+    home_extra_time_in_previous_match * home_short_rest
+```
+
+Same for away.
+
+### Squad depth / rotation interaction
+
+Congestion should **not be treated equally for every team**.
+
+If squad/lineup data exists, derive optional features representing:
+
+* number of lineup changes from previous match
+* player rotation
+* minutes concentrated among regular starters
+* squad depth / available-player depth
+
+Then expose interaction features such as:
+
+```python
+congestion_x_squad_depth
+short_rest_x_rotation
+extra_time_x_short_rest
+```
+
+A deep/rotated squad should generally be less affected by congestion than a team repeatedly using the same players.
+
+If squad-depth data is unavailable, **do not invent it**. Keep the basic congestion/rest features and let the later ML model learn their effects.
+
+### Architecture
+
+Keep this logic separate from:
+
+* `StrengthCalculator`
+* `HomeAdvantageCalculator`
+* `BalanceAndEnvironment`
+* `LeagueBehaviorCalculator`
+
+`RestCongestionCalculator` should return a dedicated typed feature object/dataclass suitable for direct input into the final ML/residual model.
+
+Use existing repository/model patterns in the project instead of duplicating database-access logic.
+
+Add unit tests with mocked historical matches covering:
+
+* normal rest
+* very short rest
+* no previous match
+* multiple matches within 14 days
+* cutoff/data-leakage protection
+* previous match with extra time
+* missing coordinates
+* home/away matches both counting toward a team's schedule

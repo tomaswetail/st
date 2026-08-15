@@ -34,6 +34,7 @@ def mapped_fotmob_league_ids(session) -> list[tuple[int, str, str | None]]:
         select(ExternalEntityMappingModel).where(
             ExternalEntityMappingModel.provider == "fotmob",
             ExternalEntityMappingModel.entity_type == "league",
+            ExternalEntityMappingModel.external_entity_id == "67",
         )
     ).all()
     return [
@@ -53,9 +54,9 @@ def main() -> None:
     session = SessionLocal()
     collector = DataCollector(session)
 
-    #collector.refresh_all_data(['2223','2324','2324','2526'])
+    collector.refresh_all_data(['2425'])
 
-    main_extra_data()
+    #main_extra_data()
 
 def main_extra_data() -> None:
     init_db()
@@ -129,4 +130,4 @@ def main_extra_data() -> None:
 
 
 if __name__ == "__main__":
-    calc()
+    main()

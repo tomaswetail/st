@@ -115,6 +115,9 @@ class DataSourceConfig(BaseModel):
     football_data_cache_dir: Path = Field(
         default_factory=lambda: _project_root() / "data" / "cache" / "football-data"
     )
+    unresolved_matches_csv_path: Path = Field(
+        default_factory=lambda: _project_root() / "data" / "unresolved_matches.csv"
+    )
     kickoff_match_tolerance_minutes: int = Field(default=24 * 60, ge=0)
     xg_aggregate_tolerance: float = Field(default=0.15, ge=0.0)
     create_missing_historical_matches: bool = Field(default=False)
@@ -229,6 +232,30 @@ class DataSourceConfig(BaseModel):
     league_behavior_quality_reference_matches: int = Field(
         default_factory=lambda: int(
             os.environ.get("LEAGUE_BEHAVIOR_QUALITY_REFERENCE_MATCHES", "100")
+        ),
+        ge=1,
+    )
+    rest_congestion_window_days: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("REST_CONGESTION_WINDOW_DAYS", "14")
+        ),
+        ge=1,
+    )
+    rest_short_rest_threshold_days: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("REST_SHORT_REST_THRESHOLD_DAYS", "4")
+        ),
+        ge=0,
+    )
+    rest_congestion_match_threshold: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("REST_CONGESTION_MATCH_THRESHOLD", "3")
+        ),
+        ge=0,
+    )
+    rest_congestion_lookback_matches: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("REST_CONGESTION_LOOKBACK_MATCHES", "20")
         ),
         ge=1,
     )

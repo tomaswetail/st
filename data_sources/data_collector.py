@@ -18,10 +18,12 @@ from data_sources.football_data_uk_xlsx_provider import (
 )
 from data_sources.soccerdata_importer import to_historical_match_create
 from data_sources.soccerdata_league_mapping import (
+    espn_league_for_code,
     partition_leagues_by_source,
     soccerdata_league_for_code,
 )
 from data_sources import api_football_client
+from data_sources.soccerdata_espn_client import SoccerDataEspnClient
 from data_sources.soccerdata_match_history_client import SoccerDataMatchHistoryClient
 from database import SessionLocal
 from objects.repositories.historical_match_repository import HistoricalMatchRepository
@@ -75,6 +77,7 @@ class DataCollector:
         self.provider = FootballDataUKProvider(self.config)
         self.tournament_provider = FootballDataTournamentProvider(self.config)
         self.soccerdata_client = SoccerDataMatchHistoryClient()
+        self.espn_client = SoccerDataEspnClient()
         self.api_football_client = APIFootballClient()
 
     def _ensure_teams(
@@ -224,6 +227,45 @@ class DataCollector:
             )
         return all_matches
 
+    def import_espn_matches(
+        self,
+        espn_codes: list[str],
+        season_list: list[str],
+        *,
+        from_date: date | None = None,
+    ) -> list[HistoricalMatchCreate]:
+        all_matches: list[HistoricalMatchCreate] = []
+
+        for code in espn_codes:
+            espn_league = espn_league_for_code(code)
+            if espn_league is None:
+                logger.warning("No ESPN mapping for league code %s", code)
+                continue
+
+            self.leagues_repo.ensure_from_code(code)
+            if from_date is not None:
+                rows = self.espn_client.fetch_matches_from_date(
+                    espn_league,
+                    from_date,
+                    seasons=season_list,
+                )
+            else:
+                rows = self.espn_client.fetch_matches_for_seasons(
+                    espn_league,
+                    season_list,
+                )
+            league_matches = [
+                to_historical_match_create(row, league_code=code) for row in rows
+            ]
+            all_matches.extend(league_matches)
+            logger.info(
+                "Fetched %d matches for league %s (%s) via ESPN",
+                len(league_matches),
+                code,
+                espn_league,
+            )
+        return all_matches
+
     def import_tournaments(self, tournaments: list[str]) -> int:
         matches = self.tournament_provider.fetch_historical_matches(tournaments)
         count = self.historical_matches_repo.upsert_many(matches)
@@ -234,7 +276,7 @@ class DataCollector:
     def refresh_all_data(self, seasons: list[str] | None = None) -> int:
         season_list = seasons or last_n_season_codes(1)
         from_date = None# self._get_last_refresh_at()
-        soccerdata_codes, csv_codes = partition_leagues_by_source(
+        soccerdata_codes, espn_codes, csv_codes = partition_leagues_by_source(
             all_football_data_league_codes()
         )
 
@@ -242,19 +284,27 @@ class DataCollector:
             logger.info("Incremental refresh from %s", from_date)
         else:
             logger.info("Full refresh for last %d seasons", len(season_list))
-        soccerdata_count, csv_count = 0, 0
+        soccerdata_count, espn_count, csv_count = 0, 0, 0
         soccerdata_matches = self.import_soccerdata_matches(
             soccerdata_codes,
             season_list,
             from_date=from_date,
         )
 
-
         if soccerdata_matches:
             self.leagues_repo.flush()
             self._ensure_teams(self._team_entries_from_matches(soccerdata_matches))
             soccerdata_count = self.historical_matches_repo.upsert_many(soccerdata_matches)
 
+        espn_matches = self.import_espn_matches(
+            espn_codes,
+            season_list,
+            from_date=from_date,
+        )
+        if espn_matches:
+            self.leagues_repo.flush()
+            self._ensure_teams(self._team_entries_from_matches(espn_matches))
+            espn_count = self.historical_matches_repo.upsert_many(espn_matches)
 
         if csv_codes:
             csv_count = self.import_football_data(
@@ -263,17 +313,16 @@ class DataCollector:
                 from_date=from_date,
             )
         self.import_api_football_swedish_matches(season_list)
-
         self.import_tournaments(all_tournament_codes())
-
-        total = soccerdata_count + csv_count
+        total = soccerdata_count + espn_count + csv_count
         self._set_last_refresh_at(datetime.now(timezone.utc))
         logger.info(
             "Refreshed %d historical matches across %d seasons "
-            "(%d via soccerdata, %d via football-data CSV)",
+            "(%d via soccerdata, %d via ESPN, %d via football-data CSV)",
             total,
             len(season_list),
             soccerdata_count,
+            espn_count,
             csv_count,
         )
         return total

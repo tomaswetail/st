@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import csv
 import logging
 from dataclasses import dataclass
 from datetime import timedelta
 from difflib import SequenceMatcher
+from pathlib import Path
 
 from sqlalchemy.orm import Session
 
@@ -24,6 +26,25 @@ from utils.common import LEAGUE_NAMES_REV, sanitize_string
 from utils.team_name_matcher import _load_aliases, normalize_team_name
 
 logger = logging.getLogger(__name__)
+
+UNRESOLVED_MATCH_CSV_FIELDS = (
+    "provider",
+    "provider_match_id",
+    "provider_league_id",
+    "provider_season_id",
+    "league_code",
+    "league_id",
+    "season",
+    "home_team_id",
+    "home_team_name",
+    "away_team_id",
+    "away_team_name",
+    "internal_home_team",
+    "internal_away_team",
+    "kickoff_at",
+    "home_score",
+    "away_score",
+)
 
 
 @dataclass
@@ -255,14 +276,61 @@ class EntityResolver:
                 )
 
         logger.warning(
-            "Unresolved match provider=%s id=%s %s vs %s at %s",
+            "Unresolved match provider=%s id=%s %s vs %s league=%s at %s",
             self.provider,
             provider_match.provider_match_id,
             provider_match.home_team_name,
             provider_match.away_team_name,
+            provider_match.provider_league_id,
             provider_match.kickoff_at,
         )
+        self._append_unresolved_match(
+            provider_match,
+            league_code=league_code,
+            league_id=league_id,
+            home_team=home_team,
+            away_team=away_team,
+            season=season,
+        )
         return MatchResolution(match=None, method="unresolved", warnings=warnings)
+
+    def _append_unresolved_match(
+        self,
+        provider_match: ProviderMatch,
+        *,
+        league_code: str | None,
+        league_id: int | None,
+        home_team: TeamModel | None,
+        away_team: TeamModel | None,
+        season: str | None,
+    ) -> None:
+        """Append an unresolved fixture to CSV, creating the file with a header if needed."""
+        csv_path = Path(self.config.unresolved_matches_csv_path)
+        csv_path.parent.mkdir(parents=True, exist_ok=True)
+        write_header = not csv_path.exists() or csv_path.stat().st_size == 0
+        row = {
+            "provider": self.provider,
+            "provider_match_id": provider_match.provider_match_id,
+            "provider_league_id": provider_match.provider_league_id,
+            "provider_season_id": provider_match.provider_season_id or "",
+            "league_code": league_code or "",
+            "league_id": league_id if league_id is not None else "",
+            "season": season or "",
+            "home_team_id": provider_match.home_team_id,
+            "home_team_name": provider_match.home_team_name,
+            "away_team_id": provider_match.away_team_id,
+            "away_team_name": provider_match.away_team_name,
+            "internal_home_team": home_team.name if home_team is not None else "",
+            "internal_away_team": away_team.name if away_team is not None else "",
+            "kickoff_at": provider_match.kickoff_at.isoformat(),
+            "home_score": provider_match.home_score if provider_match.home_score is not None else "",
+            "away_score": provider_match.away_score if provider_match.away_score is not None else "",
+        }
+        with csv_path.open("a", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=UNRESOLVED_MATCH_CSV_FIELDS)
+            if write_header:
+                writer.writeheader()
+            writer.writerow(row)
 
     def ensure_mapping(
         self,

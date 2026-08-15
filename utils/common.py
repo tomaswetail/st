@@ -89,6 +89,7 @@ LEAGUE_NAMES = {
     "T1": "Turkey Süper Lig",
     "G1": "Greece Super League",
     "SWE": "Allsvenskan",
+    "ENG-FA Cup": "England FA Cup",
 }
 
 LEAGUE_NAMES_REV = {
@@ -115,6 +116,7 @@ LEAGUE_NAMES_REV = {
     "Turkey Süper Lig": "T1",
     "Greece Super League": "G1",
     "Allsvenskan": "SWE",
+    "England FA Cup": "ENG-FA Cup",
     "Ettan Norra": "SWE"
 }
 
@@ -142,6 +144,7 @@ LEAGUE_COUNTRIES = {
     "T1": "Turkey",
     "G1": "Greece",
     "SWE": "Sweden",
+    "ENG-FA Cup": "England",
 }
 
 EXTRA_LEAGUE_CODES = frozenset(
@@ -162,6 +165,7 @@ EXTRA_LEAGUE_CODES = frozenset(
         "SWE",
         "SWZ",
         "USA",
+        "ENG-FA Cup",
     }
 )
 

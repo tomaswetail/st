@@ -525,8 +525,8 @@ class HomeAdvantageCalculator:
         mean_home_defence = weighted_mean_from_pairs(home_defence) or 0.0
         mean_away_defence = weighted_mean_from_pairs(away_defence) or 0.0
 
-        home_performance = mean_home_attack + mean_home_defence
-        away_performance = mean_away_attack + mean_away_defence
+        home_performance = (mean_home_attack + mean_home_defence)/2
+        away_performance = (mean_away_attack + mean_away_defence)/2
         raw_team_home_advantage = home_performance - away_performance
 
         effective_sample_size = min(usable_home_match_count, usable_away_match_count)

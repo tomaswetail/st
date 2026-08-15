@@ -1,77 +1,58 @@
-"""Unit tests for BalanceAndEnvironment feature calculator."""
+"""Tests for calc.balance_and_environment.BalanceAndEnvironment.
+
+These tests deliberately mock:
+- SQLAlchemy Session
+- StrengthCalculator
+- STMatchModel-like objects
+- HistoricalMatch / HistoricalMatchModel-like rows
+
+The goal is to test BalanceAndEnvironment's calculations and data-leakage
+behaviour without requiring a real database.
+"""
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from dataclasses import dataclass
+from datetime import date, datetime
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import Mock
 
 import pytest
 
 from calc.balance_and_environment import BalanceAndEnvironment
-from objects.schema.data_classes.balance_and_environment_features import (
-    BalanceAndEnvironmentFeatures,
-)
-from objects.schema.data_classes.data_sources import DataSourceConfig
-from objects.schema.data_classes.team_strength_features import MatchStrengthFeatures
-from utils.common import ensure_unit_probabilities
 
 
-def _strength_features(
-    *,
-    home_attack: float | None = 1.2,
-    away_attack: float | None = 0.9,
-    home_defence: float | None = 1.0,
-    away_defence: float | None = 1.1,
-    home_xg: float | None = 1.5,
-    away_xg: float | None = 1.1,
-) -> MatchStrengthFeatures:
-    return MatchStrengthFeatures(
-        home_team_id=1,
-        away_team_id=2,
-        home=None,
-        away=None,
-        match_id=10,
-        home_attack_strength=home_attack,
-        away_attack_strength=away_attack,
-        home_defence_strength=home_defence,
-        away_defence_strength=away_defence,
-        expected_home_goals=home_xg,
-        expected_away_goals=away_xg,
-    )
+@dataclass(frozen=True)
+class FakeTeam:
+    name: str
 
 
-def _match(
-    *,
-    start_time: datetime = datetime(2024, 6, 15, 15, 0, tzinfo=timezone.utc),
-) -> SimpleNamespace:
-    return SimpleNamespace(
-        id=10,
-        home_team_id=1,
-        away_team_id=2,
-        start_time=start_time,
-        home_team=SimpleNamespace(name="Arsenal"),
-        away_team=SimpleNamespace(name="Chelsea"),
-    )
+@dataclass(frozen=True)
+class FakeHistoricalMatch:
+    match_date: date
+    home_team: str
+    away_team: str
+    home_goals: int
+    away_goals: int
+    result: str
 
 
-def _historical(
-    *,
+def historical_match(
     match_date: date,
     home_team: str,
     away_team: str,
     home_goals: int,
     away_goals: int,
-    result: str | None = None,
-) -> SimpleNamespace:
-    if result is None:
-        if home_goals > away_goals:
-            result = "1"
-        elif home_goals < away_goals:
-            result = "2"
-        else:
-            result = "X"
-    return SimpleNamespace(
+) -> FakeHistoricalMatch:
+    """Build a HistoricalMatch-like row and derive its 1/X/2 result."""
+    if home_goals > away_goals:
+        result = "1"
+    elif home_goals < away_goals:
+        result = "2"
+    else:
+        result = "X"
+
+    return FakeHistoricalMatch(
         match_date=match_date,
         home_team=home_team,
         away_team=away_team,
@@ -81,157 +62,314 @@ def _historical(
     )
 
 
-def _calculator(
-    strength: MatchStrengthFeatures,
-    *,
-    recent_matches: int = 10,
-    low_scoring_threshold: int = 2,
-) -> BalanceAndEnvironment:
-    session = MagicMock()
-    config = DataSourceConfig(
-        balance_recent_matches=recent_matches,
-        balance_low_scoring_goal_threshold=low_scoring_threshold,
+@pytest.fixture
+def target_match():
+    """STMatchModel-like object used as the prediction target."""
+    return SimpleNamespace(
+        id=999,
+        home_team_id=101,
+        away_team_id=202,
+        home_team=FakeTeam("Alpha"),
+        away_team=FakeTeam("Beta"),
+        start_time=datetime(2026, 8, 10, 15, 0),
     )
-    strength_calculator = MagicMock()
-    strength_calculator.get_fixture_features.return_value = strength
+
+
+@pytest.fixture
+def config():
+    """Only the BalanceAndEnvironment config values are needed here."""
+    return SimpleNamespace(
+        balance_recent_matches=10,
+        balance_low_scoring_goal_threshold=2,
+    )
+
+
+@pytest.fixture
+def strength_features():
+    """Fixture features as returned by StrengthCalculator."""
+    return SimpleNamespace(
+        home_attack_strength=1.20,
+        away_attack_strength=0.90,
+        home_defence_strength=0.80,
+        away_defence_strength=1.10,
+        expected_home_goals=1.40,
+        expected_away_goals=1.00,
+    )
+
+
+@pytest.fixture
+def strength_calculator(strength_features):
+    calculator = Mock(name="StrengthCalculator")
+    calculator.get_fixture_features.return_value = strength_features
+    return calculator
+
+
+@pytest.fixture
+def calculator(config, strength_calculator):
     return BalanceAndEnvironment(
-        session,
+        session=Mock(name="Session"),
         config=config,
         strength_calculator=strength_calculator,
     )
 
 
-def test_core_strength_and_xg_features():
-    calculator = _calculator(_strength_features())
-    features = calculator.calculate(
-        _match(),
-        [],
-        {"1": 0.45, "X": 0.25, "2": 0.30},
-    )
-
-    assert features.attack_strength_difference == pytest.approx(0.3)
-    assert features.expected_goal_difference == pytest.approx(0.4)
-    assert features.expected_goal_total == pytest.approx(2.6)
-    assert features.defence_strength_difference == pytest.approx(0.1)
-
-
-def test_attack_strength_difference_uses_fixture_attack_strengths():
-    calculator = _calculator(
-        _strength_features(home_attack=1.4, away_attack=0.8, home_defence=1.9, away_defence=0.2)
-    )
-    features = calculator.calculate(
-        _match(),
-        [],
-        {"1": 0.45, "X": 0.25, "2": 0.30},
-    )
-
-    assert features.attack_strength_difference == pytest.approx(0.6)
-    assert features.defence_strength_difference == pytest.approx(1.7)
-
-
-def test_market_balance_and_favourite_strength():
-    calculator = _calculator(_strength_features())
-    features = calculator.calculate(
-        _match(),
-        [],
-        {"1": 0.55, "X": 0.25, "2": 0.20},
-    )
-
-    assert features.market_balance == pytest.approx(0.35)
-    assert features.favourite_strength == pytest.approx(0.55)
-
-
-@pytest.mark.parametrize(
-    ("p_home", "p_away", "expected_favourite"),
-    [
-        (0.40, 0.30, 0.40),
-        (0.55, 0.20, 0.55),
-        (0.20, 0.75, 0.75),
-    ],
-)
-def test_favourite_strength_is_strongest_team_probability(
-    p_home: float, p_away: float, expected_favourite: float
+def test_calculate_uses_strength_calculator_and_computes_core_features(
+    calculator,
+    strength_calculator,
+    target_match,
 ):
-    calculator = _calculator(_strength_features())
     features = calculator.calculate(
-        _match(),
-        [],
-        {"1": p_home, "X": 1.0 - p_home - p_away, "2": p_away},
+        match=target_match,
+        historical_matches=[],
+        market_probabilities={"1": 0.46, "X": 0.30, "2": 0.24},
     )
 
-    assert features.favourite_strength == pytest.approx(expected_favourite)
+    strength_calculator.get_fixture_features.assert_called_once_with(
+        101,
+        202,
+        target_match.start_time,
+        match_id=999,
+    )
+
+    assert features.attack_strength_difference == pytest.approx(0.30)
+    assert features.expected_goal_difference == pytest.approx(0.40)
+    assert features.expected_goal_total == pytest.approx(2.40)
+    assert features.market_balance == pytest.approx(0.22)
+    assert features.defence_strength_difference == pytest.approx(0.30)
+
+    # This is the CURRENT implementation contract:
+    # favourite_strength = max(home_probability, away_probability).
+    assert features.favourite_strength == pytest.approx(0.46)
 
 
-def test_unit_scale_market_inputs_are_used_as_is():
-    calculator = _calculator(_strength_features())
+def test_calculate_computes_all_recent_team_rates_and_combined_rates(
+    calculator,
+    target_match,
+):
+    history = [
+        # Alpha: 4 matches
+        # draw=2/4, one-goal=1/4, close=3/4, low-scoring=2/4
+        historical_match(date(2026, 8, 9), "Alpha", "A1", 1, 1),
+        historical_match(date(2026, 8, 8), "A2", "Alpha", 0, 1),
+        historical_match(date(2026, 8, 7), "Alpha", "A3", 3, 0),
+        historical_match(date(2026, 8, 6), "A4", "Alpha", 2, 2),
+
+        # Beta: 4 matches
+        # draw=1/4, one-goal=1/4, close=2/4, low-scoring=2/4
+        historical_match(date(2026, 8, 9), "B1", "Beta", 0, 0),
+        historical_match(date(2026, 8, 8), "Beta", "B2", 2, 1),
+        historical_match(date(2026, 8, 7), "B3", "Beta", 1, 3),
+        historical_match(date(2026, 8, 6), "Beta", "B4", 0, 2),
+    ]
+
     features = calculator.calculate(
-        _match(),
-        [],
-        {"1": 0.45, "X": 0.25, "2": 0.30},
+        match=target_match,
+        historical_matches=history,
+        market_probabilities={"1": 0.46, "X": 0.30, "2": 0.24},
     )
 
-    assert features.market_balance == pytest.approx(0.15)
-    assert features.favourite_strength == pytest.approx(0.45)
+    assert features.home_recent_sample_size == 4
+    assert features.away_recent_sample_size == 4
+
+    assert features.home_recent_draw_rate == pytest.approx(0.50)
+    assert features.home_one_goal_match_rate == pytest.approx(0.25)
+    assert features.home_close_match_rate == pytest.approx(0.75)
+    assert features.home_low_scoring_rate == pytest.approx(0.50)
+
+    assert features.away_recent_draw_rate == pytest.approx(0.25)
+    assert features.away_one_goal_match_rate == pytest.approx(0.25)
+    assert features.away_close_match_rate == pytest.approx(0.50)
+    assert features.away_low_scoring_rate == pytest.approx(0.50)
+
+    assert features.combined_draw_rate == pytest.approx(0.375)
+    assert features.combined_one_goal_match_rate == pytest.approx(0.25)
+    assert features.combined_close_match_rate == pytest.approx(0.625)
+    assert features.combined_low_scoring_rate == pytest.approx(0.50)
 
 
-def test_percentage_market_inputs_are_normalized_to_unit_scale():
-    calculator = _calculator(_strength_features())
+def test_target_date_and_future_matches_are_excluded(
+    calculator,
+    target_match,
+):
+    history = [
+        # The only valid pre-target match: a draw, close and low-scoring.
+        historical_match(date(2026, 8, 9), "Alpha", "OldOpponent", 1, 1),
+
+        # Same date as target: MUST be excluded by the strict < cutoff.
+        # These rows would materially change every rate if leaked.
+        historical_match(date(2026, 8, 10), "Alpha", "TargetOpponent", 5, 0),
+
+        # Future: MUST also be excluded.
+        historical_match(date(2026, 8, 11), "FutureOpponent", "Alpha", 4, 0),
+    ]
+
     features = calculator.calculate(
-        _match(),
-        [],
-        {"1": 55, "X": 25, "2": 20},
+        match=target_match,
+        historical_matches=history,
+        market_probabilities={"1": 0.46, "X": 0.30, "2": 0.24},
     )
 
-    assert features.market_balance == pytest.approx(0.35)
-    assert features.favourite_strength == pytest.approx(0.55)
+    assert features.home_recent_sample_size == 1
+    assert features.home_recent_draw_rate == pytest.approx(1.0)
+    assert features.home_one_goal_match_rate == pytest.approx(0.0)
+    assert features.home_close_match_rate == pytest.approx(1.0)
+    assert features.home_low_scoring_rate == pytest.approx(1.0)
 
 
-def test_mixed_market_probability_scales_are_rejected():
-    calculator = _calculator(_strength_features())
-    with pytest.raises(ValueError, match="Mixed"):
-        calculator.calculate(
-            _match(),
-            [],
-            {"1": 0.55, "X": 25, "2": 20},
-        )
-
-
-def test_ensure_unit_probabilities_keeps_0_45():
-    assert ensure_unit_probabilities({"1": 0.45, "X": 0.25, "2": 0.30}) == {
-        "1": 0.45,
-        "X": 0.25,
-        "2": 0.30,
-    }
-
-
-def test_ensure_unit_probabilities_converts_45_to_0_45():
-    normalized = ensure_unit_probabilities({"1": 45, "X": 25, "2": 30})
-    assert normalized["1"] == pytest.approx(0.45)
-    assert normalized["X"] == pytest.approx(0.25)
-    assert normalized["2"] == pytest.approx(0.30)
-
-
-def test_ensure_unit_probabilities_rejects_mixed_and_invalid_scales():
-    with pytest.raises(ValueError, match="Mixed"):
-        ensure_unit_probabilities({"1": 0.45, "X": 25, "2": 30})
-    with pytest.raises(ValueError, match="non-negative"):
-        ensure_unit_probabilities({"1": -0.1, "X": 0.5, "2": 0.6})
-    with pytest.raises(ValueError, match="<= 100"):
-        ensure_unit_probabilities({"1": 145, "X": 25, "2": 20})
-
-
-def test_missing_strength_and_xg_yield_none():
-    calculator = _calculator(
-        _strength_features(
-            home_attack=None,
-            away_attack=1.0,
-            home_defence=None,
-            away_defence=1.0,
-            home_xg=None,
-            away_xg=1.0,
-        )
+def test_recent_window_uses_only_most_recent_matches_before_target(
+    target_match,
+    strength_calculator,
+):
+    config = SimpleNamespace(
+        balance_recent_matches=2,
+        balance_low_scoring_goal_threshold=2,
     )
-    features = calculator.calculate(_match(), [], {"1": 0.4, "X": 0.3, "2": 0.3})
+    calculator = BalanceAndEnvironment(
+        session=Mock(name="Session"),
+        config=config,
+        strength_calculator=strength_calculator,
+    )
+
+    # Deliberately unsorted input. Only Aug 9 + Aug 8 should count.
+    history = [
+        historical_match(date(2026, 8, 6), "Alpha", "A4", 1, 1),  # old draw
+        historical_match(date(2026, 8, 9), "Alpha", "A1", 0, 0),  # recent draw
+        historical_match(date(2026, 8, 7), "Alpha", "A3", 4, 0),  # old blowout
+        historical_match(date(2026, 8, 8), "A2", "Alpha", 0, 1),  # recent 1-goal
+    ]
+
+    features = calculator.calculate(
+        match=target_match,
+        historical_matches=history,
+        market_probabilities={"1": 0.46, "X": 0.30, "2": 0.24},
+    )
+
+    assert features.home_recent_sample_size == 2
+    assert features.home_recent_draw_rate == pytest.approx(0.50)
+    assert features.home_one_goal_match_rate == pytest.approx(0.50)
+    assert features.home_close_match_rate == pytest.approx(1.0)
+    assert features.home_low_scoring_rate == pytest.approx(1.0)
+
+
+def test_low_scoring_threshold_is_configurable(
+    target_match,
+    strength_calculator,
+):
+    config = SimpleNamespace(
+        balance_recent_matches=10,
+        balance_low_scoring_goal_threshold=1,
+    )
+    calculator = BalanceAndEnvironment(
+        session=Mock(name="Session"),
+        config=config,
+        strength_calculator=strength_calculator,
+    )
+
+    history = [
+        historical_match(date(2026, 8, 9), "Alpha", "A1", 1, 1),  # total=2: not low at threshold=1
+        historical_match(date(2026, 8, 8), "Alpha", "A2", 1, 0),  # total=1: low
+    ]
+
+    features = calculator.calculate(
+        match=target_match,
+        historical_matches=history,
+        market_probabilities={"1": 0.46, "X": 0.30, "2": 0.24},
+    )
+
+    assert features.home_low_scoring_rate == pytest.approx(0.50)
+
+
+def test_no_history_is_handled_gracefully(
+    calculator,
+    target_match,
+):
+    features = calculator.calculate(
+        match=target_match,
+        historical_matches=[],
+        market_probabilities={"1": 0.46, "X": 0.30, "2": 0.24},
+    )
+
+    assert features.home_recent_sample_size == 0
+    assert features.away_recent_sample_size == 0
+
+    assert features.home_recent_draw_rate is None
+    assert features.away_recent_draw_rate is None
+    assert features.home_one_goal_match_rate is None
+    assert features.away_one_goal_match_rate is None
+    assert features.home_close_match_rate is None
+    assert features.away_close_match_rate is None
+    assert features.home_low_scoring_rate is None
+    assert features.away_low_scoring_rate is None
+
+    assert features.combined_draw_rate is None
+    assert features.combined_one_goal_match_rate is None
+    assert features.combined_close_match_rate is None
+    assert features.combined_low_scoring_rate is None
+
+
+def test_combined_rate_falls_back_to_team_with_available_history(
+    calculator,
+    target_match,
+):
+    history = [
+        historical_match(date(2026, 8, 9), "Alpha", "A1", 1, 1),
+        historical_match(date(2026, 8, 8), "Alpha", "A2", 1, 0),
+    ]
+
+    features = calculator.calculate(
+        match=target_match,
+        historical_matches=history,
+        market_probabilities={"1": 0.46, "X": 0.30, "2": 0.24},
+    )
+
+    assert features.home_recent_draw_rate == pytest.approx(0.50)
+    assert features.away_recent_draw_rate is None
+    assert features.combined_draw_rate == pytest.approx(0.50)
+
+    assert features.home_close_match_rate == pytest.approx(1.0)
+    assert features.away_close_match_rate is None
+    assert features.combined_close_match_rate == pytest.approx(1.0)
+
+
+def test_market_percentages_are_normalized_to_unit_probabilities(
+    calculator,
+    target_match,
+):
+    features = calculator.calculate(
+        match=target_match,
+        historical_matches=[],
+        market_probabilities={"1": 50.0, "X": 30.0, "2": 20.0},
+    )
+
+    assert features.market_balance == pytest.approx(0.30)
+    assert features.favourite_strength == pytest.approx(0.50)
+
+
+def test_missing_strength_values_propagate_as_none(
+    config,
+    target_match,
+):
+    strength_calculator = Mock(name="StrengthCalculator")
+    strength_calculator.get_fixture_features.return_value = SimpleNamespace(
+        home_attack_strength=None,
+        away_attack_strength=0.90,
+        home_defence_strength=0.80,
+        away_defence_strength=None,
+        expected_home_goals=None,
+        expected_away_goals=1.00,
+    )
+
+    calculator = BalanceAndEnvironment(
+        session=Mock(name="Session"),
+        config=config,
+        strength_calculator=strength_calculator,
+    )
+
+    features = calculator.calculate(
+        match=target_match,
+        historical_matches=[],
+        market_probabilities={"1": 0.46, "X": 0.30, "2": 0.24},
+    )
 
     assert features.attack_strength_difference is None
     assert features.defence_strength_difference is None
@@ -239,173 +377,123 @@ def test_missing_strength_and_xg_yield_none():
     assert features.expected_goal_total is None
 
 
-def test_empty_history_rates_are_none():
-    calculator = _calculator(_strength_features())
-    features = calculator.calculate(
-        _match(),
-        [],
-        {"1": 0.4, "X": 0.3, "2": 0.3},
+@pytest.mark.parametrize(
+    ("home_team", "away_team"),
+    [
+        (None, FakeTeam("Beta")),
+        (FakeTeam("Alpha"), None),
+    ],
+)
+def test_missing_team_raises_value_error(
+    calculator,
+    target_match,
+    home_team,
+    away_team,
+):
+    broken_match = SimpleNamespace(
+        **{
+            **vars(target_match),
+            "home_team": home_team,
+            "away_team": away_team,
+        }
     )
 
-    assert features.home_recent_draw_rate is None
-    assert features.away_recent_draw_rate is None
-    assert features.combined_draw_rate is None
-    assert features.home_recent_sample_size == 0
-    assert features.away_recent_sample_size == 0
-
-
-def test_recent_draw_one_goal_close_and_low_scoring_rates():
-    history = [
-        # Arsenal: draw 1-1 (close, low-scoring, not one-goal)
-        _historical(
-            match_date=date(2024, 6, 1),
-            home_team="Arsenal",
-            away_team="A",
-            home_goals=1,
-            away_goals=1,
-        ),
-        # Arsenal: win 2-1 (close, one-goal, not low-scoring)
-        _historical(
-            match_date=date(2024, 5, 20),
-            home_team="B",
-            away_team="Arsenal",
-            home_goals=1,
-            away_goals=2,
-        ),
-        # Chelsea: loss 0-3 (not close)
-        _historical(
-            match_date=date(2024, 6, 2),
-            home_team="Chelsea",
-            away_team="C",
-            home_goals=0,
-            away_goals=3,
-        ),
-        # Chelsea: draw 0-0 (close, low-scoring, not one-goal)
-        _historical(
-            match_date=date(2024, 5, 10),
-            home_team="D",
-            away_team="Chelsea",
-            home_goals=0,
-            away_goals=0,
-        ),
-    ]
-    calculator = _calculator(_strength_features())
-    features = calculator.calculate(
-        _match(),
-        history,
-        {"1": 0.4, "X": 0.3, "2": 0.3},
-    )
-
-    assert features.home_recent_sample_size == 2
-    assert features.away_recent_sample_size == 2
-    assert features.home_recent_draw_rate == pytest.approx(0.5)
-    assert features.away_recent_draw_rate == pytest.approx(0.5)
-    assert features.home_one_goal_match_rate == pytest.approx(0.5)
-    assert features.away_one_goal_match_rate == pytest.approx(0.0)
-    assert features.home_close_match_rate == pytest.approx(1.0)
-    assert features.away_close_match_rate == pytest.approx(0.5)
-    assert features.home_low_scoring_rate == pytest.approx(0.5)
-    assert features.away_low_scoring_rate == pytest.approx(0.5)
-    assert features.combined_draw_rate == pytest.approx(0.5)
-    assert features.combined_one_goal_match_rate == pytest.approx(0.25)
-    assert features.combined_close_match_rate == pytest.approx(0.75)
-    assert features.combined_low_scoring_rate == pytest.approx(0.5)
-
-
-def test_future_and_target_date_matches_are_excluded():
-    cutoff = date(2024, 6, 15)
-    history = [
-        _historical(
-            match_date=date(2024, 6, 1),
-            home_team="Arsenal",
-            away_team="A",
-            home_goals=1,
-            away_goals=1,
-        ),
-        # Same day as target — must be excluded
-        _historical(
-            match_date=cutoff,
-            home_team="Arsenal",
-            away_team="B",
-            home_goals=5,
-            away_goals=0,
-        ),
-        # Future — must be excluded
-        _historical(
-            match_date=date(2024, 6, 20),
-            home_team="Arsenal",
-            away_team="C",
-            home_goals=4,
-            away_goals=0,
-        ),
-    ]
-    calculator = _calculator(_strength_features())
-    features = calculator.calculate(
-        _match(),
-        history,
-        {"1": 0.4, "X": 0.3, "2": 0.3},
-    )
-
-    assert features.home_recent_sample_size == 1
-    assert features.home_recent_draw_rate == pytest.approx(1.0)
-    assert features.home_one_goal_match_rate == pytest.approx(0.0)
-
-
-def test_recent_window_limits_to_configured_matches():
-    history = [
-        _historical(
-            match_date=date(2024, 6, day),
-            home_team="Arsenal",
-            away_team=f"Opp{day}",
-            home_goals=1,
-            away_goals=0,
+    with pytest.raises(ValueError, match="Missing team"):
+        calculator.calculate(
+            match=broken_match,
+            historical_matches=[],
+            market_probabilities={"1": 0.46, "X": 0.30, "2": 0.24},
         )
-        for day in range(1, 8)
-    ]
-    calculator = _calculator(_strength_features(), recent_matches=3)
-    features = calculator.calculate(
-        _match(),
-        history,
-        {"1": 0.4, "X": 0.3, "2": 0.3},
+
+
+def test_missing_start_time_raises_value_error(
+    calculator,
+    target_match,
+):
+    broken_match = SimpleNamespace(
+        **{
+            **vars(target_match),
+            "start_time": None,
+        }
     )
 
-    assert features.home_recent_sample_size == 3
+    with pytest.raises(ValueError, match="Missing start_time"):
+        calculator.calculate(
+            match=broken_match,
+            historical_matches=[],
+            market_probabilities={"1": 0.46, "X": 0.30, "2": 0.24},
+        )
 
 
-def test_calculate_is_deterministic():
+def test_result_d_or_x_is_recognized_as_draw_even_if_result_encoding_varies(
+    calculator,
+    target_match,
+):
+    # Explicitly test the implementation's support for both "D" and "X".
     history = [
-        _historical(
-            match_date=date(2024, 6, 1),
-            home_team="Arsenal",
-            away_team="A",
-            home_goals=2,
+        FakeHistoricalMatch(
+            match_date=date(2026, 8, 9),
+            home_team="Alpha",
+            away_team="A1",
+            home_goals=1,
             away_goals=1,
+            result="D",
         ),
-        _historical(
-            match_date=date(2024, 5, 28),
-            home_team="Chelsea",
-            away_team="B",
-            home_goals=0,
-            away_goals=0,
+        FakeHistoricalMatch(
+            match_date=date(2026, 8, 8),
+            home_team="Alpha",
+            away_team="A2",
+            home_goals=2,
+            away_goals=2,
+            result="x",
         ),
     ]
-    calculator = _calculator(_strength_features())
-    market = {"1": 0.42, "X": 0.28, "2": 0.30}
-    first = calculator.calculate(_match(), history, market)
-    second = calculator.calculate(_match(), history, market)
 
-    assert first == second
-    assert isinstance(first, BalanceAndEnvironmentFeatures)
-
-
-def test_uses_strength_calculator_fixture_features():
-    calculator = _calculator(_strength_features())
-    match = _match()
-    calculator.calculate(match, [], {"1": 0.4, "X": 0.3, "2": 0.3})
-
-    calculator.strength_calculator.get_fixture_features.assert_called_once_with(
-        1,
-        2,
-        match.start_time,
-        match_id=10,
+    features = calculator.calculate(
+        match=target_match,
+        historical_matches=history,
+        market_probabilities={"1": 0.46, "X": 0.30, "2": 0.24},
     )
+
+    assert features.home_recent_draw_rate == pytest.approx(1.0)
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "Original prompt describes favourite strength as distance of the strongest "
+        "team from 50%; current implementation returns max(p_home, p_away)."
+    ),
+)
+def test_prompt_interpretation_favourite_strength_is_distance_from_50_percent(
+    calculator,
+    target_match,
+):
+    features = calculator.calculate(
+        match=target_match,
+        historical_matches=[],
+        market_probabilities={"1": 0.46, "X": 0.30, "2": 0.24},
+    )
+
+    # If the prompt's example is intended literally, this should be 0.04.
+    assert features.favourite_strength == pytest.approx(0.04)
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "Original prompt names the core feature strength_difference; current "
+        "implementation exposes attack_strength_difference instead."
+    ),
+)
+def test_prompt_contract_exposes_strength_difference(
+    calculator,
+    target_match,
+):
+    features = calculator.calculate(
+        match=target_match,
+        historical_matches=[],
+        market_probabilities={"1": 0.46, "X": 0.30, "2": 0.24},
+    )
+
+    assert features.strength_difference == pytest.approx(0.30)

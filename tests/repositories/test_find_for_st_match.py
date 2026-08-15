@@ -14,6 +14,7 @@ def _resolver() -> EntityResolver:
     session = MagicMock()
     resolver = EntityResolver(session, provider="fotmob")
     resolver.mapping_repo.get_by_external = MagicMock(return_value=None)
+    resolver._append_unresolved_match = MagicMock()
     return resolver
 
 
@@ -169,3 +170,48 @@ def test_resolve_match_unresolved_when_no_candidates():
 
     assert result.match is None
     assert result.method == "unresolved"
+
+
+def test_resolve_match_appends_unresolved_row_to_csv(tmp_path):
+    csv_path = tmp_path / "unresolved_matches.csv"
+    resolver = EntityResolver(MagicMock(), provider="fotmob")
+    resolver.config.unresolved_matches_csv_path = csv_path
+    resolver.mapping_repo.get_by_external = MagicMock(return_value=None)
+    home = SimpleNamespace(id=1, name="Chelsea", short_name=None, medium_name=None)
+    away = SimpleNamespace(id=2, name="Liverpool", short_name=None, medium_name=None)
+    resolver._names_for_team = MagicMock(side_effect=[["Chelsea"], ["Liverpool"]])
+    resolver.historical_repo.find_by_date_range_and_teams = MagicMock(return_value=[])
+    resolver.historical_repo.find_by_season_and_teams = MagicMock(return_value=[])
+
+    result = resolver.resolve_match(
+        _provider_match(
+            home_team_name="Chelsea",
+            away_team_name="Liverpool",
+        ),
+        league_code="E0",
+        league_id=1,
+        home_team=home,
+        away_team=away,
+        season="2025",
+    )
+
+    assert result.method == "unresolved"
+    text = csv_path.read_text(encoding="utf-8")
+    assert "provider_match_id" in text
+    assert "4000001" in text
+    assert "Chelsea" in text
+    assert "Liverpool" in text
+
+    resolver._append_unresolved_match(
+        _provider_match(
+            home_team_name="Chelsea",
+            away_team_name="Liverpool",
+        ),
+        league_code="E0",
+        league_id=1,
+        home_team=home,
+        away_team=away,
+        season="2025",
+    )
+    rows = csv_path.read_text(encoding="utf-8").strip().splitlines()
+    assert len(rows) == 3

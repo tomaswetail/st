@@ -4,6 +4,7 @@ import logging
 
 from soccerdata import MatchHistory
 
+from data_sources.soccerdata_espn_client import ensure_espn_league_dict
 from utils.common import all_football_data_league_codes
 
 logger = logging.getLogger(__name__)
@@ -17,6 +18,16 @@ DEFAULT_SOCCERDATA_LEAGUES = frozenset(
         "ITA-Serie A",
     }
 )
+
+# Football-data / app codes → soccerdata canonical league names that ESPN supports.
+FOOTBALL_DATA_CODE_TO_ESPN_LEAGUE: dict[str, str] = {
+    "E0": "ENG-Premier League",
+    "D1": "GER-Bundesliga",
+    "I1": "ITA-Serie A",
+    "SP1": "ESP-La Liga",
+    "F1": "FRA-Ligue 1",
+    "ENG-FA Cup": "ENG-FA Cup",
+}
 
 FOOTBALL_DATA_CODE_TO_SOCCERDATA_LEAGUE: dict[str, str] = {
     "E0": "ENG-Premier League",
@@ -69,6 +80,11 @@ def soccerdata_league_for_code(league_code: str) -> str | None:
     return FOOTBALL_DATA_CODE_TO_SOCCERDATA_LEAGUE.get(league_code)
 
 
+def espn_league_for_code(league_code: str) -> str | None:
+    ensure_espn_league_dict()
+    return FOOTBALL_DATA_CODE_TO_ESPN_LEAGUE.get(league_code)
+
+
 def soccerdata_league_to_code(soccerdata_league: str) -> str | None:
     return SOCCERDATA_LEAGUE_TO_FOOTBALL_DATA_CODE.get(soccerdata_league)
 
@@ -99,20 +115,24 @@ def available_soccerdata_leagues() -> set[str]:
 
 def partition_leagues_by_source(
     codes: list[str],
-) -> tuple[list[str], list[str]]:
+) -> tuple[list[str], list[str], list[str]]:
     available = available_soccerdata_leagues()
     soccerdata_codes: list[str] = []
+    espn_codes: list[str] = []
     csv_codes: list[str] = []
     for code in codes:
         soccerdata_league = soccerdata_league_for_code(code)
         if soccerdata_league and soccerdata_league in available:
             soccerdata_codes.append(code)
+        elif espn_league_for_code(code) is not None:
+            espn_codes.append(code)
         else:
             csv_codes.append(code)
 
     logger.info(
-        "Refreshing %d leagues via soccerdata, %d via football-data CSV",
+        "Refreshing %d leagues via soccerdata, %d via ESPN, %d via football-data CSV",
         len(soccerdata_codes),
+        len(espn_codes),
         len(csv_codes),
     )
-    return soccerdata_codes, csv_codes
+    return soccerdata_codes, espn_codes, csv_codes

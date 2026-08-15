@@ -1,0 +1,551 @@
+Implement **team-specific home advantage** using historical matches and shot/xG data.
+
+## Goal
+
+Estimate whether a team performs unusually well or poorly at home **after removing the normal league/season home advantage and opponent strength**.
+
+The final output for a team should be:
+
+```python
+team_home_advantage: float
+```
+
+Interpretation on a log-goal scale:
+
+```text
+0.00  = no additional team-specific home advantage
++0.10 = stronger at home than league baseline
+-0.10 = weaker at home than league baseline
+```
+
+This value must represent **additional home advantage only**. Do not include the normal league-wide home advantage in it.
+
+---
+
+## Available data
+
+Use the existing database objects and historical data already available in the project.
+
+Matches contain at least:
+
+```python
+match_date
+home_team_id
+away_team_id
+home_goals
+away_goals
+league_id
+season_id
+```
+
+Shot data is now available for historical matches.
+
+If shot records already contain an xG value, calculate match-level xG as:
+
+```python
+home_xg = sum(shot.xg for shot in home_team_shots)
+away_xg = sum(shot.xg for shot in away_team_shots)
+```
+
+Prefer non-penalty xG if shot data identifies penalties:
+
+```python
+home_npxg = sum(
+    shot.xg
+    for shot in home_team_shots
+    if not shot.is_penalty
+)
+```
+
+and equivalent for away.
+
+Use `npxg` throughout this component when available. Fall back to xG if penalty information is unavailable.
+
+Do NOT create a new shot-xG model unless xG is genuinely absent from the shot records.
+
+---
+
+# 1. Historical-only calculation
+
+For a target match at:
+
+```python
+target_date
+```
+
+all ratings used for that match must be calculated only from:
+
+```python
+historical_match.match_date < target_date
+```
+
+Never use the target match or future matches.
+
+This applies to:
+
+* team attack strength
+* team defence strength
+* opponent strength
+* league averages
+* league home advantage
+* team-specific home advantage
+
+No look-ahead leakage is allowed.
+
+---
+
+# 2. Build attack and defence strength from historical npxG
+
+Estimate team attacking and defensive strength from previous matches.
+
+Use a multiplicative scale:
+
+```text
+1.00 = league average
+1.20 = 20% stronger
+0.80 = 20% weaker
+```
+
+Fit attack and defence ratings jointly using historical match npxG.
+
+For each historical match:
+
+```text
+expected_home_npxg =
+    league_npxg_level
+    * league_home_multiplier
+    * home_attack_strength
+    * away_defence_weakness
+
+expected_away_npxg =
+    league_npxg_level
+    * away_attack_strength
+    * home_defence_weakness
+```
+
+Equivalent log formulation is preferred:
+
+```text
+log(expected_home_npxg) =
+    league_intercept
+    + league_home_advantage
+    + home_attack_rating
+    + away_defence_rating
+
+log(expected_away_npxg) =
+    league_intercept
+    + away_attack_rating
+    + home_defence_rating
+```
+
+Where:
+
+```python
+attack_strength = exp(attack_rating)
+defence_weakness = exp(defence_rating)
+```
+
+Interpret defence as:
+
+```text
+1.00 = average defence
+>1.00 = concedes more xG than average
+<1.00 = stronger defence
+```
+
+Constrain/center team ratings so the league average rating is approximately zero on the log scale.
+
+Use regularization/shrinkage so teams with little history stay near league average.
+
+---
+
+# 3. Calculate expected xG for every historical team performance
+
+For each historical match and each team side, calculate expected attacking performance **using ratings that existed before that historical match**.
+
+For a team playing at home:
+
+```python
+expected_xg_for = (
+    league_xg_level
+    * league_home_multiplier
+    * team_attack_strength_before_match
+    * opponent_defence_weakness_before_match
+)
+```
+
+For a team playing away:
+
+```python
+expected_xg_for = (
+    league_xg_level
+    * team_attack_strength_before_match
+    * opponent_defence_weakness_before_match
+)
+```
+
+Similarly calculate expected xG against:
+
+Home:
+
+```python
+expected_xg_against = (
+    league_xg_level
+    * opponent_attack_strength_before_match
+    * team_defence_weakness_before_match
+)
+```
+
+Away:
+
+```python
+expected_xg_against = (
+    league_xg_level
+    * league_home_multiplier
+    * opponent_attack_strength_before_match
+    * team_defence_weakness_before_match
+)
+```
+
+Do not include `team_home_advantage` in these expectations because that is the quantity we are trying to estimate.
+
+---
+
+# 4. Calculate attack residual
+
+For each team performance:
+
+```python
+attack_residual = log(
+    (actual_xg_for + EPSILON)
+    / (expected_xg_for + EPSILON)
+)
+```
+
+Use a small constant:
+
+```python
+EPSILON = 0.05
+```
+
+Then separately calculate:
+
+```python
+mean_home_attack_residual
+mean_away_attack_residual
+```
+
+Use recency weighting.
+
+For a historical match:
+
+```python
+weight = exp(
+    -RECENCY_DECAY_RATE * days_before_target
+)
+```
+
+Do not hard-code the decay rate deep inside the implementation. Make it configurable.
+
+---
+
+# 5. Calculate defence residual
+
+Defensive performance should be positive when the team concedes **less xG than expected**:
+
+```python
+defence_residual = log(
+    (expected_xg_against + EPSILON)
+    / (actual_xg_against + EPSILON)
+)
+```
+
+Then calculate:
+
+```python
+mean_home_defence_residual
+mean_away_defence_residual
+```
+
+using the same recency-weighting logic.
+
+---
+
+# 6. Combine attack and defence
+
+Calculate:
+
+```python
+home_performance = (
+    mean_home_attack_residual
+    + mean_home_defence_residual
+) / 2.0
+```
+
+and:
+
+```python
+away_performance = (
+    mean_away_attack_residual
+    + mean_away_defence_residual
+) / 2.0
+```
+
+Then:
+
+```python
+raw_team_home_advantage = (
+    home_performance
+    - away_performance
+)
+```
+
+This means:
+
+```text
+positive = team performs better at home than away,
+           beyond what opponent quality and normal league
+           home advantage explain
+
+negative = team has less home-specific benefit than expected
+```
+
+---
+
+# 7. Shrink team-specific home advantage
+
+This metric will be noisy, so apply strong shrinkage toward zero.
+
+Use:
+
+```python
+effective_sample_size = min(
+    home_match_count,
+    away_match_count,
+)
+```
+
+Then:
+
+```python
+shrinkage_weight = (
+    effective_sample_size
+    / (
+        effective_sample_size
+        + HOME_ADVANTAGE_SHRINKAGE_MATCHES
+    )
+)
+```
+
+Final value:
+
+```python
+team_home_advantage = (
+    raw_team_home_advantage
+    * shrinkage_weight
+)
+```
+
+`HOME_ADVANTAGE_SHRINKAGE_MATCHES` must be configurable.
+
+A reasonable initial default is:
+
+```python
+HOME_ADVANTAGE_SHRINKAGE_MATCHES = 30
+```
+
+but do not treat this as optimized. It should later be selected through backtesting.
+
+---
+
+# 8. Minimum sample handling
+
+Do not produce unstable large values for teams with little history.
+
+For example:
+
+```python
+if home_match_count == 0 or away_match_count == 0:
+    return 0.0
+```
+
+Shrink naturally for low sample counts rather than introducing arbitrary large minimum-match cutoffs.
+
+Also optionally cap extreme values for numerical safety:
+
+```python
+team_home_advantage = clip(
+    team_home_advantage,
+    -MAX_TEAM_HOME_ADVANTAGE,
+    MAX_TEAM_HOME_ADVANTAGE,
+)
+```
+
+Make the cap configurable.
+
+Use a conservative default such as:
+
+```python
+MAX_TEAM_HOME_ADVANTAGE = 0.30
+```
+
+---
+
+# 9. Public interface
+
+Expose the logic through one clean public method/class consistent with the project's existing architecture.
+
+Conceptually:
+
+```python
+class TeamHomeAdvantageCalculator:
+
+    def calculate(
+        self,
+        team_id: int,
+        league_id: int,
+        season_id: int,
+        target_date: datetime,
+    ) -> float:
+        ...
+```
+
+If an existing strength-calculator abstraction already exists, integrate this functionality there instead of duplicating infrastructure.
+
+Reuse existing repositories/models/services.
+
+Do not create parallel representations of teams, matches, leagues, or shots.
+
+---
+
+# 10. Useful internal result object
+
+Internally expose diagnostics similar to:
+
+```python
+@dataclass
+class TeamHomeAdvantageResult:
+    team_home_advantage: float
+    raw_team_home_advantage: float
+    shrinkage_weight: float
+
+    home_attack_residual: float
+    away_attack_residual: float
+
+    home_defence_residual: float
+    away_defence_residual: float
+
+    home_performance: float
+    away_performance: float
+
+    home_match_count: int
+    away_match_count: int
+```
+
+The public model can consume only:
+
+```python
+result.team_home_advantage
+```
+
+but diagnostics are important for testing and debugging.
+
+---
+
+# 11. Critical requirements
+
+Do NOT:
+
+* use wins, draws or losses as the primary performance metric
+* compare raw home xG directly with raw away xG
+* confuse normal league home advantage with team-specific home advantage
+* calculate opponent strength using future matches
+* calculate historical ratings using today's strength
+* include the target match in its own historical calculation
+* double-count team home advantage in `expected_xg_for`
+* use goals when reliable xG/npxG is available
+* create duplicate Match, Team, League or Shot domain models
+
+Prefer:
+
+```text
+npxG
+→ opponent-adjusted expected performance
+→ home/away residuals
+→ recency weighting
+→ shrinkage
+→ team-specific home advantage
+```
+
+---
+
+# 12. Tests
+
+Add unit/integration tests covering at least:
+
+### No difference
+
+A team whose opponent-adjusted home and away performance are identical should produce:
+
+```python
+team_home_advantage ≈ 0.0
+```
+
+### Strong home team
+
+A team consistently exceeding expected xG at home and performing normally away should produce:
+
+```python
+team_home_advantage > 0
+```
+
+### Poor home team
+
+A team performing worse than expected at home relative to away should produce:
+
+```python
+team_home_advantage < 0
+```
+
+### Low sample
+
+A team with very few matches should have a heavily shrunk value close to zero.
+
+### Leakage
+
+Changing matches occurring after `target_date` must not change the result.
+
+### Opponent adjustment
+
+Two identical xG performances against very different opponent strengths must not be treated as equivalent.
+
+### League home advantage
+
+A team that merely follows the normal league-wide home/away pattern should have:
+
+```python
+team_home_advantage ≈ 0
+```
+
+rather than receiving the league's normal home advantage again.
+
+---
+
+Before implementing, inspect the existing project structure and identify:
+
+1. existing Match/Team/League/Shot models,
+2. where xG is stored on Shot,
+3. any existing strength-calculation code,
+4. existing recency-weighting logic,
+5. existing league/season home-advantage implementation.
+
+Integrate with those instead of rebuilding them.
+
+After implementation, summarize:
+
+* files changed,
+* mathematical formula implemented,
+* how look-ahead leakage is prevented,
+* how attack/defence strengths are derived,
+* how shrinkage works,
+* and any assumptions made about the existing shot/xG schema.
