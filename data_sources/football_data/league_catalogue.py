@@ -342,16 +342,16 @@ class LeagueCatalogueService:
                     external_name=name,
                     metadata={"ccode": ccode, "country": country},
                 )
-                if mapped and not dry_run:
-                    self.session.commit()
+        if mapped and not dry_run:
+            self.session.commit()
         logger.info(
             "CSV league mapping path=%s mapped=%s unmatched=%s dry_run=%s",
             csv_path,
-            mapped,
+            len(mapped),
             unmatched,
             dry_run,
         )
-        return {"mapped": mapped, "unmatched": unmatched}
+        return {"mapped": len(mapped), "unmatched": unmatched}
 
     def _best_candidate(
         self,

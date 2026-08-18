@@ -6,7 +6,7 @@ from datetime import date, datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-from data_sources.football_data.entity_resolver import EntityResolver
+from data_sources.entity_resolver import EntityResolver
 from objects.schema.data_classes.provider_dtos import ProviderMatch
 
 
@@ -116,8 +116,10 @@ def test_resolve_match_uses_name_variants_for_date_team_lookup():
     assert result.match.id == 99
     resolver.historical_repo.find_by_date_range_and_teams.assert_called_once()
     call_kwargs = resolver.historical_repo.find_by_date_range_and_teams.call_args.kwargs
-    assert "Nott'm Forest" in call_kwargs["home_names"]
-    assert "Arsenal" in call_kwargs["away_names"]
+    assert call_kwargs["home_team_ids"] == [1]
+    assert call_kwargs["away_team_ids"] == [2]
+    assert call_kwargs["home_names"] is None
+    assert call_kwargs["away_names"] is None
 
 
 def test_resolve_match_picks_closest_when_ambiguous():
@@ -170,6 +172,119 @@ def test_resolve_match_unresolved_when_no_candidates():
 
     assert result.match is None
     assert result.method == "unresolved"
+
+
+def test_resolve_team_create_if_missing_creates_and_maps():
+    resolver = _resolver()
+    created = SimpleNamespace(id=42, name="New FC", league_id=1)
+    resolver.team_repo.get = MagicMock(return_value=None)
+    resolver.team_repo.create = MagicMock(return_value=created)
+    resolver.team_repo.flush = MagicMock()
+    resolver.team_repo.get_by_name_and_league = MagicMock(return_value=None)
+    resolver.team_repo.get_by_name = MagicMock(return_value=None)
+    resolver.team_repo.team_name_wide_search = MagicMock(return_value=None)
+    resolver.team_repo.get_by_machine_name = MagicMock(return_value=None)
+    resolver.team_repo.team_likely_name_wide_search = MagicMock(return_value=None)
+    resolver._candidate_team_names = MagicMock(return_value=[])
+    resolver._aliases = {}
+    resolver.ensure_mapping = MagicMock()
+    resolver.team_repo.find_exact_normalized = MagicMock(return_value=None)
+    resolver.team_repo.find_by_club_affix = MagicMock(return_value=None)
+    resolver.team_repo.find_fuzzy_duplicate = MagicMock(return_value=None)
+    resolver.team_repo.find_substring_duplicate = MagicMock(return_value=None)
+
+    result = resolver.resolve_team(
+        provider_team_id="New FC",
+        provider_team_name="New FC",
+        league_id=1,
+        create_if_missing=True,
+    )
+
+    assert result.method == "created"
+    assert result.team is created
+    resolver.team_repo.create.assert_called_once()
+    resolver.ensure_mapping.assert_called_once()
+    assert resolver.ensure_mapping.call_args.kwargs["internal_entity_id"] == 42
+
+
+def test_resolve_team_reuses_normalized_duplicate_instead_of_creating():
+    resolver = _resolver()
+    existing = SimpleNamespace(id=7, name="Franke")
+    resolver.team_repo.get = MagicMock(return_value=None)
+    resolver.team_repo.create = MagicMock()
+    resolver._candidate_team_names = MagicMock(return_value=[])
+    resolver._aliases = {}
+    resolver.ensure_mapping = MagicMock()
+    resolver.team_repo.find_exact_normalized = MagicMock(return_value=existing)
+    resolver.team_repo.find_by_club_affix = MagicMock(return_value=None)
+    resolver.team_repo.find_fuzzy_duplicate = MagicMock(return_value=None)
+    resolver.team_repo.find_substring_duplicate = MagicMock(return_value=None)
+
+    result = resolver.resolve_team(
+        provider_team_id="IK Franke",
+        provider_team_name="IK Franke",
+        league_id=1,
+        create_if_missing=True,
+    )
+
+    assert result.method == "normalized"
+    assert result.team is existing
+    resolver.team_repo.create.assert_not_called()
+    resolver.ensure_mapping.assert_called_once()
+    assert resolver.ensure_mapping.call_args.kwargs["internal_entity_id"] == 7
+
+
+def test_resolve_team_does_not_fuzzy_match_angers_to_rangers():
+    resolver = _resolver()
+    created = SimpleNamespace(id=42, name="Angers", league_id=1)
+    resolver.team_repo.get = MagicMock(return_value=None)
+    resolver.team_repo.create = MagicMock(return_value=created)
+    resolver.team_repo.flush = MagicMock()
+    resolver._candidate_team_names = MagicMock(return_value=["Rangers"])
+    resolver._aliases = {}
+    resolver.ensure_mapping = MagicMock()
+    resolver.team_repo.find_exact_normalized = MagicMock(return_value=None)
+    resolver.team_repo.find_by_club_affix = MagicMock(return_value=None)
+    resolver.team_repo.find_fuzzy_duplicate = MagicMock(return_value=None)
+    resolver.team_repo.find_substring_duplicate = MagicMock(return_value=None)
+
+    result = resolver.resolve_team(
+        provider_team_id="Angers",
+        provider_team_name="Angers",
+        league_id=1,
+        create_if_missing=True,
+    )
+
+    assert result.method == "created"
+    assert result.team is created
+    resolver.team_repo.create.assert_called_once()
+
+
+def test_resolve_team_does_not_match_villarreal_to_villarreal_b_duplicate():
+    resolver = _resolver()
+    created = SimpleNamespace(id=51, name="Villarreal", league_id=1)
+    duplicate = SimpleNamespace(id=9, name="Villarreal B", league_id=1)
+    resolver.team_repo.get = MagicMock(return_value=None)
+    resolver.team_repo.create = MagicMock(return_value=created)
+    resolver.team_repo.flush = MagicMock()
+    resolver._candidate_team_names = MagicMock(return_value=[])
+    resolver._aliases = {}
+    resolver.ensure_mapping = MagicMock()
+    resolver.team_repo.find_exact_normalized = MagicMock(return_value=None)
+    resolver.team_repo.find_by_club_affix = MagicMock(return_value=None)
+    resolver.team_repo.find_fuzzy_duplicate = MagicMock(return_value=duplicate)
+    resolver.team_repo.find_substring_duplicate = MagicMock(return_value=None)
+
+    result = resolver.resolve_team(
+        provider_team_id="Villarreal",
+        provider_team_name="Villarreal",
+        league_id=1,
+        create_if_missing=True,
+    )
+
+    assert result.method == "created"
+    assert result.team is created
+    resolver.team_repo.create.assert_called_once()
 
 
 def test_resolve_match_appends_unresolved_row_to_csv(tmp_path):

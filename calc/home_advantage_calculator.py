@@ -702,9 +702,9 @@ class HomeAdvantageCalculator:
             if not historical_match.league or not historical_match.season:
                 continue
             opponent_name = (
-                historical_match.away_team
+                historical_match.away_team.name
                 if played_at_home
-                else historical_match.home_team
+                else historical_match.home_team.name
             )
             results.append(
                 _MatchNpxg(

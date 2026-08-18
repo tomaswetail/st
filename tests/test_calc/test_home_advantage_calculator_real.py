@@ -398,24 +398,24 @@ def test_team_history_loader_uses_strict_target_date_cutoff(calculator):
     past = SimpleNamespace(
         id=1,
         match_date=date(2026, 1, 19),
-        home_team="Target",
-        away_team="Opponent",
+        home_team=SimpleNamespace(name="Target"),
+        away_team=SimpleNamespace(name="Opponent"),
         league="E0",
         season="2025",
     )
     on_target = SimpleNamespace(
         id=2,
         match_date=TARGET_DATE,
-        home_team="Target",
-        away_team="Opponent",
+        home_team=SimpleNamespace(name="Target"),
+        away_team=SimpleNamespace(name="Opponent"),
         league="E0",
         season="2025",
     )
     future = SimpleNamespace(
         id=3,
         match_date=date(2026, 1, 21),
-        home_team="Target",
-        away_team="Opponent",
+        home_team=SimpleNamespace(name="Target"),
+        away_team=SimpleNamespace(name="Opponent"),
         league="E0",
         season="2025",
     )
@@ -436,7 +436,7 @@ def test_team_history_loader_uses_strict_target_date_cutoff(calculator):
     )
 
     def attach_advanced_stats(matches, team_name):
-        return [(m, stats, m.home_team == team_name) for m in matches]
+        return [(m, stats, m.home_team.name == team_name) for m in matches]
 
     calculator.strength_calculator.attach_advanced_stats.side_effect = (
         attach_advanced_stats

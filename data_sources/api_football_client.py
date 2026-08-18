@@ -5,14 +5,16 @@ import sys
 from dataclasses import asdict
 from datetime import datetime
 from typing import Any
+from pathlib import Path
 
 import requests
 
 from data_sources.football_data_uk_xlsx_provider import start_year_to_season_code, logger
 from objects.schema.data_classes.fixture import Fixture
 from objects.schema.data_classes.league_info import LeagueInfo
-from objects.schema.db.historical_match import HistoricalMatchCreate
-from utils.common import LEAGUE_MAPPINGS, get_season_rev
+from objects.schema.db.historical_match import HistoricalMatchDraft
+from objects.schema.data_classes.data_sources import DataSourceConfig
+from utils.common import LEAGUE_COUNTRIES, LEAGUE_MAPPINGS, LEAGUE_NAMES, get_season_rev
 
 BASE_URL = "https://v3.football.api-sports.io"
 API_FOOTBALL_SOURCE = "api-football"
@@ -23,7 +25,15 @@ API_FOOTBALL_SOURCE = "api-football"
 # ---------------------------------------------------------------------
 
 class APIFootballClient:
-    def __init__(self, api_key: str | None = None) -> None:
+    def __init__(
+        self,
+        api_key: str | None = None,
+        *,
+        config: DataSourceConfig | None = None,
+        enable_cache: bool = True,
+        cache_dir: Path | None = None,
+        cache_ttl_seconds: int | None = None,
+    ) -> None:
         self.api_key = api_key or os.getenv("API_FOOTBALL_KEY", '6de75a404b5c1c996418d07d6ac70144')
 
         if not self.api_key:
@@ -31,8 +41,67 @@ class APIFootballClient:
                 "Missing API key. Set API_FOOTBALL_KEY environment variable."
             )
 
-    def get(self, endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        self.config = config or DataSourceConfig()
+        self.cache_ttl_seconds = (
+            cache_ttl_seconds
+            if cache_ttl_seconds is not None
+            else self.config.football_data_cache_ttl_seconds
+        )
+        self.cache_dir = (
+            cache_dir
+            or (self.config.football_data_cache_dir / API_FOOTBALL_SOURCE)
+        )
+        self.enable_cache = enable_cache and self.cache_ttl_seconds > 0
+        if self.enable_cache:
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+
+    def _cache_key(self, endpoint: str, params: dict[str, Any] | None) -> str:
+        import hashlib
+
+        # Deterministic key for endpoint + params.
+        params_obj = params or {}
+        raw = f"{BASE_URL}/{endpoint.lstrip('/')}|{repr(sorted(params_obj.items()))}"
+        return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+    def _cache_path(self, key: str) -> Path:
+        return self.cache_dir / f"{key}.json"
+
+    def _read_cache(self, key: str) -> dict[str, Any] | None:
+        if not self.enable_cache:
+            return None
+        path = self._cache_path(key)
+        if not path.exists():
+            return None
+        age_seconds = time.time() - path.stat().st_mtime
+        if age_seconds > self.cache_ttl_seconds:
+            return None
+        try:
+            import json
+
+            return json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            return None
+
+    def _write_cache(self, key: str, data: dict[str, Any]) -> None:
+        if not self.enable_cache:
+            return
+        path = self._cache_path(key)
+        try:
+            import json
+
+            path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        except OSError as exc:
+            logger.warning("Failed to write API-Football cache %s: %s", path, exc)
+
+    def get(
+        self, endpoint: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         url = f"{BASE_URL}/{endpoint.lstrip('/')}"
+
+        cache_key = self._cache_key(endpoint, params)
+        cached = self._read_cache(cache_key)
+        if cached is not None:
+            return cached
 
         headers = {
             "x-apisports-key": self.api_key,
@@ -63,6 +132,7 @@ class APIFootballClient:
         if "errors" in data and data["errors"]:
             raise RuntimeError(f"API-Football returned errors: {data['errors']}")
 
+        self._write_cache(cache_key, data)
         return data
 
 
@@ -124,7 +194,7 @@ def league_code_for_fixture(fixture: Fixture) -> str:
 
 def fixture_to_historical_match_create(
     fixture: Fixture,
-) -> HistoricalMatchCreate | None:
+) -> HistoricalMatchDraft | None:
     if fixture.home_goals is None or fixture.away_goals is None:
         return None
 
@@ -135,7 +205,7 @@ def fixture_to_historical_match_create(
     else:
         result = "2"
 
-    return HistoricalMatchCreate(
+    return HistoricalMatchDraft(
         source=API_FOOTBALL_SOURCE,
         league=league_code_for_fixture(fixture),
         season=start_year_to_season_code(fixture.season),
@@ -182,6 +252,78 @@ def find_league_by_name(
             return league
 
     return None
+
+
+def league_search_names_for_code(league_code: str) -> list[str]:
+    """Candidate API-Football search names for a football-data league code."""
+    names: list[str] = []
+    for mapping_name, mapping_code in LEAGUE_MAPPINGS.items():
+        if mapping_code == league_code:
+            names.append(mapping_name)
+    full_name = LEAGUE_NAMES.get(league_code)
+    if full_name:
+        names.append(full_name)
+        country = LEAGUE_COUNTRIES.get(league_code)
+        if country and full_name.startswith(f"{country} "):
+            names.append(full_name[len(country) + 1 :])
+    seen: set[str] = set()
+    unique_names: list[str] = []
+    for name in names:
+        key = normalize_name(name)
+        if key in seen:
+            continue
+        seen.add(key)
+        unique_names.append(name)
+    return unique_names
+
+
+def find_league_for_code(
+    client: APIFootballClient,
+    league_code: str,
+) -> LeagueInfo | None:
+    """Resolve an API-Football league via GET leagues?name= for a football-data code."""
+    for name in league_search_names_for_code(league_code):
+        try:
+            data = client.get("leagues", {"name": name})
+        except RuntimeError:
+            logger.warning(
+                "API-Football league search failed for code=%s name=%s",
+                league_code,
+                name,
+            )
+            continue
+        items = [normalize_league(item) for item in data.get("response") or []]
+        if not items:
+            continue
+        league_type_matches = [
+            item for item in items if item.league_type == "league"
+        ]
+        return (league_type_matches or items)[0]
+    logger.warning("No API-Football league for football-data code %s", league_code)
+    return None
+
+
+def get_team_names_by_league(
+    client: APIFootballClient,
+    league_id: int,
+    season: str,
+) -> list[tuple[str, str]]:
+    """Return (team_id, name) for a league season via GET teams?league=&season=."""
+    data = client.get(
+        "teams",
+        {"league": league_id, "season": get_season_rev(season)},
+    )
+    teams: list[tuple[str, str]] = []
+    for item in data.get("response") or []:
+        team = item.get("team") or {}
+        name = team.get("name")
+        if not name:
+            continue
+        team_name = str(name).strip()
+        team_id = team.get("id")
+        external_id = str(team_id) if team_id is not None else team_name
+        teams.append((external_id, team_name))
+    return teams
 
 
 def normalize_name(name: str) -> str:

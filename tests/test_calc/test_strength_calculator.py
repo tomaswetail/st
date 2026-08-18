@@ -64,11 +64,23 @@ def make_match(
     home_goals,
     away_goals,
 ):
+    home_side = (
+        home_team
+        if hasattr(home_team, "name")
+        else SimpleNamespace(name=home_team)
+    )
+    away_side = (
+        away_team
+        if hasattr(away_team, "name")
+        else SimpleNamespace(name=away_team)
+    )
     return SimpleNamespace(
         id=match_id,
         match_date=match_date,
-        home_team=home_team,
-        away_team=away_team,
+        home_team=home_side,
+        away_team=away_side,
+        home_team_id=getattr(home_side, "id", None),
+        away_team_id=getattr(away_side, "id", None),
         home_goals=home_goals,
         away_goals=away_goals,
         league="PL",
@@ -573,18 +585,13 @@ def test_get_match_features_expected_goals_and_probabilities():
     target_match = make_match(
         500,
         date(2026, 8, 10),
-        "Arsenal",
-        "Chelsea",
+        arsenal,
+        chelsea,
         0,
         0,
     )
 
     calculator.historical_repo.get.return_value = target_match
-
-    calculator.team_repo.get_by_name.side_effect = (
-        lambda name:
-        arsenal if name == "Arsenal" else chelsea
-    )
 
     home_features = make_match_team_features(
         attack=1.20,

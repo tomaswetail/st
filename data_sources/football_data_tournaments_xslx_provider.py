@@ -11,7 +11,7 @@ from typing import Any
 import pandas as pd
 
 from objects.schema.data_classes.data_sources import DataSourceConfig
-from objects.schema.db.historical_match import HistoricalMatchCreate
+from objects.schema.db.historical_match import HistoricalMatchDraft
 
 logger = logging.getLogger(__name__)
 
@@ -83,11 +83,11 @@ def parse_tournament_sheet(
     league: str,
     season: str,
     source: str = "football-data.co.uk",
-) -> tuple[list[HistoricalMatchCreate], list[str]]:
+) -> tuple[list[HistoricalMatchDraft], list[str]]:
     """Parse a tournament worksheet into HistoricalMatch rows."""
     df = df.copy()
     df.columns = [str(c).strip() for c in df.columns]
-    matches: list[HistoricalMatchCreate] = []
+    matches: list[HistoricalMatchDraft] = []
     errors: list[str] = []
 
     for idx, row in df.iterrows():
@@ -115,7 +115,7 @@ def parse_tournament_sheet(
             oh, od, oa = _extract_tournament_odds(row)
             raw = {k: (None if pd.isna(v) else v) for k, v in row.items()}
             matches.append(
-                HistoricalMatchCreate(
+                HistoricalMatchDraft(
                     source=source,
                     league=league,
                     season=season,
@@ -140,7 +140,7 @@ class FootballDataTournamentProvider:
     """Download and parse Football-Data.co.uk World Cup XLSX files."""
 
     def __init__(self, config: DataSourceConfig | None = None) -> None:
-        self.config = DataSourceConfig()
+        self.config = config or DataSourceConfig()
 
     @property
     def _local_xlsx_path(self) -> Path:
@@ -151,7 +151,11 @@ class FootballDataTournamentProvider:
         )
 
     def download_xlsx(self) -> bytes:
-        """Download World Cup XLSX bytes."""
+        """Return World Cup XLSX bytes, using a local cache when present."""
+        local = self._local_xlsx_path
+        if local.exists():
+            logger.info("Using cached XLSX %s", local)
+            return local.read_bytes()
 
         url = self.config.football_data_world_cup_xlsx_url
         try:
@@ -161,18 +165,13 @@ class FootballDataTournamentProvider:
             resp.raise_for_status()
             content = resp.content
         except Exception as exc:
-            local = self._local_xlsx_path
-            if local.exists():
-                logger.info("Using local XLSX %s", local)
-                content = local.read_bytes()
-            else:
-                raise RuntimeError(
-                    f"Failed to download {url} and no local file at {local}: {exc}"
-                ) from exc
+            raise RuntimeError(
+                f"Failed to download {url} and no local file at {local}: {exc}"
+            ) from exc
 
-        dest = self._local_xlsx_path
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_bytes(content)
+        local.parent.mkdir(parents=True, exist_ok=True)
+        local.write_bytes(content)
+        logger.info("Cached XLSX %s", local)
         return content
 
     def _log_parse_errors(self, league: str, errors: list[str]) -> None:
@@ -181,10 +180,10 @@ class FootballDataTournamentProvider:
         if len(errors) > 5:
             logger.warning("%s: %d more row errors skipped", league, len(errors) - 5)
 
-    def fetch_historical_matches(self, tournaments: list[str]) -> list[HistoricalMatchCreate]:
+    def fetch_historical_matches(self, tournaments: list[str]) -> list[HistoricalMatchDraft]:
         content = self.download_xlsx()
         workbook = pd.read_excel(io.BytesIO(content), sheet_name=None)
-        all_matches: list[HistoricalMatchCreate] = []
+        all_matches: list[HistoricalMatchDraft] = []
 
         for code in tournaments:
             sheet_name = TOURNAMENT_CODE_TO_SHEET.get(code)

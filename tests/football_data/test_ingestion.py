@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
 
-from data_sources.football_data.entity_resolver import EntityResolver, MatchResolution, TeamResolution
+from data_sources.entity_resolver import EntityResolver, MatchResolution, TeamResolution
 from data_sources.football_data.http_client import (
-    FootballDataHttpError,
     NotFoundError,
     ThrottledHttpClient,
 )
@@ -22,13 +21,12 @@ from data_sources.football_data.metrics import (
 from data_sources.football_data.providers.fotmob import (
     parse_fotmob_match_details,
     parse_fotmob_matches,
-    parse_fotmob_shots,
 )
 from data_sources.football_data.providers.sofascore import (
     parse_sofascore_match_details,
     parse_sofascore_matches,
 )
-from data_sources.football_data.results import BatchImportResult, MatchImportResult
+from data_sources.football_data.results import MatchImportResult
 from data_sources.football_data.service import ExtendedMatchDataService
 from objects.schema.data_classes.data_sources import DataSourceConfig
 from objects.schema.data_classes.provider_dtos import (
@@ -137,6 +135,10 @@ def test_team_resolution_unresolved_low_confidence(caplog):
     resolver.team_repo.team_name_wide_search = MagicMock(return_value=None)
     resolver.team_repo.get_by_machine_name = MagicMock(return_value=None)
     resolver.team_repo.team_likely_name_wide_search = MagicMock(return_value=None)
+    resolver.team_repo.find_exact_normalized = MagicMock(return_value=None)
+    resolver.team_repo.find_by_club_affix = MagicMock(return_value=None)
+    resolver.team_repo.find_fuzzy_duplicate = MagicMock(return_value=None)
+    resolver.team_repo.find_substring_duplicate = MagicMock(return_value=None)
     result = resolver.resolve_team(
         provider_team_id="1",
         provider_team_name="Completely Unknown United",
@@ -230,6 +232,7 @@ def test_provider_id_mapping_upsert_unique_keys():
 
     repo = ExternalEntityMappingRepository(session)
     fake_row = SimpleNamespace(id=1, external_entity_id="47")
+    session.scalar.return_value = None
     session.scalars.return_value.one.return_value = fake_row
     with patch(
         "objects.repositories.external_entity_mapping_repository.pg_insert"
@@ -247,6 +250,38 @@ def test_provider_id_mapping_upsert_unique_keys():
         )
         assert row.external_entity_id == "47"
         insert_mock.assert_called()
+
+
+def test_provider_id_mapping_upsert_keeps_existing_internal_link():
+    session = MagicMock()
+    from objects.repositories.external_entity_mapping_repository import (
+        ExternalEntityMappingRepository,
+    )
+
+    repo = ExternalEntityMappingRepository(session)
+    existing = SimpleNamespace(
+        id=1,
+        external_entity_id="St. Pauli",
+        internal_entity_id=17,
+        external_name="St. Pauli",
+    )
+    # No row for the new external id; existing row for internal id 17.
+    repo.get_by_external = MagicMock(return_value=None)
+    repo.get_by_internal = MagicMock(return_value=existing)
+
+    with patch(
+        "objects.repositories.external_entity_mapping_repository.pg_insert"
+    ) as insert_mock:
+        row = repo.upsert(
+            provider="football-data.co.uk",
+            entity_type="team",
+            internal_entity_id=17,
+            external_entity_id="St Pauli",
+            external_name="St Pauli",
+        )
+        assert row is existing
+        assert row.external_entity_id == "St. Pauli"
+        insert_mock.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -568,16 +603,16 @@ def test_team_features_no_future_data_leakage():
     past = SimpleNamespace(
         id=10,
         match_date=date(2025, 8, 1),
-        home_team="Manchester City",
-        away_team="Arsenal",
+        home_team=SimpleNamespace(name="Manchester City"),
+        away_team=SimpleNamespace(name="Arsenal"),
         home_goals=2,
         away_goals=1,
     )
     future = SimpleNamespace(
         id=11,
         match_date=date(2025, 8, 20),
-        home_team="Manchester City",
-        away_team="Chelsea",
+        home_team=SimpleNamespace(name="Manchester City"),
+        away_team=SimpleNamespace(name="Chelsea"),
         home_goals=3,
         away_goals=0,
     )

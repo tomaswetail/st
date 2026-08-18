@@ -9,6 +9,7 @@ from sqlalchemy import select
 from calc.probality_manager import ProbabilityManager
 from data_sources.data_collector import DataCollector
 from data_sources.football_data import ExtendedMatchDataService, LeagueCatalogueService
+from data_sources.team_name_fetcher import fetch_team_names
 from database import SessionLocal, init_db
 from objects.models.external_entity_mapping import ExternalEntityMappingModel
 from objects.schema.data_classes.data_sources import DataSourceConfig
@@ -34,7 +35,7 @@ def mapped_fotmob_league_ids(session) -> list[tuple[int, str, str | None]]:
         select(ExternalEntityMappingModel).where(
             ExternalEntityMappingModel.provider == "fotmob",
             ExternalEntityMappingModel.entity_type == "league",
-            ExternalEntityMappingModel.external_entity_id == "67",
+            ExternalEntityMappingModel.external_entity_id != "40",
         )
     ).all()
     return [
@@ -52,9 +53,14 @@ def calc() -> None:
 def main() -> None:
     init_db()
     session = SessionLocal()
+    league_catalogue_service = LeagueCatalogueService(session)
+    league_catalogue_service.map_leagues_from_all_leagues_csv()
+    fetch_team_names(session=session)
+    from objects.repositories.team_repository import TeamRepository
+    team_repo = TeamRepository(session)
+    #team_repo.merge_duplicate(keep_team_id=217,remove_team_id=55)
     collector = DataCollector(session)
-
-    collector.refresh_all_data(['2425'])
+    collector.refresh_all_data(['2223','2324','2425','2526'])
 
     #main_extra_data()
 
@@ -99,6 +105,8 @@ def main_extra_data() -> None:
                 fotmob_id,
                 external_name,
             )
+            if fotmob_id == '47':
+                continue
             result = service.fetch_and_store_league_history(
                 league_id=league_id,
                 season=None,

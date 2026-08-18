@@ -6,7 +6,7 @@ from data_sources.football_data_uk_xlsx_provider import (
     FTR_MAP,
     start_year_to_season_code,
 )
-from objects.schema.db.historical_match import HistoricalMatchCreate
+from objects.schema.db.historical_match import HistoricalMatchDraft
 
 
 def normalize_season_code(season: str) -> str:
@@ -29,9 +29,9 @@ def to_historical_match_create(
     match: dict[str, Any],
     *,
     league_code: str,
-) -> HistoricalMatchCreate:
+) -> HistoricalMatchDraft:
     result = FTR_MAP[match["result"]]
-    return HistoricalMatchCreate(
+    return HistoricalMatchDraft(
         source=match["source"],
         league=league_code,
         season=normalize_season_code(str(match["season"])),

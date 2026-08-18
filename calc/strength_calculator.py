@@ -231,7 +231,7 @@ def _extract_side_metrics(
     """Map home/away advanced-stats columns onto the team's perspective."""
     if played_at_home:
         return _MatchSideMetrics(
-            opponent_team_name=historical_match.away_team,
+            opponent_team_name=historical_match.away_team.name,
             match_date=historical_match.match_date,
             non_penalty_xg_for=advanced_stats.home_non_penalty_xg,
             non_penalty_xg_against=advanced_stats.away_non_penalty_xg,
@@ -255,7 +255,7 @@ def _extract_side_metrics(
             shots_on_target_faced=advanced_stats.away_shots_on_target,
         )
     return _MatchSideMetrics(
-        opponent_team_name=historical_match.home_team,
+        opponent_team_name=historical_match.home_team.name,
         match_date=historical_match.match_date,
         non_penalty_xg_for=advanced_stats.away_non_penalty_xg,
         non_penalty_xg_against=advanced_stats.home_non_penalty_xg,
@@ -356,8 +356,8 @@ class StrengthCalculator:
                 away=None,
             )
 
-        home_team = self.team_repo.get_by_name(historical_match.home_team)
-        away_team = self.team_repo.get_by_name(historical_match.away_team)
+        home_team = historical_match.home_team
+        away_team = historical_match.away_team
         feature_cutoff = datetime.combine(
             historical_match.match_date, datetime.min.time()
         )
@@ -1219,7 +1219,7 @@ class StrengthCalculator:
                 (
                     historical_match,
                     advanced_stats,
-                    historical_match.home_team == team_name,
+                    historical_match.home_team.name == team_name,
                 )
             )
         return match_stat_rows

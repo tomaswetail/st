@@ -19,6 +19,15 @@ from objects.schema.db.historical_match import HistoricalMatch
 from utils.common import ensure_unit_probabilities
 
 
+def _match_side_name(side: Any) -> str:
+    """Return team name from a pydantic string or ORM TeamModel relationship."""
+    if side is None:
+        return ""
+    if isinstance(side, str):
+        return side
+    return str(side.name)
+
+
 class BalanceAndEnvironment:
     """Derive draw-oriented balance and environment features from strength + history."""
 
@@ -176,8 +185,8 @@ class BalanceAndEnvironment:
             for historical_match in historical_matches
             if historical_match.match_date < before_date
             and (
-                historical_match.home_team == team_name
-                or historical_match.away_team == team_name
+                _match_side_name(historical_match.home_team) == team_name
+                or _match_side_name(historical_match.away_team) == team_name
             )
         ]
         relevant.sort(key=lambda row: row.match_date, reverse=True)
@@ -188,7 +197,7 @@ class BalanceAndEnvironment:
         historical_match: HistoricalMatch | HistoricalMatchModel,
         team_name: str,
     ) -> tuple[int, int]:
-        if historical_match.home_team == team_name:
+        if _match_side_name(historical_match.home_team) == team_name:
             return historical_match.home_goals, historical_match.away_goals
         return historical_match.away_goals, historical_match.home_goals
 

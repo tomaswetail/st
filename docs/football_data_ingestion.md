@@ -17,12 +17,20 @@ HistoricalFootballDataService
 | League catalogue API | `data_sources/football_data/league_catalogue.py` |
 | Providers | `data_sources/football_data/providers/` |
 | HTTP client | `data_sources/football_data/http_client.py` |
-| Entity resolution | `data_sources/football_data/entity_resolver.py` |
+| Entity resolution | `data_sources/entity_resolver.py` |
 | Derived metrics | `data_sources/football_data/metrics.py` |
 | Team features | `calc/strength_calculator.py` |
 | CLI | `services/football_data_cli.py` |
 
 Schema delivery uses SQLAlchemy `create_all` via `init_db()` (no Alembic).
+
+`historical_matches.home_team` / `away_team` are **FKs** to `teams.id` (`home_team_id` / `away_team_id`). After pulling this change, wipe and reimport (no string→FK migration):
+
+```sql
+DROP TABLE historical_matches CASCADE;
+```
+
+Then `init_db()` / `create_all` and re-run `DataCollector.refresh_all_data(...)`. Team rows are resolved/created via `EntityResolver.resolve_team(..., create_if_missing=True)` during upsert.
 
 ## Configuration
 

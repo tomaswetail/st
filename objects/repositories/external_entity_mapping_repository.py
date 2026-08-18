@@ -58,13 +58,37 @@ class ExternalEntityMappingRepository(BaseRepository[ExternalEntityMappingModel]
         # Column is named "metadata" in DB; avoid ORM attribute name "metadata"
         # which collides with SQLAlchemy MetaData.
         meta_column = self.model.__table__.c.metadata
+        safe_metadata = json_safe(metadata) if metadata is not None else None
+        external_id = str(external_entity_id)
+
+        existing_by_external = self.get_by_external(
+            provider=provider,
+            entity_type=entity_type,
+            external_entity_id=external_id,
+        )
+        if existing_by_external is not None:
+            existing_by_external.internal_entity_id = internal_entity_id
+            existing_by_external.external_name = external_name
+            existing_by_external.metadata_json = safe_metadata
+            return existing_by_external
+
+        # One internal entity may only have one external id per provider.
+        # Alternate spellings that resolve to the same team keep the first mapping.
+        existing_by_internal = self.get_by_internal(
+            provider=provider,
+            entity_type=entity_type,
+            internal_entity_id=internal_entity_id,
+        )
+        if existing_by_internal is not None:
+            return existing_by_internal
+
         values = {
             "provider": provider,
             "entity_type": entity_type,
             "internal_entity_id": internal_entity_id,
-            "external_entity_id": str(external_entity_id),
+            "external_entity_id": external_id,
             "external_name": external_name,
-            meta_column: json_safe(metadata) if metadata is not None else None,
+            meta_column: safe_metadata,
         }
         statement = (
             pg_insert(self.model)
@@ -74,7 +98,7 @@ class ExternalEntityMappingRepository(BaseRepository[ExternalEntityMappingModel]
                 set_={
                     "internal_entity_id": internal_entity_id,
                     "external_name": external_name,
-                    meta_column: values[meta_column],
+                    meta_column: safe_metadata,
                 },
             )
             .returning(self.model)

@@ -327,8 +327,8 @@ class LeagueBehaviorCalculator:
                 goal_diff = float(
                     historical_match.home_goals - historical_match.away_goals
                 )
-                team_goal_diffs[historical_match.home_team].append(goal_diff)
-                team_goal_diffs[historical_match.away_team].append(-goal_diff)
+                team_goal_diffs[historical_match.home_team.name].append(goal_diff)
+                team_goal_diffs[historical_match.away_team.name].append(-goal_diff)
 
                 promoted_goal_diff = self._promoted_vs_established_goal_diff(
                     historical_match

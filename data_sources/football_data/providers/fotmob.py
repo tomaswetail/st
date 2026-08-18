@@ -516,6 +516,37 @@ def parse_fotmob_team(payload: Any) -> ProviderTeam:
         raw_payload=payload if isinstance(payload, dict) else {"raw": payload},
     )
 
+def _get_season(season_id: str, league_id: str):
+    season_mapping ={
+        '40': 'keep',
+        '47': 'keep',
+        '48': 'keep',
+        '67': 'convert',
+        '108': 'keep',
+        '109': 'keep',
+        '117': 'keep',
+        '132': 'keep',
+        '53': 'keep',
+        '110': 'keep',
+        '146': 'keep',
+        '55': 'keep',
+        '86': 'keep',
+        '57': 'keep',
+        '64': 'keep',
+        '123': 'keep',
+        '124': 'keep',
+        '125': 'keep',
+        '171': 'keep',
+        '168': 'convert',
+        '169': 'convert',
+    }
+
+    if league_id in season_mapping.keys():
+        if season_mapping[league_id] == 'keep':
+            return season_id
+        else:
+            get_season_rev(season_id)
+    return season_id
 
 class FotMobProvider:
     """FotMob adapter. Endpoint paths stay inside this module."""
@@ -528,7 +559,7 @@ class FotMobProvider:
         config: DataSourceConfig | None = None,
     ) -> None:
         """Create or wrap a throttled HTTP client for FotMob."""
-        self.config = DataSourceConfig()
+        self.config = config or DataSourceConfig()
         self._owns_client = client is None
         self.client = client or ThrottledHttpClient(
             base_url=self.config.fotmob_base_url,
@@ -577,7 +608,7 @@ class FotMobProvider:
             "leagues",
             params={
                 "id": provider_league_id,
-                "season": get_season_rev(provider_season_id),
+                "season": _get_season(provider_season_id, provider_league_id),
                 "ccode3": country_code,
             },
         )

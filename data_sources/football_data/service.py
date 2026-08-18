@@ -8,7 +8,7 @@ from typing import Literal
 
 from sqlalchemy.orm import Session
 
-from data_sources.football_data.entity_resolver import EntityResolver, TeamResolution
+from data_sources.entity_resolver import EntityResolver, TeamResolution
 from data_sources.football_data.http_client import (
     FootballDataHttpError,
     NotFoundError,
@@ -283,6 +283,14 @@ class ExtendedMatchDataService:
                     if result.status in {"imported", "updated"}:
                         imported_count += 1
                 except Exception as exc:  # noqa: BLE001
+                    import traceback
+                    s = trace = traceback.format_exc()
+                    logger.exception(
+                        "Failed fetching season %s for league %s: %s",
+                        season_id,
+                        provider_league_id,
+                        exc,
+                    )
                     self.session.rollback()
                     batch.add(
                         MatchImportResult(
@@ -303,6 +311,9 @@ class ExtendedMatchDataService:
         season: str | None,
         force_refresh: bool,
     ) -> MatchImportResult:
+
+        if fixture.provider_match_id == '4506273':
+            p=1
         """Resolve teams/match and persist details for one fixture."""
         home = self.resolver.resolve_team(
             provider_team_id=fixture.home_team_id,

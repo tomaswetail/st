@@ -248,8 +248,8 @@ def test_strength_calculator_with_mocked_database_data():
     match_1 = SimpleNamespace(
         id=101,
         match_date=date(2026, 8, 1),
-        home_team="Arsenal",
-        away_team="Chelsea",
+        home_team=SimpleNamespace(name="Arsenal"),
+        away_team=SimpleNamespace(name="Chelsea"),
         home_goals=2,
         away_goals=1,
         league="PL",
@@ -258,8 +258,8 @@ def test_strength_calculator_with_mocked_database_data():
     match_2 = SimpleNamespace(
         id=102,
         match_date=date(2026, 7, 25),
-        home_team="Liverpool",
-        away_team="Arsenal",
+        home_team=SimpleNamespace(name="Liverpool"),
+        away_team=SimpleNamespace(name="Arsenal"),
         home_goals=1,
         away_goals=1,
         league="PL",

@@ -17,7 +17,7 @@ class DataSourceConfig(BaseModel):
     """Paths and parameters for data ingestion and features."""
 
     team_aliases_path: Path = Field(
-        default_factory=lambda: _project_root() / "config" / "team_aliases.json"
+        default_factory=lambda: Path(__file__).resolve().parents[3] / "config" / "team_aliases.json"
     )
     football_data_base_url: str = Field(
         default="https://www.football-data.co.uk/mmz4281"
@@ -117,6 +117,9 @@ class DataSourceConfig(BaseModel):
     )
     unresolved_matches_csv_path: Path = Field(
         default_factory=lambda: _project_root() / "data" / "unresolved_matches.csv"
+    )
+    conflicting_matches_csv_path: Path = Field(
+        default_factory=lambda: _project_root() / "data" / "conflicting_matches.csv"
     )
     kickoff_match_tolerance_minutes: int = Field(default=24 * 60, ge=0)
     xg_aggregate_tolerance: float = Field(default=0.15, ge=0.0)

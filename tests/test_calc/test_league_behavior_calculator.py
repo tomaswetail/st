@@ -50,8 +50,8 @@ def _historical(
             result = "X"
     payload = {
         "match_date": match_date,
-        "home_team": home_team,
-        "away_team": away_team,
+        "home_team": SimpleNamespace(name=home_team),
+        "away_team": SimpleNamespace(name=away_team),
         "home_goals": home_goals,
         "away_goals": away_goals,
         "result": result,

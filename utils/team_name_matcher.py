@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import re
 from difflib import SequenceMatcher
-from pathlib import Path
 
 from objects.schema.data_classes.data_sources import DataSourceConfig
 from utils.common import fix_swedish_name, swedish_to_ascii
@@ -22,151 +21,6 @@ _SUFFIXES = (
     " united",
     " city",
 )
-
-_ALIASES: dict[str, str] = {
-    "Accrington Stanley": "Accrington",
-    "Athletic Bilbao": "Ath Bilbao",
-    "Atlético Madrid": "Ath Madrid",
-    "Atletico Madrid": "Ath Madrid",
-    "Bayer Leverkusen": "Leverkusen",
-    "Bayern München": "Bayern Munich",
-    "BK Häcken": "Hacken",
-    "Bodö/Glimt": "Bodo/Glimt",
-    "Boreham Wood FC": "Boreham Wood",
-    "Borussia Dortmund": "Dortmund",
-    "Bröndby": "Brondby",
-    "Bristol Rovers": "Bristol",
-    "Cambridge United": "Cambridge",
-    "Celta de Vigo": "Celta",
-    "Club Brügge": "Club Brugge",
-    "Dagenham & Redbridge": "Dag and Red",
-    "Djurgården": "Djurgarden",
-    "Halmstads BK": "Halmstad",
-    "Djurgårdens IF FF": "Djurgarden",
-    "Dover Athletic FC": "Dover Athletic",
-    "Eintracht Frankfurt": "Ein Frankfurt",
-    "Espanyol": "Espanol",
-    "FC Köpenhamn": "FC Copenhagen",
-    "FC Nordsjälland": "Nordsjaelland",
-    "Häcken": "Hacken",
-    "IFK Göteborg": "Goteborg",
-    "Inter Åbo": "Inter Turku",
-    "Malmö FF": "Malmo FF",
-    "Östers IF": "Oster",
-    "Manchester City": "Man City",
-    "Manchester United": "Man United",
-    "Manchester C": "Man City",
-    "Manchester U": "Man United",
-    "Mönchengladbach": "M'gladbach",
-    "New York City FC": "New York City",
-    "Nordsjälland": "Nordsjaelland",
-    "Nottingham": "Nott'm Forest",
-    "Nottingham Forest": "Nott'm",
-    "Östersund": "Ostersunds",
-    "Östersunds FK": "Ostersunds",
-    "Paris Saint-Germain": "Paris",
-    "Peterborough ": "Peterboro",
-    "Peterborough": "Peterboro",
-    "Queens Park Rangers": "QPR",
-    "Queen's Park": "Queens",
-    "Real Sociedad": "Sociedad",
-    "Royal Antwerp": "Antwerp",
-    "Sheffield W": "Sheffield Weds",
-    "Sporting Lissabon": "Sp Lisbon",
-    "Sporting Gijón": "Sp Gijon",
-    "Standard Liege": "Standard",
-    "West Bromwich": "West Brom",
-    "Wolverhampton": "Wolves",
-    "Wolverhampton Wanderers": "Wolves",
-    "Zenith": "Zenit",
-    "Örebro SK": "Orebro",
-    "IFK Norrköping": "Norrkoping",
-    "Mjällby AIF": "Mjallby",
-    "Helsingborgs IF": "Helsingborg",
-    "Kalmar FF": "Kalmar",
-    "IFK Värnamo": "Varnamo",
-    "Värnamo": "Varnamo",
-    "Västerås SK": "Vasteras",
-    "GIF Sundsvall": "Sundsvall",
-    "IK Sirius": "Sirius",
-    "Ham-Kam": "HamKam",
-    "Fredrikstad FK": "Fredrikstad",
-    "Sarpsborg": "Sarpsborg 08",
-    "Odds BK": "Odd",
-    "Odds": "Odd",
-    "St. Truidense": "St Truiden",
-    "St.Truiden": "St.",
-    "St. Mirren": "St Mirren",
-    "St.Johnstone": "St Johnstone",
-    "St.Mirren": "St Mirren",
-    "St.Etienne": "St Etienne",
-    "Saint Etienne": "St Etienne",
-    "OH Leuven": "Oud-Heverlee",
-    "Airdrieonians": "Airdrie",
-    "Sverige": "Sweden",
-    "Tyskland": "Germany",
-    "Frankrike": "France",
-    "Spanien": "Spain",
-    "Italien": "Italy",
-    "Nederländerna": "Netherlands",
-    "Belgien": "Belgium",
-    "Schweiz": "Switzerland",
-    "Österrike": "Austria",
-    "Danmark": "Denmark",
-    "Norge": "Norway",
-    "Finland": "Finland",
-    "Polen": "Poland",
-    "Turkiet": "Turkey",
-    "Ungern": "Hungary",
-    "Grekland": "Greece",
-    "Skottland": "Scotland",
-    "Irland": "Ireland",
-    "Island": "Iceland",
-    "Kroatien": "Croatia",
-    "Serbien": "Serbia",
-    "Ukraina": "Ukraine",
-    "Rumänien": "Romania",
-    "Ryssland": "Russia",
-    "Brasilien": "Brazil",
-    "Mexiko": "Mexico",
-    "Australien": "Australia",
-    "Sydkorea": "South Korea",
-    "Marocko": "Morocco",
-    "Egypten": "Egypt",
-    "Saudiarabien": "Saudi Arabia",
-    "Algeriet": "Algeria",
-    "Tunisien": "Tunisia",
-    "Elfenbenskusten": "Ivory Coast",
-    "Kamerun": "Cameroon",
-    "1. FC Nürnberg": "Nurnberg",
-    "BK Olympic": "Olympic",
-    "VfL Osnabrück": "Osnabruck",
-    "KV Mechelen": "Mechelen",
-    "Karlsruher SC": "Karlsruhe",
-    "Lidköpings FK": "Lidköping",
-    "Vasalunds IF": "Vasalund",
-    "Tvååkers IF": "Tvååker",
-    "PEC Zwolle": "Zwolle",
-    "Zulte Waregem": "Waregem",
-    "Eintracht Braunschweig": "Braunschweig",
-    "Arminia Bielefeld": "Bielefeld",
-    "Sporting Charleroi": "Charleroi",
-    "Dynamo Dresden": "Dresden",
-    "Greenock Morton": "Morton",
-    "Hellas Verona": "Verona",
-    "Jönköpings": "Jonkopings",
-    "Örebro": "Orebro",
-    "Umeå": "Umea",
-    "Djurgardens": "Djurgarden",
-    "Sandvikens": "Sandviken",
-    "Göteborgs": "Goteborg",
-    "Varbergs": "Varberg",
-    "Hudiksvalls FF": "Hudiksvall",
-    "Sävedalens IF": "Sävedalen",
-    "Högaborgs BK": "Högaborg",
-    "Karlbergs BK": "Karlberg",
-    "Rågsveds IF": "Rågsved",
-}
 
 
 def _normalize(name: str) -> str:
@@ -192,13 +46,16 @@ def normalize_team_name(name: str) -> str:
 
 
 def _load_aliases() -> dict[str, str]:
-    aliases = dict(_ALIASES)
     path = DataSourceConfig().team_aliases_path
-    if path.exists():
+    if not path.exists():
+        return {}
+    try:
         data = json.loads(path.read_text(encoding="utf-8"))
-        if isinstance(data, dict):
-            aliases.update({str(k): str(v) for k, v in data.items()})
-    return aliases
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    return {str(k): str(v) for k, v in data.items()}
 
 
 def to_football_data_name(

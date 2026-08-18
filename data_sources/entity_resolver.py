@@ -115,8 +115,13 @@ class EntityResolver:
         provider_team_id: str,
         provider_team_name: str,
         league_id: int | None = None,
+        create_if_missing: bool = False,
     ) -> TeamResolution:
-        """Resolve a provider team via mapping, exact name, alias, or fuzzy match."""
+        """Resolve a provider team via mapping, exact name, alias, fuzzy, or Postgres duplicate lookup.
+
+        When ``create_if_missing`` is True (historical upsert), create a TeamModel
+        on miss and store an external mapping for reimports.
+        """
         mapping = self.mapping_repo.get_by_external(
             provider=self.provider,
             entity_type="team",
@@ -132,28 +137,24 @@ class EntityResolver:
         if exact is not None:
             team = self._get_team_by_name(exact, league_id)
             if team is not None:
+                if create_if_missing:
+                    self._map_resolved_team(team, provider_team_id, provider_team_name)
                 return TeamResolution(team=team, confidence=1.0, method="exact_name")
 
         alias = self._aliases.get(provider_team_name)
         if alias:
             team = self._get_team_by_name(alias, league_id)
             if team is not None:
+                if create_if_missing:
+                    self._map_resolved_team(team, provider_team_id, provider_team_name)
                 return TeamResolution(team=team, confidence=0.98, method="alias")
             aliased_exact = self._find_by_normalized_name(alias, candidates)
             if aliased_exact is not None:
                 team = self._get_team_by_name(aliased_exact, league_id)
                 if team is not None:
+                    if create_if_missing:
+                        self._map_resolved_team(team, provider_team_id, provider_team_name)
                     return TeamResolution(team=team, confidence=0.98, method="alias")
-        else:
-            team = self._get_team_by_name_fuzzy(provider_team_name)
-            if team is not None:
-                return TeamResolution(team=team, confidence=0.75, method="alias")
-            team = self._get_team_by_machine_name(provider_team_name)
-            if team is not None:
-                return TeamResolution(team=team, confidence=1.0, method="exact_name")
-            team = self._get_team_by_machine_name_fuzzy(provider_team_name)
-            if team is not None:
-                return TeamResolution(team=team, confidence=0.9, method="alias")
 
         threshold = self.config.fuzzy_match_threshold / 100
         best_name = ""
@@ -167,13 +168,44 @@ class EntityResolver:
                 best_score = score
                 best_name = candidate
         if best_name and best_score >= threshold:
-            team = self._get_team_by_name(best_name, league_id)
+            if self._is_safe_team_match(provider_team_name, best_name):
+                team = self._get_team_by_name(best_name, league_id)
+                if team is not None:
+                    if create_if_missing:
+                        self._map_resolved_team(team, provider_team_id, provider_team_name)
+                    return TeamResolution(
+                        team=team,
+                        confidence=best_score,
+                        method="fuzzy",
+                    )
+
+        postgres_lookups = (
+            (self.team_repo.find_exact_normalized, "normalized", 1.0),
+            (self.team_repo.find_by_club_affix, "club_affix", 0.95),
+            (self.team_repo.find_fuzzy_duplicate, "pg_fuzzy", 0.80),
+            (self.team_repo.find_substring_duplicate, "substring", 0.90),
+        )
+        for lookup, method, confidence in postgres_lookups:
+            team = lookup(provider_team_name)
             if team is not None:
+                if not self._is_safe_team_match(provider_team_name, team.name):
+                    continue
+                if create_if_missing:
+                    self._map_resolved_team(team, provider_team_id, provider_team_name)
                 return TeamResolution(
-                    team=team,
-                    confidence=best_score,
-                    method="fuzzy",
+                    team=team, confidence=confidence, method=method
                 )
+
+        if create_if_missing:
+            team = self.team_repo.create(
+                name=provider_team_name,
+                machine_name=sanitize_string(provider_team_name),
+                league_id=league_id,
+            )
+            self.team_repo.flush()
+            self._team_name_cache = None
+            self._map_resolved_team(team, provider_team_id, provider_team_name)
+            return TeamResolution(team=team, confidence=1.0, method="created")
 
         logger.warning(
             "Unresolved team provider=%s id=%s name=%s best_score=%.3f",
@@ -189,6 +221,29 @@ class EntityResolver:
             unresolved_name=provider_team_name,
         )
 
+    def _is_safe_team_match(self, provider_team_name: str, candidate_name: str) -> bool:
+        """Block known false positives in non-exact matching paths."""
+        blocked_pairs = {
+            ("angers", "rangers"),
+            ("villarreal", "villarreal b"),
+        }
+        provider_name = normalize_team_name(provider_team_name)
+        candidate = normalize_team_name(candidate_name)
+        return (provider_name, candidate) not in blocked_pairs
+
+    def _map_resolved_team(
+        self,
+        team: TeamModel,
+        provider_team_id: str,
+        provider_team_name: str,
+    ) -> None:
+        self.ensure_mapping(
+            entity_type="team",
+            internal_entity_id=team.id,
+            external_entity_id=str(provider_team_id),
+            external_name=provider_team_name,
+        )
+
     def resolve_match(
         self,
         provider_match: ProviderMatch,
@@ -199,6 +254,7 @@ class EntityResolver:
         away_team: TeamModel | None,
         season: str | None = None,
     ) -> MatchResolution:
+
         """Resolve a provider fixture to a historical match by mapping or date/teams."""
         warnings: list[str] = []
         mapping = self.mapping_repo.get_by_external(
@@ -211,6 +267,8 @@ class EntityResolver:
             if match is not None:
                 return MatchResolution(match=match, method="mapping", warnings=warnings)
 
+        home_team_ids = [home_team.id] if home_team is not None else None
+        away_team_ids = [away_team.id] if away_team is not None else None
         home_names = self._names_for_team(home_team, provider_match.home_team_name, league_id)
         away_names = self._names_for_team(away_team, provider_match.away_team_name, league_id)
         kickoff = provider_match.kickoff_at
@@ -221,8 +279,10 @@ class EntityResolver:
         candidates = self.historical_repo.find_by_date_range_and_teams(
             date_from=date_from,
             date_to=date_to,
-            home_names=home_names,
-            away_names=away_names,
+            home_team_ids=home_team_ids,
+            away_team_ids=away_team_ids,
+            home_names=None if home_team_ids else home_names,
+            away_names=None if away_team_ids else away_names,
             league_code=league_code,
         )
         if len(candidates) == 1:
@@ -247,12 +307,16 @@ class EntityResolver:
             )
 
         # Postponed / rescheduled: widen to season + teams without strict date.
-        if season and league_code and home_names and away_names:
+        if season and league_code and (home_team_ids or home_names) and (
+            away_team_ids or away_names
+        ):
             season_candidates = self.historical_repo.find_by_season_and_teams(
                 league_code=league_code,
                 season=season,
-                home_names=home_names,
-                away_names=away_names,
+                home_team_ids=home_team_ids,
+                away_team_ids=away_team_ids,
+                home_names=None if home_team_ids else home_names,
+                away_names=None if away_team_ids else away_names,
             )
             if len(season_candidates) == 1:
                 warnings.append("Matched postponed/rescheduled fixture via season+teams")
@@ -284,6 +348,7 @@ class EntityResolver:
             provider_match.provider_league_id,
             provider_match.kickoff_at,
         )
+        raise Exception('Unresolved match')
         self._append_unresolved_match(
             provider_match,
             league_code=league_code,

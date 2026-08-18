@@ -10,7 +10,7 @@ from typing import Any
 import pandas as pd
 
 from objects.schema.data_classes.data_sources import DataSourceConfig
-from objects.schema.db.historical_match import HistoricalMatchCreate
+from objects.schema.db.historical_match import HistoricalMatchDraft
 from utils.common import EXTRA_LEAGUE_CODES, MAIN_LEAGUE_CODES
 
 logger = logging.getLogger(__name__)
@@ -106,10 +106,10 @@ def parse_football_data_csv(
     league: str,
     season: str,
     source: str = "football-data.co.uk",
-) -> tuple[list[HistoricalMatchCreate], list[str]]:
+) -> tuple[list[HistoricalMatchDraft], list[str]]:
     """Parse CSV content into HistoricalMatch rows. Returns (matches, errors)."""
     df = _read_csv(content)
-    matches: list[HistoricalMatchCreate] = []
+    matches: list[HistoricalMatchDraft] = []
     errors: list[str] = []
 
     for idx, row in df.iterrows():
@@ -130,7 +130,7 @@ def parse_football_data_csv(
             oh, od, oa = _extract_odds(row)
             raw = {k: (None if pd.isna(v) else v) for k, v in row.items()}
             matches.append(
-                HistoricalMatchCreate(
+                HistoricalMatchDraft(
                     source=source,
                     league=league,
                     season=season,
@@ -157,14 +157,14 @@ def parse_extra_league_csv(
     league: str,
     seasons: list[str] | None = None,
     source: str = "football-data.co.uk",
-) -> tuple[list[HistoricalMatchCreate], list[str]]:
+) -> tuple[list[HistoricalMatchDraft], list[str]]:
     """Parse combined extra-league CSV, optionally filtering by season codes."""
     df = _read_csv(content)
     allowed_start_years: set[int] | None = None
     if seasons:
         allowed_start_years = {season_code_to_start_year(s) for s in seasons}
 
-    matches: list[HistoricalMatchCreate] = []
+    matches: list[HistoricalMatchDraft] = []
     errors: list[str] = []
 
     for idx, row in df.iterrows():
@@ -195,7 +195,7 @@ def parse_extra_league_csv(
             oh, od, oa = _extract_extra_odds(row)
             raw = {k: (None if pd.isna(v) else v) for k, v in row.items()}
             matches.append(
-                HistoricalMatchCreate(
+                HistoricalMatchDraft(
                     source=source,
                     league=league,
                     season=start_year_to_season_code(start_year),
@@ -220,7 +220,7 @@ class FootballDataUKProvider:
     """Download and parse Football-Data.co.uk league CSV files."""
 
     def __init__(self, config: DataSourceConfig | None = None) -> None:
-        self.config = DataSourceConfig()
+        self.config = config or DataSourceConfig()
 
     def csv_url(self, league: str, season: str) -> str:
         return f"{self.config.football_data_base_url}/{season}/{league}.csv"
@@ -228,7 +228,18 @@ class FootballDataUKProvider:
     def extra_csv_url(self, league: str) -> str:
         return f"{self.config.football_data_extra_base_url}/{league}.csv"
 
+    def _local_csv_path(self, league: str, season: str) -> Path:
+        return self.config.raw_football_data_dir / season / f"{league}.csv"
+
+    def _local_extra_csv_path(self, league: str) -> Path:
+        return self.config.raw_football_data_dir / "extra" / f"{league}.csv"
+
     def download_csv(self, league: str, season: str) -> str:
+        local = self._local_csv_path(league, season)
+        if local.exists():
+            logger.info("Using cached CSV %s", local)
+            return local.read_text(encoding="utf-8", errors="replace")
+
         url = self.csv_url(league, season)
         try:
             import httpx
@@ -237,23 +248,22 @@ class FootballDataUKProvider:
             resp.raise_for_status()
             text = resp.text
         except Exception as exc:
-            local = self.config.raw_football_data_dir / season / f"{league}.csv"
-            if local.exists():
-                logger.info("Using local CSV %s", local)
-                text = local.read_text(encoding="utf-8", errors="replace")
-            else:
-                raise RuntimeError(
-                    f"Failed to download {url} and no local file at {local}: {exc}"
-                ) from exc
-        dest = self.config.raw_football_data_dir / season
-        dest.mkdir(parents=True, exist_ok=True)
-        (dest / f"{league}.csv").write_text(text, encoding="utf-8")
+            raise RuntimeError(
+                f"Failed to download {url} and no local file at {local}: {exc}"
+            ) from exc
+        local.parent.mkdir(parents=True, exist_ok=True)
+        local.write_text(text, encoding="utf-8")
+        logger.info("Cached CSV %s", local)
         return text
 
     def download_extra_csv(self, league: str) -> str:
         """Download combined extra-league CSV text."""
-        url = self.extra_csv_url(league)
+        local = self._local_extra_csv_path(league)
+        if local.exists():
+            logger.info("Using cached CSV %s", local)
+            return local.read_text(encoding="utf-8", errors="replace")
 
+        url = self.extra_csv_url(league)
         try:
             import httpx
 
@@ -261,20 +271,15 @@ class FootballDataUKProvider:
             resp.raise_for_status()
             text = resp.text
         except Exception as exc:
-            local = self.config.raw_football_data_dir / "extra" / f"{league}.csv"
-            if local.exists():
-                logger.info("Using local CSV %s", local)
-                text = local.read_text(encoding="utf-8", errors="replace")
-            else:
-                raise RuntimeError(
-                    f"Failed to download {url} and no local file at {local}: {exc}"
-                ) from exc
-        dest = self.config.raw_football_data_dir / "extra"
-        dest.mkdir(parents=True, exist_ok=True)
-        (dest / f"{league}.csv").write_text(text, encoding="utf-8")
+            raise RuntimeError(
+                f"Failed to download {url} and no local file at {local}: {exc}"
+            ) from exc
+        local.parent.mkdir(parents=True, exist_ok=True)
+        local.write_text(text, encoding="utf-8")
+        logger.info("Cached CSV %s", local)
         return text
 
-    def parse_file(self, path: Path, league: str, season: str) -> tuple[list[HistoricalMatchCreate], list[str]]:
+    def parse_file(self, path: Path, league: str, season: str) -> tuple[list[HistoricalMatchDraft], list[str]]:
         content = path.read_text(encoding="utf-8", errors="replace")
         return parse_football_data_csv(content, league=league, season=season)
 
@@ -286,8 +291,8 @@ class FootballDataUKProvider:
 
     def fetch_historical_matches(
         self, leagues: list[str], seasons: list[str]
-    ) -> list[HistoricalMatchCreate]:
-        all_matches: list[HistoricalMatchCreate] = []
+    ) -> list[HistoricalMatchDraft]:
+        all_matches: list[HistoricalMatchDraft] = []
         main_leagues = [lg for lg in leagues if not is_extra_league(lg)]
         extra_leagues = [lg for lg in leagues if is_extra_league(lg)]
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from contextlib import contextmanager
 from typing import Any, Generator
@@ -8,11 +9,11 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from database.models import Base
 
+logger = logging.getLogger(__name__)
+
 __all__ = [
     "Base",
-    "DATABASE_URL",
     "SessionLocal",
-    "engine",
     "init_db",
     "session_scope",
 ]
@@ -76,8 +77,30 @@ def __getattr__(name: str):
 
 def init_db() -> None:
     import objects.models  # noqa: F401
+    from sqlalchemy import text
+    from sqlalchemy.exc import ProgrammingError
 
-    Base.metadata.create_all(_get_engine())
+    engine = _get_engine()
+    Base.metadata.create_all(engine)
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as connection:
+        for extension_name in ("pg_trgm", "unaccent"):
+            already_installed = connection.execute(
+                text("SELECT 1 FROM pg_extension WHERE extname = :name"),
+                {"name": extension_name},
+            ).scalar()
+            if already_installed:
+                continue
+            try:
+                connection.execute(
+                    text(f"CREATE EXTENSION IF NOT EXISTS {extension_name}")
+                )
+            except ProgrammingError:
+                logger.warning(
+                    "Could not create extension %s (superuser required). "
+                    "Run as a superuser: CREATE EXTENSION IF NOT EXISTS %s;",
+                    extension_name,
+                    extension_name,
+                )
 
 
 @contextmanager
