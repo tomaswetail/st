@@ -42,7 +42,7 @@ def _match_row(
     xg_for: float,
     xg_against: float,
     opponent_name: str = "Opponent",
-    league_code: str = "E0",
+    league_external_id: int = 39,
     season: str = "2025",
 ):
     return SimpleNamespace(
@@ -51,7 +51,7 @@ def _match_row(
         xg_for=xg_for,
         xg_against=xg_against,
         opponent_name=opponent_name,
-        league_code=league_code,
+        league_external_id=league_external_id,
         season=season,
     )
 
@@ -77,7 +77,7 @@ def calculator():
     # Replace DB-backed repositories with mocks.
     calc.team_repo = MagicMock()
     calc.league_repo = MagicMock()
-    calc.historical_match_repo = MagicMock()
+    calc.fixture_repo = MagicMock()
 
     calc.team_repo.get.return_value = _team()
     return calc
@@ -435,7 +435,7 @@ def test_team_history_loader_uses_strict_target_date_cutoff(calculator):
     def find_before_date_by_team(*, team_name, before_date, venue, limit):
         return [m for m in db_rows if m.fixture_date < before_date][:limit]
 
-    calculator.historical_match_repo.find_before_date_by_team.side_effect = (
+    calculator.fixture_repo.find_before_date_by_team.side_effect = (
         find_before_date_by_team
     )
 
@@ -466,7 +466,7 @@ def test_team_history_loader_uses_strict_target_date_cutoff(calculator):
     assert [r.match.id for r in second] == [1]
     assert all(r.match.fixture_date < TARGET_DATE for r in first + second)
 
-    calculator.historical_match_repo.find_before_date_by_team.assert_called_with(
+    calculator.fixture_repo.find_before_date_by_team.assert_called_with(
         team_name="Target",
         before_date=TARGET_DATE,
         venue=None,
@@ -609,11 +609,11 @@ def test_league_home_advantage_uses_only_pre_cutoff_goal_sums(calculator):
     calculator.config = _config(
         league_home_advantage_shrinkage_matches=0.0,
     )
-    calculator.historical_match_repo.get_home_goals_sum_by_league.return_value = (
+    calculator.fixture_repo.get_home_goals_sum_by_league.return_value = (
         30,
         20,
     )
-    calculator.historical_match_repo.get_away_goals_sum_by_league.return_value = (
+    calculator.fixture_repo.get_away_goals_sum_by_league.return_value = (
         20,
         20,
     )
@@ -633,7 +633,7 @@ def test_league_home_advantage_uses_only_pre_cutoff_goal_sums(calculator):
     )
     assert result["league_home_advantage_sample_size"] == 20
 
-    assert calculator.historical_match_repo.get_home_goals_sum_by_league.call_args_list == [
+    assert calculator.fixture_repo.get_home_goals_sum_by_league.call_args_list == [
         call(LEAGUE_ID, "2025", TARGET_DATE),
         call(LEAGUE_ID, "2024", TARGET_DATE),
     ]

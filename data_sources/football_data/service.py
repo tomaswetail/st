@@ -23,6 +23,7 @@ from data_sources.football_data.results import BatchImportResult, MatchImportRes
 from database import SessionLocal
 from objects.models.fixture import FixtureModel
 from objects.repositories.fixture_repository import FixtureRepository
+from objects.repositories.league_repository import LeagueRepository
 from objects.repositories.match_advanced_stats_repository import (
     MatchAdvancedStatsRepository,
 )
@@ -39,7 +40,7 @@ logger = logging.getLogger(__name__)
 ProviderName = Literal["sofascore"]
 
 # SofaScore season labels used when none is passed explicitly.
-FIXED_IMPORT_SEASONS = ["2024/2025", "2025/2026"]
+FIXED_IMPORT_SEASONS = ["2024", "2025"]
 
 
 def build_provider(
@@ -82,6 +83,7 @@ class ExtendedMatchDataService:
             self.session, config=self.config, provider=self.provider_name
         )
         self.fixture_repo = FixtureRepository(self.session)
+        self.leagues_repo = LeagueRepository(self.session)
         self.stats_repo = MatchAdvancedStatsRepository(self.session)
         self.shot_repo = MatchShotRepository(self.session)
 
@@ -179,32 +181,22 @@ class ExtendedMatchDataService:
 
     def fetch_and_store_league_history(
         self,
-        league_id: int,
+        external_league_id: int,
+        provider_league_id: int,
         season: str | None = None,
         force_refresh: bool = False,
         limit: int | None = None,
         min_season_year: int | None = None,
     ) -> BatchImportResult:
         """Import fixtures for fixed seasons of a mapped league."""
-        league = self.resolver.resolve_league(league_id)
+        league = self.leagues_repo.get_by_external_id(external_league_id)
         if league is None:
             return BatchImportResult(requested=0)
-
-        provider_league_id = self.resolver.resolve_provider_league_id(league_id)
-        if provider_league_id is None:
-            logger.error(
-                "Cannot import league_id=%s without external mapping for %s",
-                league_id,
-                self.provider_name,
-            )
-            return BatchImportResult(requested=0)
-
-        league_code = self.resolver.football_data_league_code(league)
 
         seasons = [season] if season else list(FIXED_IMPORT_SEASONS)
         logger.info(
             "league_id=%s provider=%s seasons=%s",
-            league_id,
+            provider_league_id,
             self.provider_name,
             seasons,
         )
@@ -242,7 +234,7 @@ class ExtendedMatchDataService:
                         result = self._import_provider_fixture(
                             fixture=fixture,
                             league_id=league_id,
-                            league_code=league_code,
+                            league_external_id=league_external_id,
                             season=season or self._map_season_label(season_id),
                             force_refresh=force_refresh,
                         )
@@ -276,7 +268,7 @@ class ExtendedMatchDataService:
         *,
         fixture: ProviderMatch,
         league_id: int,
-        league_code: str | None,
+        league_external_id: int | None,
         season: str | None,
         force_refresh: bool,
     ) -> MatchImportResult:
@@ -311,7 +303,7 @@ class ExtendedMatchDataService:
 
         match_resolution = self.resolver.resolve_match(
             fixture,
-            league_code=league_code,
+            league_external_id=league_external_id,
             league_id=league_id,
             home_team=home.team,
             away_team=away.team,

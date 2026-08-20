@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from data_sources import api_football_client
 from data_sources.api_football_client import APIFootballClient, API_FOOTBALL_SOURCE
-
+from data_sources.api_football_leagues import all_api_football_league_codes
 from objects.repositories.external_entity_mapping_repository import (
     ExternalEntityMappingRepository,
 )

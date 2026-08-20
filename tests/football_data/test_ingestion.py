@@ -142,7 +142,7 @@ def test_match_resolution_by_mapping():
         status="finished",
     )
     result = resolver.resolve_match(
-        provider_match, league_code="E0", home_team=None, away_team=None, league_id=47
+        provider_match, league_external_id=39, home_team=None, away_team=None, league_id=47
     )
     assert result.method == "mapping"
     assert result.match.id == 55
@@ -181,7 +181,7 @@ def test_postponed_fixture_matching_via_season():
     resolver.team_repo.team_name_wide_search = MagicMock(return_value=None)
     result = resolver.resolve_match(
         provider_match,
-        league_code="E0",
+        league_external_id=39,
         home_team=home,
         away_team=away,
         season="2526",
@@ -588,7 +588,7 @@ def test_unresolved_teams_created_from_sofascore():
     result = service._import_provider_fixture(
         fixture=fixture,
         league_id=1,
-        league_code="E0",
+        league_external_id=39,
         season="2526",
         force_refresh=False,
     )

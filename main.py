@@ -15,6 +15,7 @@ from objects.models.external_entity_mapping import ExternalEntityMappingModel
 from objects.repositories.league_repository import LeagueRepository
 from objects.schema.data_classes.data_sources import DataSourceConfig
 from services.draw_manager import STDrawManager
+from utils.common import FOTMOB_TO_API_FOOTBALL_LEAGUE_MAPPING
 
 logging.basicConfig(
     level=logging.INFO,
@@ -27,16 +28,7 @@ MIN_SEASON_YEAR = 2020
 
 def mapped_sofascore_league_ids(session) -> list[tuple[int, str, str | None]]:
     """Return (leagues.id, sofascore_id, external_name) for mapped leagues."""
-    rows = session.scalars(
-        select(ExternalEntityMappingModel).where(
-            ExternalEntityMappingModel.provider == "sofascore",
-            ExternalEntityMappingModel.entity_type == "league",
-        )
-    ).all()
-    return [
-        (row.internal_entity_id, row.external_entity_id, row.external_name)
-        for row in rows
-    ]
+    return FOTMOB_TO_API_FOOTBALL_LEAGUE_MAPPING.values()
 
 
 def calc() -> None:
@@ -63,8 +55,8 @@ def _get_leagues(session):
 def main() -> None:
     init_db()
     session = SessionLocal()
-    collector = DataCollector(session)
-    collector.refresh_all_data(["2223", "2324", "2425", "2526"])
+    #collector = DataCollector(session)
+    #collector.refresh_all_data(["2223", "2324", "2425", "2526"])
     main_extra_data()
 
 
@@ -80,18 +72,6 @@ def main_extra_data() -> None:
         config=config,
     )
     try:
-        leagues = mapped_sofascore_league_ids(session)
-        if not leagues:
-            logger.error(
-                "No sofascore league mappings found in external_entity_mapping"
-            )
-            return
-
-        logger.info(
-            "Importing advanced stats/shots for %d mapped leagues (from %s)",
-            len(leagues),
-            MIN_SEASON_YEAR,
-        )
         totals = {
             "requested": 0,
             "imported": 0,
@@ -101,15 +81,10 @@ def main_extra_data() -> None:
             "failed": 0,
         }
 
-        for league_id, sofascore_id, external_name in leagues:
-            logger.info(
-                "=== league_id=%s sofascore=%s (%s) ===",
-                league_id,
-                sofascore_id,
-                external_name,
-            )
+        for fotmob_league_id, api_fotball_league_id in FOTMOB_TO_API_FOOTBALL_LEAGUE_MAPPING.items():
             result = service.fetch_and_store_league_history(
-                league_id=league_id,
+                external_league_id=api_fotball_league_id,
+                provider_league_id=fotmob_league_id,
                 season=None,
                 force_refresh=False,
                 min_season_year=MIN_SEASON_YEAR,
@@ -117,7 +92,7 @@ def main_extra_data() -> None:
             logger.info(
                 "league_id=%s requested=%s imported=%s updated=%s "
                 "skipped=%s unresolved=%s failed=%s",
-                league_id,
+                fotmob_league_id,
                 result.requested,
                 result.imported,
                 result.updated,

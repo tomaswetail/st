@@ -13,7 +13,6 @@ from calc.strength_calculator import StrengthCalculator
 from calc.strength_helpers import normalize_strength, npxg_or_xg, weighted_mean_from_pairs
 from utils.seasons import season_code_to_start_year, start_year_to_season_code
 from objects.models.fixture import FixtureModel
-from data_sources.api_football_leagues import code_for_api_football_league_id
 from utils.fixture_fields import fixture_away_name, fixture_home_name, fixture_match_date
 from objects.models.match_advanced_stats import MatchAdvancedStatsModel
 from objects.models.team import TeamModel
@@ -23,7 +22,6 @@ from objects.repositories.team_repository import TeamRepository
 from objects.schema.data_classes.data_sources import DataSourceConfig
 from objects.schema.data_classes.team_strength_features import TeamStrengthFeatures
 from objects.schema.db.team import Team
-from utils.common import LEAGUE_NAMES_REV
 from utils.competition_type import competition_type_flags, is_league_match
 
 
@@ -57,7 +55,7 @@ class _MatchNpxg(NamedTuple):
     xg_for: float
     xg_against: float
     opponent_name: str
-    league_code: str
+    league_external_id: int
     season: str
 
 
@@ -104,11 +102,11 @@ class HomeAdvantageCalculator:
         team: Team,
         current_date: date,
         *,
-        target_league_code: str | None = None,
+        target_league_external_id: int | None = None,
     ) -> HomeAdvantageResult:
         """Return combined league + team + competition home advantage before cutoff."""
         competition = self._calc_competition_home_advantage(
-            target_league_code, current_date
+            target_league_external_id, current_date
         )
         competition_home_advantage = float(
             competition["competition_home_advantage"]
@@ -195,7 +193,7 @@ class HomeAdvantageCalculator:
 
     def _calc_competition_home_advantage(
         self,
-        target_league_code: str | None,
+        target_league_external_id: int | None,
         before_date: date,
     ) -> dict[str, float | int]:
         """Learn shrunk competition-type effects and apply to the target fixture."""
@@ -205,12 +203,21 @@ class HomeAdvantageCalculator:
             "competition_home_advantage_shrinkage_weight": 0.0,
             "competition_home_advantage_sample_size": 0,
         }
-        if target_league_code is None or is_league_match(target_league_code):
+        if target_league_external_id is None:
+            return zero
+        target_league = self.league_repo.get_by_external_id(
+            target_league_external_id
+        )
+        if target_league is None or is_league_match(
+            league_type=target_league.league_type,
+            country_name=target_league.country_name,
+        ):
             return zero
 
         betas = self._learn_competition_betas(before_date)
         is_domestic, is_international, is_friendly = competition_type_flags(
-            target_league_code
+            league_type=target_league.league_type,
+            country_name=target_league.country_name,
         )
         competition_home_advantage = (
             betas["domestic"][0] * float(is_domestic)
@@ -281,9 +288,9 @@ class HomeAdvantageCalculator:
         self._competition_beta_cache[before_date] = betas
         return betas
 
-    @staticmethod
     def _bucket_goal_sums_by_competition_type(
-        goal_sums: dict[str, tuple[int, int, int, int]],
+        self,
+        goal_sums: dict[int, tuple[int, int, int, int]],
     ) -> dict[str, tuple[int, int, int, int]]:
         buckets = {
             "league": (0, 0, 0, 0),
@@ -291,9 +298,13 @@ class HomeAdvantageCalculator:
             "international": (0, 0, 0, 0),
             "friendly": (0, 0, 0, 0),
         }
-        for league_code, totals in goal_sums.items():
+        for league_external_id, totals in goal_sums.items():
+            league = self.league_repo.get_by_external_id(league_external_id)
+            if league is None:
+                continue
             is_domestic, is_international, is_friendly = competition_type_flags(
-                league_code
+                league_type=league.league_type,
+                country_name=league.country_name,
             )
             if is_domestic:
                 bucket_key = "domestic"
@@ -474,7 +485,7 @@ class HomeAdvantageCalculator:
         for row in match_rows:
             if not row.season:
                 continue
-            match_league = self.league_repo.get_by_code(row.league_code)
+            match_league = self.league_repo.get_by_external_id(row.league_external_id)
             if match_league is None:
                 continue
 
@@ -714,8 +725,7 @@ class HomeAdvantageCalculator:
             )
             if xg_for is None or xg_against is None:
                 continue
-            league_code = code_for_api_football_league_id(fixture.league_id)
-            if not league_code or not fixture.league_season:
+            if not fixture.league_season:
                 continue
             opponent_name = (
                 fixture_away_name(fixture)
@@ -729,7 +739,7 @@ class HomeAdvantageCalculator:
                     xg_for=xg_for,
                     xg_against=xg_against,
                     opponent_name=opponent_name,
-                    league_code=league_code,
+                    league_external_id=fixture.league_id,
                     season=str(fixture.league_season),
                 )
             )
@@ -765,11 +775,6 @@ class HomeAdvantageCalculator:
         league = self.league_repo.get(league_id)
         if league is None:
             return None
-        league_code = LEAGUE_NAMES_REV.get(league.league_name) or code_for_api_football_league_id(
-            league.external_id
-        )
-        if not league_code:
-            return None
 
         lookback = max(self.config.team_strength_lookback_matches * 3, 60)
         fixtures = self.fixture_repo.find_before_date_by_team(
@@ -779,8 +784,7 @@ class HomeAdvantageCalculator:
             limit=lookback,
         )
         for fixture in fixtures:
-            code = code_for_api_football_league_id(fixture.league_id)
-            if code != league_code:
+            if fixture.league_id != league.external_id:
                 continue
             if not fixture.league_season:
                 continue

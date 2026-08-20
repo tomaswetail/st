@@ -40,7 +40,7 @@ UNRESOLVED_MATCH_CSV_FIELDS = (
     "provider_match_id",
     "provider_league_id",
     "provider_season_id",
-    "league_code",
+    "league_external_id",
     "league_id",
     "season",
     "home_team_id",
@@ -110,12 +110,6 @@ class EntityResolver:
     def resolve_league(self, league_id: int) -> LeagueModel | None:
         """Load an internal LeagueModel by id."""
         return self.league_repo.get(league_id)
-
-    def football_data_league_code(self, league: LeagueModel) -> str | None:
-        """Map an internal league name to its football-data code."""
-        return LEAGUE_NAMES_REV.get(league.league_name)
-
-
 
     def resolve_team(
         self,
@@ -298,7 +292,7 @@ class EntityResolver:
         self,
         provider_match: ProviderMatch,
         *,
-        league_code: str | None,
+        league_external_id: int | None,
         league_id: int | None,
         home_team: TeamModel | None,
         away_team: TeamModel | None,
@@ -341,7 +335,7 @@ class EntityResolver:
             away_team_ids=away_team_ids,
             home_names=None if home_team_ids else home_names,
             away_names=None if away_team_ids else away_names,
-            league_code=league_code,
+            league_external_id=league_external_id,
         )
         if len(candidates) == 1:
             return MatchResolution(
@@ -367,11 +361,11 @@ class EntityResolver:
             )
 
         # Postponed / rescheduled: widen to season + teams without strict date.
-        if season and league_code and (home_team_ids or home_names) and (
-            away_team_ids or away_names
-        ):
+        if season and league_external_id is not None and (
+            home_team_ids or home_names
+        ) and (away_team_ids or away_names):
             season_candidates = self.fixture_repo.find_by_season_and_teams(
-                league_code=league_code,
+                league_external_id=league_external_id,
                 season=season,
                 home_team_ids=home_team_ids,
                 away_team_ids=away_team_ids,
@@ -412,7 +406,7 @@ class EntityResolver:
         )
         self._append_unresolved_match(
             provider_match,
-            league_code=league_code,
+            league_external_id=league_external_id,
             league_id=league_id,
             home_team=home_team,
             away_team=away_team,
@@ -424,7 +418,7 @@ class EntityResolver:
         self,
         provider_match: ProviderMatch,
         *,
-        league_code: str | None,
+        league_external_id: int | None,
         league_id: int | None,
         home_team: TeamModel | None,
         away_team: TeamModel | None,
@@ -439,7 +433,9 @@ class EntityResolver:
             "provider_match_id": provider_match.provider_match_id,
             "provider_league_id": provider_match.provider_league_id,
             "provider_season_id": provider_match.provider_season_id or "",
-            "league_code": league_code or "",
+            "league_external_id": (
+                league_external_id if league_external_id is not None else ""
+            ),
             "league_id": league_id if league_id is not None else "",
             "season": season or "",
             "home_team_id": provider_match.home_team_id,

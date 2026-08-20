@@ -4,102 +4,77 @@ from typing import Literal
 
 LEAGUES_EXTERNAL_IDS = ["39","40","41","42","43","179","180","183","184","78","79","135","136","140","141","61","62","88","144","94","203","197","113","114","563","564","593","597","595","592","594","549","736","45"]
 
+FOTMOB_TO_API_FOOTBALL_LEAGUE_MAPPING = {
+    39: 47,       # Premier League
+    40: 48,       # Championship
+    41: 108,      # League One
+    42: 109,      # League Two
+    43: 117,      # National League
+    45: 132,      # FA Cup
+    61: 53,       # Ligue 1
+    62: 110,      # Ligue 2
+    78: 54,       # Bundesliga -> 1. Bundesliga
+    79: 146,      # 2. Bundesliga
+    88: 57,       # Eredivisie
+    94: 61,       # Primeira Liga -> Liga Portugal
+    113: 67,      # Allsvenskan
+    114: 168,     # Superettan
+    135: 55,      # Serie A
+    136: 86,      # Serie B
+    140: 87,      # La Liga -> LaLiga
+    141: 140,     # Segunda División -> LaLiga2
+    144: 40,      # Jupiler Pro League -> First Division A
+    179: 64,      # Premiership
+    180: 123,     # Championship
+    183: 124,     # League One
+    184: 125,     # League Two
+    197: 135,     # Super League 1
+    203: 71,      # Süper Lig -> Super Lig
+    549: 9089,    # Damallsvenskan -> Damallsvenskan (W)
+    563: 169,     # Ettan - Norra -> Ettan
+    564: 169,     # Ettan - Södra -> Ettan
 
-LEAGUE_NAMES_REV = {
-    "England Premier League": "E0",
-    "England Championship": "E1",
-    "England League One": "E2",
-    "England League Two": "E3",
-    "England National League": "EC",
-    "Scotland Premiership": "SC0",
-    "Scotland Championship": "SC1",
-    "Scotland League One": "SC2",
-    "Scotland League Two": "SC3",
-    "Germany Bundesliga": "D1",
-    "Germany 2. Bundesliga": "D2",
-    "Italy Serie A": "I1",
-    "Italy Serie B": "I2",
-    "Spain La Liga":"SP1" ,
-    "Spain Segunda División":"SP2",
-    "France Ligue 1": "F1",
-    "France Ligue 2": "F2",
-    "Netherlands Eredivisie": "N1",
-    "Belgium First Division A": "B1",
-    "Portugal Primeira Liga": "P1",
-    "Turkey Süper Lig": "T1",
-    "Greece Super League": "G1",
-    "Allsvenskan": "SWE",
-    "England FA Cup": "ENG-FA Cup",
-    "Ettan Norra": "SWE"
+    592: None,    # Division 2 - Norra Götaland
+    593: None,    # Division 2 - Norra Svealand
+    594: None,    # Division 2 - Norrland
+    595: None,    # Division 2 - Södra Svealand
+    597: None,    # Division 2 - Södra Götaland
+    736: None,    # Elitettan
 }
 
-LEAGUE_COUNTRIES = {
-    "E0": "England",
-    "E1": "England",
-    "E2": "England",
-    "E3": "England",
-    "EC": "England",
-    "SC0": "Scotland",
-    "SC1": "Scotland",
-    "SC2": "Scotland",
-    "SC3": "Scotland",
-    "D1": "Germany",
-    "D2": "Germany",
-    "I1": "Italy",
-    "I2": "Italy",
-    "SP1": "Spain",
-    "SP2": "Spain",
-    "F1": "France",
-    "F2": "France",
-    "N1": "Netherlands",
-    "B1": "Belgium",
-    "P1": "Portugal",
-    "T1": "Turkey",
-    "G1": "Greece",
-    "SWE": "Sweden",
-    "SWE_SE": "Sweden",
-    "SWE_ETTAN_NORRA": "Sweden",
-    "SWE_ETTAN_SODRA": "Sweden",
-    "SWE_DIV2_NORRA_SVEALAND": "Sweden",
-    "SWE_DIV2_SODRA_GOTALAND": "Sweden",
-    "SWE_DIV2_SODRA_SVEALAND": "Sweden",
-    "SWE_DIV2_NORRA_GOTALAND": "Sweden",
-    "SWE_DIV2_NORRA_NORRLAND": "Sweden",
-    "SWE_DIV2_OSTRA_GOTALAND": "Sweden",
-    "SWE_DAM": "Sweden",
-    "SWE_ELITETAN": "Sweden",
-    "SWE_DIV1_NORRA": "Sweden",
-    "SWE_DIV1_SODRA": "Sweden",
-    "SWE_U19": "Sweden",
-    "SWE_U17": "Sweden",
-    "ENG-FA Cup": "England",
+API_FOOTBALL_TO_FOTMOB_LEAGUE_MAPPING = {
+    47: 39,       # Premier League
+    48: 40,       # Championship
+    108: 41,      # League One
+    109: 42,      # League Two
+    117: 43,      # National League
+    132: 45,      # FA Cup
+    53: 61,       # Ligue 1
+    110: 62,      # Ligue 2
+    54: 78,       # 1. Bundesliga -> Bundesliga
+    146: 79,      # 2. Bundesliga
+    57: 88,       # Eredivisie
+    61: 94,       # Liga Portugal -> Primeira Liga
+    67: 113,      # Allsvenskan
+    168: 114,     # Superettan
+    55: 135,      # Serie A
+    86: 136,      # Serie B
+    87: 140,      # LaLiga -> La Liga
+    140: 141,     # LaLiga2 -> Segunda División
+    40: 144,      # First Division A -> Jupiler Pro League
+    64: 179,      # Premiership
+    123: 180,     # Championship
+    124: 183,     # League One
+    125: 184,     # League Two
+    135: 197,     # Super League 1
+    71: 203,      # Super Lig -> Süper Lig
+    9089: 549,    # Damallsvenskan (W) -> Damallsvenskan
+
+    169: [563, 564],  # Ettan - Norra / Ettan - Södra
+
+    None: [592, 593, 594, 595, 597, 736],
 }
 
-EXTRA_LEAGUE_CODES = frozenset(
-    {
-        "ARG",
-        "AUT",
-        "BRA",
-        "CHN",
-        "DNK",
-        "FIN",
-        "IRL",
-        "JPN",
-        "MEX",
-        "NOR",
-        "POL",
-        "ROU",
-        "RUS",
-        "SWE",
-        "SWZ",
-        "USA",
-        "ENG-FA Cup",
-    }
-)
-
-def all_football_data_league_codes() -> list[str]:
-    """Return all supported main and extra Football-Data league codes."""
-    return sorted(MAIN_LEAGUE_CODES | EXTRA_LEAGUE_CODES)
 
 Outcome = Literal["1", "X", "2"]
 OUTCOMES: tuple[Outcome, ...] = ("1", "X", "2")

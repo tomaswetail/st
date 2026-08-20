@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import date
 from math import log
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -13,9 +14,58 @@ from objects.schema.data_classes.data_sources import DataSourceConfig
 from objects.schema.db.team import Team
 from utils.competition_type import competition_type_flags, is_league_match
 
+PREMIER_LEAGUE_ID = 39
+FA_CUP_ID = 45
+WORLD_CUP_ID = 1
+FRIENDLY_ID = 10
+
+
+def _league(
+    external_id: int,
+    *,
+    league_type: str,
+    country_name: str,
+    league_name: str = "League",
+):
+    return SimpleNamespace(
+        id=external_id,
+        external_id=external_id,
+        league_type=league_type,
+        country_name=country_name,
+        league_name=league_name,
+    )
+
+
+LEAGUES = {
+    PREMIER_LEAGUE_ID: _league(
+        PREMIER_LEAGUE_ID,
+        league_type="League",
+        country_name="England",
+        league_name="Premier League",
+    ),
+    FA_CUP_ID: _league(
+        FA_CUP_ID,
+        league_type="Cup",
+        country_name="England",
+        league_name="FA Cup",
+    ),
+    WORLD_CUP_ID: _league(
+        WORLD_CUP_ID,
+        league_type="Cup",
+        country_name="World",
+        league_name="World Cup",
+    ),
+    FRIENDLY_ID: _league(
+        FRIENDLY_ID,
+        league_type="Friendly",
+        country_name="World",
+        league_name="Friendlies",
+    ),
+}
+
 
 def _calculator_with_goal_sums(
-    goal_sums: dict[str, tuple[int, int, int, int]],
+    goal_sums: dict[int, tuple[int, int, int, int]],
     *,
     shrinkage_matches: int = 0,
     max_competition_home_advantage: float = 0.30,
@@ -26,18 +76,25 @@ def _calculator_with_goal_sums(
         max_competition_home_advantage=max_competition_home_advantage,
     )
     calculator = HomeAdvantageCalculator(session, config=config)
-    calculator.historical_match_repo.get_goal_sums_by_league_before_date = MagicMock(
+    calculator.fixture_repo.get_goal_sums_by_league_before_date = MagicMock(
         return_value=goal_sums
+    )
+    calculator.league_repo.get_by_external_id = MagicMock(
+        side_effect=lambda league_id: LEAGUES.get(league_id)
     )
     return calculator
 
 
 def _league_reference_ha(
-    goal_sums: dict[str, tuple[int, int, int, int]],
+    goal_sums: dict[int, tuple[int, int, int, int]],
 ) -> float:
     sum_home = sum_away = home_count = away_count = 0
-    for league_code, totals in goal_sums.items():
-        if not is_league_match(league_code):
+    for league_external_id, totals in goal_sums.items():
+        league = LEAGUES[league_external_id]
+        if not is_league_match(
+            league_type=league.league_type,
+            country_name=league.country_name,
+        ):
             continue
         sum_home += totals[0]
         home_count += totals[1]
@@ -47,21 +104,33 @@ def _league_reference_ha(
 
 
 def test_competition_type_flags():
-    assert competition_type_flags("E0") == (False, False, False)
-    assert competition_type_flags("ENG-FA Cup") == (True, False, False)
-    assert competition_type_flags("WC2022") == (False, True, False)
-    assert competition_type_flags("INT-FRIENDLY") == (False, False, True)
-    assert is_league_match("E0") is True
-    assert is_league_match("ENG-FA Cup") is False
+    assert competition_type_flags(
+        league_type="League", country_name="England"
+    ) == (False, False, False)
+    assert competition_type_flags(
+        league_type="Cup", country_name="England"
+    ) == (True, False, False)
+    assert competition_type_flags(
+        league_type="Cup", country_name="World"
+    ) == (False, True, False)
+    assert competition_type_flags(
+        league_type="Friendly", country_name="World"
+    ) == (False, False, True)
+    assert (
+        is_league_match(league_type="League", country_name="England") is True
+    )
+    assert is_league_match(league_type="Cup", country_name="England") is False
 
 
 def test_league_match_has_zero_competition_home_advantage():
     goal_sums = {
-        "E0": (150, 100, 100, 100),
-        "ENG-FA Cup": (40, 20, 20, 20),
+        PREMIER_LEAGUE_ID: (150, 100, 100, 100),
+        FA_CUP_ID: (40, 20, 20, 20),
     }
     calculator = _calculator_with_goal_sums(goal_sums)
-    result = calculator._calc_competition_home_advantage("E0", date(2024, 1, 1))
+    result = calculator._calc_competition_home_advantage(
+        PREMIER_LEAGUE_ID, date(2024, 1, 1)
+    )
 
     assert result["competition_home_advantage"] == pytest.approx(0.0)
     assert result["raw_competition_home_advantage"] == pytest.approx(0.0)
@@ -70,12 +139,12 @@ def test_league_match_has_zero_competition_home_advantage():
 
 def test_domestic_cup_competition_home_advantage():
     goal_sums = {
-        "E0": (150, 100, 100, 100),
-        "ENG-FA Cup": (40, 20, 20, 20),
+        PREMIER_LEAGUE_ID: (150, 100, 100, 100),
+        FA_CUP_ID: (40, 20, 20, 20),
     }
     calculator = _calculator_with_goal_sums(goal_sums, shrinkage_matches=0)
     result = calculator._calc_competition_home_advantage(
-        "ENG-FA Cup", date(2024, 1, 1)
+        FA_CUP_ID, date(2024, 1, 1)
     )
 
     league_reference = _league_reference_ha(goal_sums)
@@ -88,15 +157,17 @@ def test_domestic_cup_competition_home_advantage():
 
 def test_international_cup_competition_home_advantage():
     goal_sums = {
-        "E0": (120, 100, 100, 100),
-        "WC2022": (30, 15, 10, 15),
+        PREMIER_LEAGUE_ID: (120, 100, 100, 100),
+        WORLD_CUP_ID: (30, 15, 10, 15),
     }
     calculator = _calculator_with_goal_sums(
         goal_sums,
         shrinkage_matches=0,
         max_competition_home_advantage=1.0,
     )
-    result = calculator._calc_competition_home_advantage("WC2022", date(2024, 1, 1))
+    result = calculator._calc_competition_home_advantage(
+        WORLD_CUP_ID, date(2024, 1, 1)
+    )
 
     league_reference = _league_reference_ha(goal_sums)
     expected_raw = log((30 / 15) / (10 / 15)) - league_reference
@@ -107,8 +178,8 @@ def test_international_cup_competition_home_advantage():
 
 def test_friendly_competition_home_advantage():
     goal_sums = {
-        "E0": (120, 100, 100, 100),
-        "INT-FRIENDLY": (25, 10, 15, 10),
+        PREMIER_LEAGUE_ID: (120, 100, 100, 100),
+        FRIENDLY_ID: (25, 10, 15, 10),
     }
     calculator = _calculator_with_goal_sums(
         goal_sums,
@@ -116,7 +187,7 @@ def test_friendly_competition_home_advantage():
         max_competition_home_advantage=1.0,
     )
     result = calculator._calc_competition_home_advantage(
-        "INT-FRIENDLY", date(2024, 1, 1)
+        FRIENDLY_ID, date(2024, 1, 1)
     )
 
     league_reference = _league_reference_ha(goal_sums)
@@ -128,12 +199,12 @@ def test_friendly_competition_home_advantage():
 
 def test_low_sample_applies_strong_shrinkage():
     goal_sums = {
-        "E0": (150, 100, 100, 100),
-        "ENG-FA Cup": (40, 5, 5, 5),
+        PREMIER_LEAGUE_ID: (150, 100, 100, 100),
+        FA_CUP_ID: (40, 5, 5, 5),
     }
     calculator = _calculator_with_goal_sums(goal_sums, shrinkage_matches=100)
     result = calculator._calc_competition_home_advantage(
-        "ENG-FA Cup", date(2024, 1, 1)
+        FA_CUP_ID, date(2024, 1, 1)
     )
 
     league_reference = _league_reference_ha(goal_sums)
@@ -152,34 +223,37 @@ def test_low_sample_applies_strong_shrinkage():
 def test_future_matches_do_not_affect_result():
     before_date = date(2024, 6, 1)
     historical_only = {
-        "E0": (100, 50, 80, 50),
-        "ENG-FA Cup": (20, 10, 10, 10),
+        PREMIER_LEAGUE_ID: (100, 50, 80, 50),
+        FA_CUP_ID: (20, 10, 10, 10),
     }
     session = MagicMock()
     config = DataSourceConfig(competition_ha_shrinkage_matches=0)
     calculator = HomeAdvantageCalculator(session, config=config)
+    calculator.league_repo.get_by_external_id = MagicMock(
+        side_effect=lambda league_id: LEAGUES.get(league_id)
+    )
 
     def goal_sums_side_effect(cutoff: date):
         assert cutoff == before_date
         return historical_only
 
-    calculator.historical_match_repo.get_goal_sums_by_league_before_date = MagicMock(
+    calculator.fixture_repo.get_goal_sums_by_league_before_date = MagicMock(
         side_effect=goal_sums_side_effect
     )
 
-    first = calculator._calc_competition_home_advantage("ENG-FA Cup", before_date)
-    second = calculator._calc_competition_home_advantage("ENG-FA Cup", before_date)
+    first = calculator._calc_competition_home_advantage(FA_CUP_ID, before_date)
+    second = calculator._calc_competition_home_advantage(FA_CUP_ID, before_date)
 
     assert first == second
-    calculator.historical_match_repo.get_goal_sums_by_league_before_date.assert_called_with(
+    calculator.fixture_repo.get_goal_sums_by_league_before_date.assert_called_with(
         before_date
     )
 
 
 def test_competition_home_advantage_added_exactly_once_in_process():
     goal_sums = {
-        "E0": (150, 100, 100, 100),
-        "ENG-FA Cup": (40, 20, 20, 20),
+        PREMIER_LEAGUE_ID: (150, 100, 100, 100),
+        FA_CUP_ID: (40, 20, 20, 20),
     }
     calculator = _calculator_with_goal_sums(goal_sums, shrinkage_matches=0)
     calculator.calc_league_season_home_advantage = MagicMock(
@@ -205,11 +279,11 @@ def test_competition_home_advantage_added_exactly_once_in_process():
     result = calculator.process(
         team,
         date(2024, 1, 1),
-        target_league_code="ENG-FA Cup",
+        target_league_external_id=FA_CUP_ID,
     )
 
     competition_only = calculator._calc_competition_home_advantage(
-        "ENG-FA Cup", date(2024, 1, 1)
+        FA_CUP_ID, date(2024, 1, 1)
     )
     assert result.competition_home_advantage == pytest.approx(
         competition_only["competition_home_advantage"]
@@ -218,7 +292,4 @@ def test_competition_home_advantage_added_exactly_once_in_process():
         result.league_season_home_advantage
         + result.team_home_advantage
         + result.competition_home_advantage
-    )
-    assert calculator.calculate_team_home_advantage.return_value.home_advantage == (
-        0.17
     )

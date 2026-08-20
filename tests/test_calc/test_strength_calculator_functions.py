@@ -94,7 +94,7 @@ def test_home_advantage_coefficient_applied_before_dixon_coles():
         home_features=_team_features(),
         away_features=_team_features(),
         match_date=date(2024, 6, 1),
-        target_league_code="E0",
+        target_league_external_id=39,
     )
 
     assert features.expected_home_goals == pytest.approx(1.65)
@@ -105,7 +105,7 @@ def test_home_advantage_coefficient_applied_before_dixon_coles():
     calculator._home_advantage_coefficient.assert_called_once_with(
         home_team,
         date(2024, 6, 1),
-        target_league_code="E0",
+        target_league_external_id=39,
     )
 
 

@@ -15,8 +15,6 @@ from typing import TYPE_CHECKING, Literal
 from sqlalchemy.orm import Session
 
 from objects.models.fixture import FixtureModel
-from utils.fixture_fields import fixture_goals_away, fixture_goals_home, fixture_home_name, fixture_away_name, fixture_match_date
-
 from objects.models.match_advanced_stats import MatchAdvancedStatsModel
 from objects.models.team import TeamModel
 from objects.repositories.fixture_repository import FixtureRepository
@@ -30,6 +28,13 @@ from objects.schema.data_classes.team_strength_features import (
     TeamStrengthFeatures,
 )
 from objects.schema.db.team import Team
+from utils.fixture_fields import (
+    fixture_away_name,
+    fixture_goals_away,
+    fixture_goals_home,
+    fixture_home_name,
+    fixture_match_date,
+)
 
 if TYPE_CHECKING:
     from calc.home_advantage_calculator import HomeAdvantageCalculator
@@ -376,7 +381,7 @@ class StrengthCalculator:
             home_features=home_features,
             away_features=away_features,
             match_date=fixture_match_date(fixture),
-            target_league_code=fixture.league_id ##TODO CHECK if not external id,
+            target_league_external_id=fixture.league_id,
         )
 
     def get_fixture_features(
@@ -387,7 +392,7 @@ class StrengthCalculator:
         *,
         match_id: int | None = None,
         lookback_matches: int | None = None,
-        target_league_code: str | None = None,
+        target_league_external_id: int | None = None,
     ) -> MatchStrengthFeatures:
         """Combine home/away team features for a fixture without a historical match row."""
         home_team = self.team_repo.get(home_team_id)
@@ -407,7 +412,7 @@ class StrengthCalculator:
             home_features=home_features,
             away_features=away_features,
             match_date=cutoff_date,
-            target_league_code=target_league_code,
+            target_league_external_id=target_league_external_id,
         )
 
     def explain(
@@ -445,7 +450,7 @@ class StrengthCalculator:
         home_features: TeamStrengthFeatures | None,
         away_features: TeamStrengthFeatures | None,
         match_date: date,
-        target_league_code: str | None = None,
+        target_league_external_id: int | None = None,
     ) -> MatchStrengthFeatures:
         """Build MatchStrengthFeatures from side features and Dixon–Coles."""
         league_home, league_away = self._league_goal_rates(home_team, match_date)
@@ -464,7 +469,7 @@ class StrengthCalculator:
         home_advantage_coefficient = self._home_advantage_coefficient(
             home_team,
             match_date,
-            target_league_code=target_league_code,
+            target_league_external_id=target_league_external_id,
         )
         if expected_home is not None:
             expected_home *= home_advantage_coefficient
@@ -499,7 +504,7 @@ class StrengthCalculator:
         home_team: TeamModel | None,
         match_date: date,
         *,
-        target_league_code: str | None = None,
+        target_league_external_id: int | None = None,
     ) -> float:
         """Multiplicative HA factor from HomeAdvantageCalculator (log HA → exp)."""
         if home_team is None:
@@ -508,7 +513,7 @@ class StrengthCalculator:
         result = self._home_advantage_calculator_instance().process(
             team,
             match_date,
-            target_league_code=target_league_code,
+            target_league_external_id=target_league_external_id,
         )
         return math.exp(result.home_advantage)
 
