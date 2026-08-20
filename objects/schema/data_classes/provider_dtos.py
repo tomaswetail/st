@@ -1,4 +1,4 @@
-"""Normalized provider DTOs independent of FotMob / SofaScore response shapes."""
+"""Normalized provider DTOs independent of SofaScore / API-Football response shapes."""
 
 from __future__ import annotations
 

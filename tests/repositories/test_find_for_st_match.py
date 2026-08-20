@@ -12,7 +12,7 @@ from objects.schema.data_classes.provider_dtos import ProviderMatch
 
 def _resolver() -> EntityResolver:
     session = MagicMock()
-    resolver = EntityResolver(session, provider="fotmob")
+    resolver = EntityResolver(session, provider="api-football")
     resolver.mapping_repo.get_by_external = MagicMock(return_value=None)
     resolver._append_unresolved_match = MagicMock()
     return resolver
@@ -41,7 +41,7 @@ def test_names_for_team_includes_name_short_medium_and_mapped():
     resolver = _resolver()
     team = SimpleNamespace(
         name="Nottingham Forest",
-        short_name="Forest",
+        code="Forest",
         medium_name="Nott'm Forest",
     )
     resolver.team_repo.to_football_data_name = MagicMock(
@@ -59,7 +59,7 @@ def test_names_for_team_includes_name_short_medium_and_mapped():
 
 def test_names_for_team_uses_provider_alias_and_wide_search():
     resolver = _resolver()
-    team = SimpleNamespace(name="Arsenal", short_name=None, medium_name=None)
+    team = SimpleNamespace(name="Arsenal", code=None, country=None)
     resolver.team_repo.to_football_data_name = MagicMock(
         side_effect=lambda name: name if name == "Arsenal" else None
     )
@@ -78,21 +78,23 @@ def test_resolve_match_uses_name_variants_for_date_team_lookup():
     resolver = _resolver()
     historical = SimpleNamespace(
         id=99,
-        match_date=date(2025, 8, 15),
+        fixture_date=date(2025, 8, 15),
         home_team="Nott'm Forest",
         away_team="Arsenal",
     )
     home = SimpleNamespace(
         id=1,
         name="Nottingham Forest",
-        short_name="Forest",
-        medium_name=None,
+        external_id=101,
+        code="Forest",
+        country=None,
     )
     away = SimpleNamespace(
         id=2,
         name="Arsenal",
-        short_name=None,
-        medium_name=None,
+        external_id=102,
+        code=None,
+        country=None,
     )
     resolver._names_for_team = MagicMock(
         side_effect=[
@@ -100,7 +102,7 @@ def test_resolve_match_uses_name_variants_for_date_team_lookup():
             ["Arsenal"],
         ]
     )
-    resolver.historical_repo.find_by_date_range_and_teams = MagicMock(
+    resolver.fixture_repo.find_by_date_range_and_teams = MagicMock(
         return_value=[historical]
     )
 
@@ -114,22 +116,22 @@ def test_resolve_match_uses_name_variants_for_date_team_lookup():
 
     assert result.method == "date_teams"
     assert result.match.id == 99
-    resolver.historical_repo.find_by_date_range_and_teams.assert_called_once()
-    call_kwargs = resolver.historical_repo.find_by_date_range_and_teams.call_args.kwargs
-    assert call_kwargs["home_team_ids"] == [1]
-    assert call_kwargs["away_team_ids"] == [2]
+    resolver.fixture_repo.find_by_date_range_and_teams.assert_called_once()
+    call_kwargs = resolver.fixture_repo.find_by_date_range_and_teams.call_args.kwargs
+    assert call_kwargs["home_team_ids"] == [101]
+    assert call_kwargs["away_team_ids"] == [102]
     assert call_kwargs["home_names"] is None
     assert call_kwargs["away_names"] is None
 
 
 def test_resolve_match_picks_closest_when_ambiguous():
     resolver = _resolver()
-    farther = SimpleNamespace(id=1, match_date=date(2025, 8, 14))
-    closer = SimpleNamespace(id=2, match_date=date(2025, 8, 15))
-    home = SimpleNamespace(id=1, name="Chelsea", short_name=None, medium_name=None)
-    away = SimpleNamespace(id=2, name="Liverpool", short_name=None, medium_name=None)
+    farther = SimpleNamespace(id=1, fixture_date=date(2025, 8, 14))
+    closer = SimpleNamespace(id=2, fixture_date=date(2025, 8, 15))
+    home = SimpleNamespace(id=1, name="Chelsea", external_id=101, code=None, country=None)
+    away = SimpleNamespace(id=2, name="Liverpool", external_id=102, code=None, country=None)
     resolver._names_for_team = MagicMock(side_effect=[["Chelsea"], ["Liverpool"]])
-    resolver.historical_repo.find_by_date_range_and_teams = MagicMock(
+    resolver.fixture_repo.find_by_date_range_and_teams = MagicMock(
         return_value=[farther, closer]
     )
 
@@ -152,11 +154,11 @@ def test_resolve_match_picks_closest_when_ambiguous():
 
 def test_resolve_match_unresolved_when_no_candidates():
     resolver = _resolver()
-    home = SimpleNamespace(id=1, name="Chelsea", short_name=None, medium_name=None)
-    away = SimpleNamespace(id=2, name="Liverpool", short_name=None, medium_name=None)
+    home = SimpleNamespace(id=1, name="Chelsea", external_id=101, code=None, country=None)
+    away = SimpleNamespace(id=2, name="Liverpool", external_id=102, code=None, country=None)
     resolver._names_for_team = MagicMock(side_effect=[["Chelsea"], ["Liverpool"]])
-    resolver.historical_repo.find_by_date_range_and_teams = MagicMock(return_value=[])
-    resolver.historical_repo.find_by_season_and_teams = MagicMock(return_value=[])
+    resolver.fixture_repo.find_by_date_range_and_teams = MagicMock(return_value=[])
+    resolver.fixture_repo.find_by_season_and_teams = MagicMock(return_value=[])
 
     result = resolver.resolve_match(
         _provider_match(
@@ -176,14 +178,13 @@ def test_resolve_match_unresolved_when_no_candidates():
 
 def test_resolve_team_create_if_missing_creates_and_maps():
     resolver = _resolver()
-    created = SimpleNamespace(id=42, name="New FC", league_id=1)
+    created = SimpleNamespace(id=42, name="New FC", external_id=999)
     resolver.team_repo.get = MagicMock(return_value=None)
-    resolver.team_repo.create = MagicMock(return_value=created)
+    resolver.team_repo.create_from_provider_team = MagicMock(return_value=created)
     resolver.team_repo.flush = MagicMock()
     resolver.team_repo.get_by_name_and_league = MagicMock(return_value=None)
     resolver.team_repo.get_by_name = MagicMock(return_value=None)
     resolver.team_repo.team_name_wide_search = MagicMock(return_value=None)
-    resolver.team_repo.get_by_machine_name = MagicMock(return_value=None)
     resolver.team_repo.team_likely_name_wide_search = MagicMock(return_value=None)
     resolver._candidate_team_names = MagicMock(return_value=[])
     resolver._aliases = {}
@@ -194,7 +195,7 @@ def test_resolve_team_create_if_missing_creates_and_maps():
     resolver.team_repo.find_substring_duplicate = MagicMock(return_value=None)
 
     result = resolver.resolve_team(
-        provider_team_id="New FC",
+        provider_team_id="999",
         provider_team_name="New FC",
         league_id=1,
         create_if_missing=True,
@@ -202,7 +203,10 @@ def test_resolve_team_create_if_missing_creates_and_maps():
 
     assert result.method == "created"
     assert result.team is created
-    resolver.team_repo.create.assert_called_once()
+    resolver.team_repo.create_from_provider_team.assert_called_once_with(
+        external_id=999,
+        name="New FC",
+    )
     resolver.ensure_mapping.assert_called_once()
     assert resolver.ensure_mapping.call_args.kwargs["internal_entity_id"] == 42
 
@@ -236,9 +240,9 @@ def test_resolve_team_reuses_normalized_duplicate_instead_of_creating():
 
 def test_resolve_team_does_not_fuzzy_match_angers_to_rangers():
     resolver = _resolver()
-    created = SimpleNamespace(id=42, name="Angers", league_id=1)
+    created = SimpleNamespace(id=42, name="Angers", external_id=501)
     resolver.team_repo.get = MagicMock(return_value=None)
-    resolver.team_repo.create = MagicMock(return_value=created)
+    resolver.team_repo.create_from_provider_team = MagicMock(return_value=created)
     resolver.team_repo.flush = MagicMock()
     resolver._candidate_team_names = MagicMock(return_value=["Rangers"])
     resolver._aliases = {}
@@ -249,7 +253,7 @@ def test_resolve_team_does_not_fuzzy_match_angers_to_rangers():
     resolver.team_repo.find_substring_duplicate = MagicMock(return_value=None)
 
     result = resolver.resolve_team(
-        provider_team_id="Angers",
+        provider_team_id="501",
         provider_team_name="Angers",
         league_id=1,
         create_if_missing=True,
@@ -257,15 +261,75 @@ def test_resolve_team_does_not_fuzzy_match_angers_to_rangers():
 
     assert result.method == "created"
     assert result.team is created
-    resolver.team_repo.create.assert_called_once()
+    resolver.team_repo.create_from_provider_team.assert_called_once()
+
+
+def test_resolve_team_does_not_alias_manchester_city_to_man_united():
+    resolver = _resolver()
+    created = SimpleNamespace(id=90, name="Manchester City", external_id=502)
+    man_united = SimpleNamespace(id=809, name="Man United", external_id=1)
+    resolver.team_repo.get = MagicMock(return_value=None)
+    resolver.team_repo.create_from_provider_team = MagicMock(return_value=created)
+    resolver.team_repo.flush = MagicMock()
+    resolver.team_repo.get_by_name_and_league = MagicMock(return_value=None)
+    resolver.team_repo.get_by_name = MagicMock(
+        side_effect=lambda name, *args, **kwargs: (
+            man_united if name == "Man United" else None
+        )
+    )
+    resolver._candidate_team_names = MagicMock(return_value=["Man United"])
+    resolver._aliases = {"Manchester City": "Man City"}
+    resolver.ensure_mapping = MagicMock()
+    resolver.team_repo.find_exact_normalized = MagicMock(return_value=None)
+    resolver.team_repo.find_by_club_affix = MagicMock(return_value=None)
+    resolver.team_repo.find_fuzzy_duplicate = MagicMock(return_value=None)
+    resolver.team_repo.find_substring_duplicate = MagicMock(return_value=None)
+
+    result = resolver.resolve_team(
+        provider_team_id="502",
+        provider_team_name="Manchester City",
+        league_id=1,
+        create_if_missing=True,
+    )
+
+    assert result.method == "created"
+    assert result.team is created
+    resolver.team_repo.create_from_provider_team.assert_called_once()
+
+
+def test_resolve_team_still_aliases_manchester_city_to_man_city():
+    resolver = _resolver()
+    man_city = SimpleNamespace(id=90, name="Man City", external_id=1)
+    resolver.team_repo.get = MagicMock(return_value=None)
+    resolver.team_repo.create = MagicMock()
+    resolver.team_repo.get_by_name_and_league = MagicMock(return_value=None)
+    resolver.team_repo.get_by_name = MagicMock(
+        side_effect=lambda name, *args, **kwargs: (
+            man_city if name == "Man City" else None
+        )
+    )
+    resolver._candidate_team_names = MagicMock(return_value=[])
+    resolver._aliases = {"Manchester City": "Man City"}
+    resolver.ensure_mapping = MagicMock()
+
+    result = resolver.resolve_team(
+        provider_team_id="502",
+        provider_team_name="Manchester City",
+        league_id=1,
+        create_if_missing=True,
+    )
+
+    assert result.method == "alias"
+    assert result.team is man_city
+    resolver.team_repo.create.assert_not_called()
 
 
 def test_resolve_team_does_not_match_villarreal_to_villarreal_b_duplicate():
     resolver = _resolver()
-    created = SimpleNamespace(id=51, name="Villarreal", league_id=1)
-    duplicate = SimpleNamespace(id=9, name="Villarreal B", league_id=1)
+    created = SimpleNamespace(id=51, name="Villarreal", external_id=503)
+    duplicate = SimpleNamespace(id=9, name="Villarreal B", external_id=1)
     resolver.team_repo.get = MagicMock(return_value=None)
-    resolver.team_repo.create = MagicMock(return_value=created)
+    resolver.team_repo.create_from_provider_team = MagicMock(return_value=created)
     resolver.team_repo.flush = MagicMock()
     resolver._candidate_team_names = MagicMock(return_value=[])
     resolver._aliases = {}
@@ -276,7 +340,7 @@ def test_resolve_team_does_not_match_villarreal_to_villarreal_b_duplicate():
     resolver.team_repo.find_substring_duplicate = MagicMock(return_value=None)
 
     result = resolver.resolve_team(
-        provider_team_id="Villarreal",
+        provider_team_id="503",
         provider_team_name="Villarreal",
         league_id=1,
         create_if_missing=True,
@@ -284,19 +348,48 @@ def test_resolve_team_does_not_match_villarreal_to_villarreal_b_duplicate():
 
     assert result.method == "created"
     assert result.team is created
-    resolver.team_repo.create.assert_called_once()
+    resolver.team_repo.create_from_provider_team.assert_called_once()
+
+
+def test_resolve_team_does_not_exact_match_oxford_city_to_oxford():
+    resolver = _resolver()
+    created = SimpleNamespace(id=70, name="Oxford City", external_id=504)
+    oxford = SimpleNamespace(id=11, name="Oxford", external_id=1)
+    resolver.team_repo.get = MagicMock(return_value=None)
+    resolver.team_repo.create_from_provider_team = MagicMock(return_value=created)
+    resolver.team_repo.flush = MagicMock()
+    resolver.team_repo.get_by_name_and_league = MagicMock(return_value=oxford)
+    resolver.team_repo.get_by_name = MagicMock(return_value=oxford)
+    resolver._candidate_team_names = MagicMock(return_value=["Oxford"])
+    resolver._aliases = {}
+    resolver.ensure_mapping = MagicMock()
+    resolver.team_repo.find_exact_normalized = MagicMock(return_value=None)
+    resolver.team_repo.find_by_club_affix = MagicMock(return_value=None)
+    resolver.team_repo.find_fuzzy_duplicate = MagicMock(return_value=None)
+    resolver.team_repo.find_substring_duplicate = MagicMock(return_value=None)
+
+    result = resolver.resolve_team(
+        provider_team_id="504",
+        provider_team_name="Oxford City",
+        league_id=1,
+        create_if_missing=True,
+    )
+
+    assert result.method == "created"
+    assert result.team is created
+    resolver.team_repo.create_from_provider_team.assert_called_once()
 
 
 def test_resolve_match_appends_unresolved_row_to_csv(tmp_path):
     csv_path = tmp_path / "unresolved_matches.csv"
-    resolver = EntityResolver(MagicMock(), provider="fotmob")
+    resolver = EntityResolver(MagicMock(), provider="api-football")
     resolver.config.unresolved_matches_csv_path = csv_path
     resolver.mapping_repo.get_by_external = MagicMock(return_value=None)
-    home = SimpleNamespace(id=1, name="Chelsea", short_name=None, medium_name=None)
-    away = SimpleNamespace(id=2, name="Liverpool", short_name=None, medium_name=None)
+    home = SimpleNamespace(id=1, name="Chelsea", external_id=101, code=None, country=None)
+    away = SimpleNamespace(id=2, name="Liverpool", external_id=102, code=None, country=None)
     resolver._names_for_team = MagicMock(side_effect=[["Chelsea"], ["Liverpool"]])
-    resolver.historical_repo.find_by_date_range_and_teams = MagicMock(return_value=[])
-    resolver.historical_repo.find_by_season_and_teams = MagicMock(return_value=[])
+    resolver.fixture_repo.find_by_date_range_and_teams = MagicMock(return_value=[])
+    resolver.fixture_repo.find_by_season_and_teams = MagicMock(return_value=[])
 
     result = resolver.resolve_match(
         _provider_match(

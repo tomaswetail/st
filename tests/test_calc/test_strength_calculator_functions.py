@@ -265,8 +265,8 @@ def test_strength_calculator_with_mocked_database_data():
         league="PL",
     )
 
-    calculator.historical_repo = MagicMock()
-    calculator.historical_repo.find_before_date_by_team.return_value = [
+    calculator.fixture_repo = MagicMock()
+    calculator.fixture_repo.find_before_date_by_team.return_value = [
         match_1,
         match_2,
     ]
@@ -420,7 +420,7 @@ def test_strength_calculator_with_mocked_database_data():
     # ------------------------------------------------------------------
     # Verify leakage-safe query cutoff
     # ------------------------------------------------------------------
-    calculator.historical_repo.find_before_date_by_team.assert_called_once_with(
+    calculator.fixture_repo.find_before_date_by_team.assert_called_once_with(
         team_name="Arsenal",
         before_date=date(2026, 8, 10),
         venue=None,

@@ -18,10 +18,6 @@ from data_sources.football_data.metrics import (
     calculate_derived_metrics,
     shot_fingerprint,
 )
-from data_sources.football_data.providers.fotmob import (
-    parse_fotmob_match_details,
-    parse_fotmob_matches,
-)
 from data_sources.football_data.providers.sofascore import (
     parse_sofascore_match_details,
     parse_sofascore_matches,
@@ -40,31 +36,7 @@ from tests.football_data.conftest import load_fixture
 
 
 # ---------------------------------------------------------------------------
-# 1. FotMob response parsing
-# ---------------------------------------------------------------------------
-
-
-def test_fotmob_match_details_parsing():
-    payload = load_fixture("fotmob", "match_details.json")
-    details = parse_fotmob_match_details(payload)
-    assert details.match.provider_match_id == "4000001"
-    assert details.match.home_team_name == "Manchester City"
-    assert details.match.away_score == 1
-    assert details.home_xg == pytest.approx(1.85)
-    assert len(details.shots) == 5
-    assert details.shots[1].is_penalty is True
-    assert details.shots[4].provider_shot_id is None
-
-
-def test_fotmob_season_matches_parsing():
-    payload = load_fixture("fotmob", "season_matches.json")
-    matches = parse_fotmob_matches(payload, "47", "2025/2026")
-    assert len(matches) == 2
-    assert matches[1].status == "Postponed"
-
-
-# ---------------------------------------------------------------------------
-# 2. SofaScore response parsing
+# 1. SofaScore response parsing
 # ---------------------------------------------------------------------------
 
 
@@ -86,14 +58,14 @@ def test_sofascore_season_matches_parsing():
 
 
 # ---------------------------------------------------------------------------
-# 3. Team resolution
+# 2. Team resolution
 # ---------------------------------------------------------------------------
 
 
 def test_team_resolution_order_mapping_then_exact():
     session = MagicMock()
-    resolver = EntityResolver(session, provider="fotmob")
-    mapped_team = SimpleNamespace(id=10, name="Man City", short_name=None, medium_name=None)
+    resolver = EntityResolver(session, provider="sofascore")
+    mapped_team = SimpleNamespace(id=10, name="Man City", external_id=10, code=None, country=None)
     resolver.mapping_repo.get_by_external = MagicMock(
         return_value=SimpleNamespace(internal_entity_id=10)
     )
@@ -113,7 +85,6 @@ def test_team_resolution_order_mapping_then_exact():
     )
     resolver.team_repo.get_by_name_and_league = MagicMock(return_value=None)
     resolver.team_repo.team_name_wide_search = MagicMock(return_value=None)
-    resolver.team_repo.get_by_machine_name = MagicMock(return_value=None)
     resolver.team_repo.team_likely_name_wide_search = MagicMock(return_value=None)
     result = resolver.resolve_team(
         provider_team_id="999",
@@ -126,14 +97,13 @@ def test_team_resolution_order_mapping_then_exact():
 def test_team_resolution_unresolved_low_confidence(caplog):
     session = MagicMock()
     config = DataSourceConfig(fuzzy_match_threshold=95)
-    resolver = EntityResolver(session, config=config, provider="fotmob")
+    resolver = EntityResolver(session, config=config, provider="sofascore")
     resolver.mapping_repo.get_by_external = MagicMock(return_value=None)
     resolver._team_name_cache = ["Arsenal"]
     resolver._aliases = {}
     resolver.team_repo.get_by_name = MagicMock(return_value=None)
     resolver.team_repo.get_by_name_and_league = MagicMock(return_value=None)
     resolver.team_repo.team_name_wide_search = MagicMock(return_value=None)
-    resolver.team_repo.get_by_machine_name = MagicMock(return_value=None)
     resolver.team_repo.team_likely_name_wide_search = MagicMock(return_value=None)
     resolver.team_repo.find_exact_normalized = MagicMock(return_value=None)
     resolver.team_repo.find_by_club_affix = MagicMock(return_value=None)
@@ -148,18 +118,18 @@ def test_team_resolution_unresolved_low_confidence(caplog):
 
 
 # ---------------------------------------------------------------------------
-# 4–6. Match resolution / postponed / mappings
+# 3–5. Match resolution / postponed / mappings
 # ---------------------------------------------------------------------------
 
 
 def test_match_resolution_by_mapping():
     session = MagicMock()
-    resolver = EntityResolver(session, provider="fotmob")
+    resolver = EntityResolver(session, provider="sofascore")
     historical = SimpleNamespace(id=55)
     resolver.mapping_repo.get_by_external = MagicMock(
         return_value=SimpleNamespace(internal_entity_id=55)
     )
-    resolver.historical_repo.get = MagicMock(return_value=historical)
+    resolver.fixture_repo.get = MagicMock(return_value=historical)
     provider_match = ProviderMatch(
         provider_match_id="4000001",
         provider_league_id="47",
@@ -180,17 +150,17 @@ def test_match_resolution_by_mapping():
 
 def test_postponed_fixture_matching_via_season():
     session = MagicMock()
-    resolver = EntityResolver(session, provider="fotmob")
+    resolver = EntityResolver(session, provider="sofascore")
     resolver.mapping_repo.get_by_external = MagicMock(return_value=None)
 
     postponed = SimpleNamespace(
         id=77,
-        match_date=date(2025, 9, 1),
+        fixture_date=date(2025, 9, 1),
         home_team="Chelsea",
         away_team="Liverpool",
     )
-    resolver.historical_repo.find_by_date_range_and_teams = MagicMock(return_value=[])
-    resolver.historical_repo.find_by_season_and_teams = MagicMock(
+    resolver.fixture_repo.find_by_date_range_and_teams = MagicMock(return_value=[])
+    resolver.fixture_repo.find_by_season_and_teams = MagicMock(
         return_value=[postponed]
     )
 
@@ -205,8 +175,8 @@ def test_postponed_fixture_matching_via_season():
         kickoff_at=datetime(2025, 8, 20, 19, 0, tzinfo=timezone.utc),
         status="Postponed",
     )
-    home = SimpleNamespace(id=1, name="Chelsea", short_name=None, medium_name=None)
-    away = SimpleNamespace(id=2, name="Liverpool", short_name=None, medium_name=None)
+    home = SimpleNamespace(id=1, name="Chelsea", external_id=10, code=None, country=None)
+    away = SimpleNamespace(id=2, name="Liverpool", external_id=10, code=None, country=None)
     resolver.team_repo.to_football_data_name = MagicMock(side_effect=lambda n: n)
     resolver.team_repo.team_name_wide_search = MagicMock(return_value=None)
     result = resolver.resolve_match(
@@ -242,7 +212,7 @@ def test_provider_id_mapping_upsert_unique_keys():
             statement
         )
         row = repo.upsert(
-            provider="fotmob",
+            provider="sofascore",
             entity_type="league",
             internal_entity_id=3,
             external_entity_id="47",
@@ -273,7 +243,7 @@ def test_provider_id_mapping_upsert_keeps_existing_internal_link():
         "objects.repositories.external_entity_mapping_repository.pg_insert"
     ) as insert_mock:
         row = repo.upsert(
-            provider="football-data.co.uk",
+            provider="api-football",
             entity_type="team",
             internal_entity_id=17,
             external_entity_id="St Pauli",
@@ -285,17 +255,66 @@ def test_provider_id_mapping_upsert_keeps_existing_internal_link():
 
 
 # ---------------------------------------------------------------------------
-# 7–10. Metrics / missing xG / shot dedupe
+# 6–9. Metrics / missing xG / shot dedupe
 # ---------------------------------------------------------------------------
 
 
 def _sample_details() -> ProviderMatchDetails:
-    payload = load_fixture("fotmob", "match_details.json")
-    return parse_fotmob_match_details(payload)
+    payload = load_fixture("sofascore", "match_details.json")
+    return parse_sofascore_match_details(payload)
+
+
+def _metrics_details() -> ProviderMatchDetails:
+    match = ProviderMatch(
+        provider_match_id="m1",
+        provider_league_id="17",
+        provider_season_id="2024/2025",
+        home_team_id="h",
+        away_team_id="a",
+        home_team_name="Home",
+        away_team_name="Away",
+        kickoff_at=datetime(2024, 8, 17, 15, 0, tzinfo=timezone.utc),
+        status="finished",
+    )
+    shots = [
+        ProviderShot(
+            provider_shot_id="1", team_id="h", player_id=None, minute=10, second=0,
+            xg=0.4, xgot=None, outcome="Miss", situation="OpenPlay",
+            body_part=None, shot_type=None, is_penalty=False, is_own_goal=False,
+            coordinates=None,
+        ),
+        ProviderShot(
+            provider_shot_id="2", team_id="h", player_id=None, minute=40, second=0,
+            xg=0.75, xgot=None, outcome="Goal", situation="Penalty",
+            body_part=None, shot_type=None, is_penalty=True, is_own_goal=False,
+            coordinates=None,
+        ),
+        ProviderShot(
+            provider_shot_id="3", team_id="h", player_id=None, minute=70, second=0,
+            xg=0.2, xgot=None, outcome="Saved", situation="corner",
+            body_part=None, shot_type=None, is_penalty=False, is_own_goal=False,
+            coordinates=None,
+        ),
+        ProviderShot(
+            provider_shot_id="4", team_id="a", player_id=None, minute=20, second=0,
+            xg=0.5, xgot=None, outcome="Miss", situation="OpenPlay",
+            body_part=None, shot_type=None, is_penalty=False, is_own_goal=False,
+            coordinates=None,
+        ),
+        ProviderShot(
+            provider_shot_id="5", team_id="a", player_id=None, minute=55, second=0,
+            xg=0.15, xgot=None, outcome="Miss", situation="freekick",
+            body_part=None, shot_type=None, is_penalty=False, is_own_goal=False,
+            coordinates=None,
+        ),
+    ]
+    return ProviderMatchDetails(
+        match=match, shots=shots, statistics={}, home_xg=1.85, away_xg=0.9
+    )
 
 
 def test_non_penalty_xg_calculation():
-    details = _sample_details()
+    details = _metrics_details()
     metrics = calculate_derived_metrics(
         details,
         home_team_external_id=details.match.home_team_id,
@@ -307,7 +326,7 @@ def test_non_penalty_xg_calculation():
 
 
 def test_set_piece_xg_calculation():
-    details = _sample_details()
+    details = _metrics_details()
     metrics = calculate_derived_metrics(
         details,
         home_team_external_id=details.match.home_team_id,
@@ -375,10 +394,10 @@ def test_shot_deduplication_fingerprint_stable():
         is_own_goal=False,
         coordinates={"x": 1, "y": 2},
     )
-    first = shot_fingerprint(match_id=9, provider="fotmob", shot=shot, team_internal_id=3)
-    second = shot_fingerprint(match_id=9, provider="fotmob", shot=shot, team_internal_id=3)
+    first = shot_fingerprint(match_id=9, provider="sofascore", shot=shot, team_internal_id=3)
+    second = shot_fingerprint(match_id=9, provider="sofascore", shot=shot, team_internal_id=3)
     assert first == second
-    other = shot_fingerprint(match_id=9, provider="fotmob", shot=shot, team_internal_id=4)
+    other = shot_fingerprint(match_id=9, provider="sofascore", shot=shot, team_internal_id=4)
     assert first != other
 
 
@@ -390,11 +409,11 @@ def test_shot_deduplication_fingerprint_stable():
 def test_idempotent_repeated_imports_skip_without_force():
     session = MagicMock()
     provider = MagicMock()
-    provider.name = "fotmob"
+    provider.name = "sofascore"
     service = ExtendedMatchDataService(
         provider=provider, session=session, dry_run=False
     )
-    service.historical_repo.get = MagicMock(
+    service.fixture_repo.get = MagicMock(
         return_value=SimpleNamespace(id=1, home_team="A", away_team="B")
     )
     service.stats_repo.get_by_match_and_provider = MagicMock(
@@ -449,33 +468,36 @@ def test_http_404_raises_not_found(tmp_path):
         client.get_json("/missing")
 
 
-def test_fallback_provider_used_when_primary_fails():
+def test_fetch_match_details_uses_seed_when_provider_missing():
     session = MagicMock()
-    primary = MagicMock()
-    primary.name = "fotmob"
-    primary.fetch_match_details.side_effect = NotFoundError("missing")
-    fallback = MagicMock()
-    fallback.name = "sofascore"
-    details = _sample_details()
-    details.match.provider_match_id = "fb-1"
-    fallback.fetch_match_details.return_value = details
+    provider = MagicMock()
+    provider.name = "sofascore"
+    provider.fetch_match_details.side_effect = NotFoundError("missing")
 
     service = ExtendedMatchDataService(
-        provider=primary,
-        fallback_provider=fallback,
+        provider=provider,
         session=session,
         dry_run=True,
     )
     historical = SimpleNamespace(id=5, home_team="Manchester City", away_team="Arsenal")
-    service.resolver.mapping_repo.get_by_internal = MagicMock(
-        side_effect=[
-            SimpleNamespace(external_entity_id="missing"),
-            SimpleNamespace(external_entity_id="fb-1"),
-        ]
+    seed = ProviderMatch(
+        provider_match_id="fb-1",
+        provider_league_id="17",
+        provider_season_id="2024/2025",
+        home_team_id="1",
+        away_team_id="2",
+        home_team_name="Home",
+        away_team_name="Away",
+        kickoff_at=datetime(2024, 8, 17, 15, 0, tzinfo=timezone.utc),
+        status="finished",
     )
-    fetched, used = service._fetch_details_with_fallback("missing", historical)
+    fetched, used = service._fetch_match_details(
+        "fb-1", historical, seed_match=seed
+    )
     assert used == "sofascore"
     assert fetched is not None
+    assert fetched.match.provider_match_id == "fb-1"
+    assert fetched.shots == []
 
 
 def test_transaction_rollback_for_one_failed_match_keeps_others():
@@ -485,7 +507,7 @@ def test_transaction_rollback_for_one_failed_match_keeps_others():
     session.begin_nested.return_value.__exit__ = MagicMock(return_value=False)
 
     provider = MagicMock()
-    provider.name = "fotmob"
+    provider.name = "sofascore"
     service = ExtendedMatchDataService(provider=provider, session=session)
 
     results = [
@@ -508,10 +530,10 @@ def test_transaction_rollback_for_one_failed_match_keeps_others():
     assert batch.requested == 3
 
 
-def test_unresolved_teams_created_from_fotmob():
+def test_unresolved_teams_created_from_sofascore():
     session = MagicMock()
     provider = MagicMock()
-    provider.name = "fotmob"
+    provider.name = "sofascore"
     provider.fetch_team.side_effect = lambda team_id: ProviderTeam(
         provider_team_id=str(team_id),
         name=f"Team {team_id}",
@@ -540,8 +562,8 @@ def test_unresolved_teams_created_from_fotmob():
         )
     )
     service.resolver.ensure_mapping = MagicMock()
-    service._fetch_details_with_fallback = MagicMock(
-        return_value=(_sample_details(), "fotmob")
+    service._fetch_match_details = MagicMock(
+        return_value=(_sample_details(), "sofascore")
     )
     service._persist_match_details = MagicMock(
         return_value=MatchImportResult(
@@ -574,11 +596,10 @@ def test_unresolved_teams_created_from_fotmob():
     assert result.status == "imported"
     assert service.resolver.team_repo.create_from_provider_team.call_count == 2
     service.resolver.team_repo.create_from_provider_team.assert_any_call(
+        external_id=8456,
         name="Team 8456",
-        league_id=1,
-        short_name="T8456",
-        country_name="England",
-        iso_code="ENG",
+        code="ENG",
+        country="England",
     )
     provider.fetch_team.assert_any_call("8456")
     provider.fetch_team.assert_any_call("9825")
@@ -596,13 +617,13 @@ def test_unresolved_teams_created_from_fotmob():
 
 def test_team_features_no_future_data_leakage():
     session = MagicMock()
-    calculator = StrengthCalculator(session=session, provider="fotmob")
+    calculator = StrengthCalculator(session=session, provider="sofascore")
     team = SimpleNamespace(id=1, name="Manchester City", league_id=1)
     calculator.team_repo.get = MagicMock(return_value=team)
 
     past = SimpleNamespace(
         id=10,
-        match_date=date(2025, 8, 1),
+        fixture_date=date(2025, 8, 1),
         home_team=SimpleNamespace(name="Manchester City"),
         away_team=SimpleNamespace(name="Arsenal"),
         home_goals=2,
@@ -610,7 +631,7 @@ def test_team_features_no_future_data_leakage():
     )
     future = SimpleNamespace(
         id=11,
-        match_date=date(2025, 8, 20),
+        fixture_date=date(2025, 8, 20),
         home_team=SimpleNamespace(name="Manchester City"),
         away_team=SimpleNamespace(name="Chelsea"),
         home_goals=3,
@@ -659,7 +680,7 @@ def test_team_features_no_future_data_leakage():
 
 
 def test_xg_disagreement_warning():
-    details = _sample_details()
+    details = _metrics_details()
     # Provider home_xg 1.85 vs shot sum 1.35
     metrics = calculate_derived_metrics(
         details,

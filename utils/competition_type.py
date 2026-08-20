@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
-from data_sources.football_data_tournaments_xslx_provider import is_tournament_code
-from utils.common import EXTRA_LEAGUE_CODES, MAIN_LEAGUE_CODES
 
 DOMESTIC_CUP_CODES = frozenset({"ENG-FA Cup"})
+TOURNAMENT_CODE_PREFIXES = ("WC",)
+
+
+def is_tournament_code(league_code: str) -> bool:
+    """True for international tournament codes (e.g. World Cup WC2022)."""
+    code = league_code.strip().upper()
+    return any(code.startswith(prefix) for prefix in TOURNAMENT_CODE_PREFIXES)
 
 
 def competition_type_flags(league_code: str) -> tuple[bool, bool, bool]:
@@ -19,8 +24,6 @@ def competition_type_flags(league_code: str) -> tuple[bool, bool, bool]:
         return False, False, True
     if code in DOMESTIC_CUP_CODES:
         return True, False, False
-    if code in MAIN_LEAGUE_CODES or code in EXTRA_LEAGUE_CODES:
-        return False, False, False
     return False, False, False
 
 

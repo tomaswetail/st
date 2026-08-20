@@ -6,7 +6,8 @@ from datetime import date
 
 from objects.schema.data_classes.recent_form_stats import RecentFormStats
 from objects.schema.data_classes.team_rest_days import MatchRecentFormFeatures
-from objects.schema.db.historical_match import HistoricalMatch
+from objects.schema.db.fixture import Fixture as HistoricalMatch
+from utils.fixture_fields import fixture_away_name, fixture_goals_away, fixture_goals_home, fixture_home_name, fixture_match_date, fixture_outcome
 
 
 def _clamp(value: float, low: float, high: float) -> float:
@@ -45,14 +46,14 @@ def calculate_recent_form(
     """Compute recency-weighted form stats from matches strictly before before_date."""
     relevant: list[tuple[HistoricalMatch, bool]] = []
     for m in matches:
-        if m.match_date >= before_date:
+        if fixture_match_date(m) >= before_date:
             continue
-        if m.home_team == team:
+        if fixture_home_name(m) == team:
             relevant.append((m, True))
-        elif m.away_team == team:
+        elif fixture_away_name(m) == team:
             relevant.append((m, False))
 
-    relevant.sort(key=lambda x: x[0].match_date)
+    relevant.sort(key=lambda x: fixture_match_date(x[0]))
     selected = relevant[-lookback:]
 
     if not selected:
@@ -88,15 +89,15 @@ def calculate_recent_form(
         weight = idx + 1
         weights.append(weight)
         if is_home:
-            gf, ga = match.home_goals, match.away_goals
+            gf, ga = fixture_goals_home(match) or 0, fixture_goals_away(match) or 0
         else:
-            gf, ga = match.away_goals, match.home_goals
-        match_points = _points_for_team(is_home, match.result)
+            gf, ga = fixture_goals_away(match) or 0, fixture_goals_home(match) or 0
+        match_points = _points_for_team(is_home, fixture_outcome(match) or "X")
         points += match_points
         goals_for += gf
         goals_against += ga
         weighted_points += match_points * weight
-        outcome = _result_for_team(is_home, match.result)
+        outcome = _result_for_team(is_home, fixture_outcome(match) or "X")
         if outcome == "W":
             wins += 1
         elif outcome == "D":

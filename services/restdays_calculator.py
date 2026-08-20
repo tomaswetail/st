@@ -8,10 +8,11 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from objects.models.team import TeamModel
-from objects.repositories.historical_match_repository import HistoricalMatchRepository
+from objects.repositories.fixture_repository import FixtureRepository as HistoricalMatchRepository
+from utils.fixture_fields import fixture_away_name, fixture_home_name, fixture_match_date
 from objects.schema.data_classes.recent_form_stats import TeamRestDays
 from objects.schema.data_classes.team_rest_days import MatchRestDaysFeatures
-from objects.schema.db.historical_match import HistoricalMatch
+from objects.schema.db.fixture import Fixture
 
 
 def _clamp(value: int, low: int, high: int) -> int:
@@ -20,19 +21,21 @@ def _clamp(value: int, low: int, high: int) -> int:
 
 
 def build_last_match_dates(
-    history: list[HistoricalMatch],
+    history: list[Fixture],
     fixtures: list[Any] | None = None,
 ) -> dict[str, date]:
     """Return the latest known match date for each team from history and fixtures."""
     last: dict[str, date] = {}
     for m in history:
-        last[m.home_team] = max(last.get(m.home_team, m.match_date), m.match_date)
-        last[m.away_team] = max(last.get(m.away_team, m.match_date), m.match_date)
+        last[fixture_home_name(m)] = max(last.get(fixture_home_name(m), fixture_match_date(m)), fixture_match_date(m))
+        last[fixture_away_name(m)] = max(last.get(fixture_away_name(m), fixture_match_date(m)), fixture_match_date(m))
     for f in fixtures or []:
         d = f.start_time.date()
         if f.status and f.status.lower() in ("finished", "completed", "ft"):
-            last[f.home_team] = max(last.get(f.home_team, d), d)
-            last[f.away_team] = max(last.get(f.away_team, d), d)
+            home = f.home_team.name if hasattr(f.home_team, "name") else f.home_team
+            away = f.away_team.name if hasattr(f.away_team, "name") else f.away_team
+            last[home] = max(last.get(home, d), d)
+            last[away] = max(last.get(away, d), d)
     return last
 
 
@@ -60,7 +63,7 @@ def rest_days_for_match(
 
 
 def calculate_team_rest_days(
-    matches: list[HistoricalMatch],
+    matches: list[Fixture],
     team: str,
     match_date: date,
 ) -> TeamRestDays:
@@ -68,9 +71,9 @@ def calculate_team_rest_days(
     relevant = [
         m
         for m in matches
-        if m.match_date < match_date and team in (m.home_team, m.away_team)
+        if fixture_match_date(m) < match_date and team in (fixture_home_name(m), fixture_away_name(m))
     ]
-    relevant.sort(key=lambda m: m.match_date, reverse=True)
+    relevant.sort(key=lambda m: fixture_match_date(m), reverse=True)
 
     if not relevant:
         return TeamRestDays(
@@ -82,7 +85,7 @@ def calculate_team_rest_days(
             note="No previous match found",
         )
 
-    previous = relevant[0].match_date
+    previous = fixture_match_date(relevant[0])
     rest = (match_date - previous).days
     return TeamRestDays(
         team=team,
@@ -94,7 +97,7 @@ def calculate_team_rest_days(
 
 
 def build_match_rest_days_features(
-    matches: list[HistoricalMatch],
+    matches: list[Fixture],
     home_team: str,
     away_team: str,
     match_date: date,

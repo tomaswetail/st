@@ -7,12 +7,13 @@ from datetime import date, timedelta
 from sqlalchemy.orm import Session
 
 from objects.models.team import TeamModel
-from objects.repositories.historical_match_repository import HistoricalMatchRepository
-from objects.schema.db.historical_match import HistoricalMatch
+from objects.repositories.fixture_repository import FixtureRepository as HistoricalMatchRepository
+from utils.fixture_fields import fixture_away_name, fixture_home_name, fixture_match_date
+from objects.schema.db.fixture import Fixture
 
 
 def count_matches_in_window(
-    matches: list[HistoricalMatch],
+    matches: list[Fixture],
     team: str,
     match_date: date,
     days: int,
@@ -30,15 +31,15 @@ def count_matches_in_window(
     window_start = match_date - timedelta(days=days)
     count = 0
     for m in matches:
-        if m.match_date >= match_date or m.match_date < window_start:
+        if fixture_match_date(m) >= match_date or fixture_match_date(m) < window_start:
             continue
-        if team in (m.home_team, m.away_team):
+        if team in (fixture_home_name(m), fixture_away_name(m)):
             count += 1
     return count
 
 
 def calculate_team_congestion(
-    matches: list[HistoricalMatch],
+    matches: list[Fixture],
     team: str,
     match_date: date,
 ) -> float:

@@ -3,12 +3,12 @@ from datetime import date
 from sqlalchemy.orm import Session
 
 from objects.models.team import TeamModel
-from objects.repositories.historical_match_repository import HistoricalMatchRepository
+from objects.repositories.fixture_repository import FixtureRepository as HistoricalMatchRepository
 from objects.repositories.team_repository import TeamRepository
 from objects.schema.data_classes.data_sources import DataSourceConfig
 from objects.schema.data_classes.recent_form_stats import RecentFormStats, TeamRestDays
 from objects.schema.data_classes.team_rest_days import MatchRecentFormFeatures, MatchRestDaysFeatures
-from objects.schema.db.historical_match import HistoricalMatch
+from objects.schema.db.fixture import Fixture
 from services.recent_form import build_match_recent_form_features, calculate_recent_form
 from services.congestion_calculator import calculate_team_congestion
 from services.restdays_calculator import build_match_rest_days_features
@@ -27,19 +27,19 @@ class FormCalculator:
     ) -> None:
         """Load home/away teams and repositories for a fixture."""
         self.config = DataSourceConfig()
-        self.historical_match_repo = HistoricalMatchRepository(session)
+        self.fixture_repo = HistoricalMatchRepository(session)
         team_repo = TeamRepository(session)
         home_team = team_repo.get_by_name(home_team_name)
         away_team = team_repo.get_by_name(away_team_name)
         self.home_team = home_team
         self.away_team = away_team
 
-    def _fixture_matches(self) -> list[HistoricalMatch]:
+    def _fixture_matches(self) -> list[Fixture]:
         """Return deduplicated historical matches for both fixture teams."""
-        home_matches = self.historical_match_repo.get_matches_by_team(self.home_team)
-        away_matches = self.historical_match_repo.get_matches_by_team(self.away_team)
+        home_matches = self.fixture_repo.get_matches_by_team(self.home_team)
+        away_matches = self.fixture_repo.get_matches_by_team(self.away_team)
         by_id = {m.id: m for m in home_matches + away_matches}
-        return sorted(by_id.values(), key=lambda m: m.match_date)
+        return sorted(by_id.values(), key=lambda m: m.fixture_date)
 
     def get_team_form(
         self,
@@ -50,7 +50,7 @@ class FormCalculator:
         if team is None:
             raise ValueError("team is required")
 
-        matches = self.historical_match_repo.get_matches_by_team(team)
+        matches = self.fixture_repo.get_matches_by_team(team)
         calculator = TeamFormCalculator(self.config.form_matches)
         calculator.ingest(matches)
         return calculator.form_before(team.name, before_date)
@@ -64,7 +64,7 @@ class FormCalculator:
         if team is None:
             raise ValueError("team is required")
 
-        matches = self.historical_match_repo.get_matches_by_team(team)
+        matches = self.fixture_repo.get_matches_by_team(team)
         return calculate_recent_form(
             matches,
             team.name,

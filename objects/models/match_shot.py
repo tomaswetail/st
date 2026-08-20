@@ -31,7 +31,7 @@ class MatchShotModel(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     match_id: Mapped[int] = mapped_column(
-        ForeignKey("historical_matches.id"),
+        ForeignKey("fixtures.id"),
         nullable=False,
         index=True,
     )

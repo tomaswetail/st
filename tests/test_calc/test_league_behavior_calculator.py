@@ -21,8 +21,9 @@ def _match(
     return SimpleNamespace(
         id=10,
         start_time=start_time,
-        home_team=SimpleNamespace(league_id=league_id, name="Arsenal"),
-        away_team=SimpleNamespace(league_id=league_id, name="Chelsea"),
+        league_name="Premier League",
+        home_team=SimpleNamespace(league_id=league_id, name="Arsenal", external_id=1),
+        away_team=SimpleNamespace(league_id=league_id, name="Chelsea", external_id=2),
     )
 
 
@@ -49,11 +50,11 @@ def _historical(
         else:
             result = "X"
     payload = {
-        "match_date": match_date,
-        "home_team": SimpleNamespace(name=home_team),
-        "away_team": SimpleNamespace(name=away_team),
-        "home_goals": home_goals,
-        "away_goals": away_goals,
+        "fixture_date": match_date,
+        "home_team_name": home_team,
+        "away_team_name": away_team,
+        "goals_home": home_goals,
+        "goals_away": away_goals,
         "result": result,
         "odds_home": odds_home,
         "odds_draw": odds_draw,
@@ -84,12 +85,16 @@ def _calculator(
         league_behavior_quality_reference_matches=quality_reference,
     )
     calculator = LeagueBehaviorCalculator(session, config=config)
-    calculator.historical_repo = MagicMock()
-    calculator.historical_repo.find_before_date_by_league_id = MagicMock(
+    calculator.fixture_repo = MagicMock()
+    calculator.fixture_repo.find_before_date_by_league_id = MagicMock(
         return_value=league_matches
     )
-    calculator.historical_repo.get_filtered = MagicMock(
+    calculator.fixture_repo.get_filtered = MagicMock(
         return_value=global_matches if global_matches is not None else league_matches
+    )
+    calculator.league_repo = MagicMock()
+    calculator.league_repo.get_by_name = MagicMock(
+        return_value=SimpleNamespace(id=1)
     )
     return calculator
 
@@ -152,7 +157,7 @@ def test_same_day_matches_do_not_consume_lookback_limit():
     # Same-day row dropped; newest 3 strictly-prior remaining → only 3 exist.
     assert features.league_sample_size == 3
     assert features.league_home_win_rate == pytest.approx(2 / 3)
-    kwargs = calculator.historical_repo.find_before_date_by_league_id.call_args.kwargs
+    kwargs = calculator.fixture_repo.find_before_date_by_league_id.call_args.kwargs
     assert kwargs["before_date"] == cutoff
     assert kwargs["limit"] == 3
 
@@ -180,6 +185,7 @@ def test_newest_n_strictly_prior_matches_are_used():
 
 
 def test_valid_odds_missing_result_count_toward_market_completeness_only():
+    """Fixture odds were dropped; market favourite metrics stay empty."""
     league_matches = [
         _historical(
             match_date=date(2024, 6, 1),
@@ -202,10 +208,10 @@ def test_valid_odds_missing_result_count_toward_market_completeness_only():
     calculator = _calculator(league_matches=league_matches, shrinkage=0)
     stats = calculator._compute_raw_stats(league_matches)
 
-    assert stats.market_data_sample_size == 2
-    assert stats.favourite_result_sample_size == 1
-    assert stats.market_completeness == pytest.approx(1.0)
-    assert stats.favourite_win_rate == pytest.approx(1.0)
+    assert stats.market_data_sample_size == 0
+    assert stats.favourite_result_sample_size == 0
+    assert stats.market_completeness == pytest.approx(0.0)
+    assert stats.favourite_win_rate is None
 
 
 def test_favourite_reliability_shrinkage_uses_favourite_result_sample_size():
@@ -239,10 +245,8 @@ def test_favourite_reliability_shrinkage_uses_favourite_result_sample_size():
     )
     features = calculator.calculate(_match())
 
-    # favourite_result_sample_size = 1 (not market_data_sample_size = 2)
-    assert features.league_favourite_win_rate == pytest.approx(
-        (1 / 11) * 1.0 + (10 / 11) * 0.55
-    )
+    # No fixture odds → favourite sample size 0 → full default prior.
+    assert features.league_favourite_win_rate == pytest.approx(0.55)
 
 
 def test_shrinkage_uses_feature_specific_sample_sizes():
@@ -282,9 +286,7 @@ def test_shrinkage_uses_feature_specific_sample_sizes():
     assert features.league_home_win_rate == pytest.approx(
         (2 / 12) * 0.5 + (10 / 12) * 0.0
     )
-    assert features.league_favourite_win_rate == pytest.approx(
-        (1 / 11) * 1.0 + (10 / 11) * 0.55
-    )
+    assert features.league_favourite_win_rate == pytest.approx(0.55)
 
 
 def test_favourite_win_rate_uses_market_not_result():
@@ -308,7 +310,8 @@ def test_favourite_win_rate_uses_market_not_result():
     ]
     calculator = _calculator(league_matches=league_matches, shrinkage=0)
     features = calculator.calculate(_match())
-    assert features.league_favourite_win_rate == pytest.approx(0.5)
+    # Fixture odds dropped: favourite metric falls back to default prior.
+    assert features.league_favourite_win_rate == pytest.approx(0.55)
 
 
 def test_shrinkage_pulls_sparse_league_toward_global():
@@ -381,7 +384,8 @@ def test_missing_market_odds_uses_global_favourite_prior():
         shrinkage=50,
     )
     features = calculator.calculate(_match())
-    assert features.league_favourite_win_rate == pytest.approx(1.0)
+    # Global favourite also unavailable without odds → default prior 0.55.
+    assert features.league_favourite_win_rate == pytest.approx(0.55)
 
 
 def test_missing_goal_data_reduces_league_data_quality():
@@ -426,10 +430,10 @@ def test_no_future_or_same_day_leakage_in_repo_call():
     match = _match(start_time=datetime(2024, 6, 15, 15, 0, tzinfo=timezone.utc))
     calculator.calculate(match)
 
-    kwargs = calculator.historical_repo.find_before_date_by_league_id.call_args.kwargs
+    kwargs = calculator.fixture_repo.find_before_date_by_league_id.call_args.kwargs
     assert kwargs["before_date"] == date(2024, 6, 15)
     assert kwargs["limit"] == 500
-    global_kwargs = calculator.historical_repo.get_filtered.call_args.kwargs
+    global_kwargs = calculator.fixture_repo.get_filtered.call_args.kwargs
     assert global_kwargs["before_date"] == date(2024, 6, 15)
     assert global_kwargs["limit"] == 500
 
@@ -571,7 +575,7 @@ def test_cache_avoids_second_repo_query():
 
     assert first == second
     assert isinstance(first, LeagueBehaviorFeatures)
-    assert calculator.historical_repo.find_before_date_by_league_id.call_count == 1
+    assert calculator.fixture_repo.find_before_date_by_league_id.call_count == 1
 
 
 def test_competitive_balance_higher_when_teams_closer():

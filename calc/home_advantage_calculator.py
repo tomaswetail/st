@@ -11,11 +11,13 @@ from sqlalchemy.orm import Session
 
 from calc.strength_calculator import StrengthCalculator
 from calc.strength_helpers import normalize_strength, npxg_or_xg, weighted_mean_from_pairs
-from data_sources.football_data_uk_xlsx_provider import season_code_to_start_year
-from objects.models.historical_match import HistoricalMatchModel
+from utils.seasons import season_code_to_start_year, start_year_to_season_code
+from objects.models.fixture import FixtureModel
+from data_sources.api_football_leagues import code_for_api_football_league_id
+from utils.fixture_fields import fixture_away_name, fixture_home_name, fixture_match_date
 from objects.models.match_advanced_stats import MatchAdvancedStatsModel
 from objects.models.team import TeamModel
-from objects.repositories.historical_match_repository import HistoricalMatchRepository
+from objects.repositories.fixture_repository import FixtureRepository
 from objects.repositories.league_repository import LeagueRepository
 from objects.repositories.team_repository import TeamRepository
 from objects.schema.data_classes.data_sources import DataSourceConfig
@@ -50,7 +52,7 @@ class HomeAdvantageResult:
 
 
 class _MatchNpxg(NamedTuple):
-    match: HistoricalMatchModel
+    match: FixtureModel
     played_at_home: bool
     xg_for: float
     xg_against: float
@@ -70,7 +72,7 @@ class HomeAdvantageCalculator:
     ) -> None:
         self.session = session
         self.config = config or DataSourceConfig()
-        self.historical_match_repo = HistoricalMatchRepository(session)
+        self.fixture_repo = FixtureRepository(session)
         self.team_repo = TeamRepository(session)
         self.league_repo = LeagueRepository(session)
         self.strength_calculator = strength_calculator or StrengthCalculator(
@@ -84,6 +86,18 @@ class HomeAdvantageCalculator:
         self._competition_beta_cache: dict[
             date, dict[str, tuple[float, float, float, int]]
         ] = {}
+
+    def _team_league_id(self, team: Team | TeamModel) -> int | None:
+        team_model = self.team_repo.get(team.id)
+        if team_model is None and getattr(team, "external_id", None):
+            team_model = self.team_repo.get_by_external_id(int(team.external_id))
+        if team_model is None:
+            team_model = self.team_repo.get_by_name(team.name)
+        if team_model is None:
+            return None
+        return self.fixture_repo.resolve_internal_league_id_for_team(
+            team_model
+        )
 
     def process(
         self,
@@ -100,7 +114,8 @@ class HomeAdvantageCalculator:
             competition["competition_home_advantage"]
         )
 
-        if team.league_id is None:
+        league_id = self._team_league_id(team)
+        if league_id is None:
             return self._empty_result(
                 0.0,
                 competition_home_advantage=competition_home_advantage,
@@ -126,13 +141,13 @@ class HomeAdvantageCalculator:
             league_ha = 0.0
         else:
             league_ha_result = self.calc_league_season_home_advantage(
-                team.league_id, season, current_date, return_diagnostics=True
+                league_id, season, current_date, return_diagnostics=True
             )
             league_ha = league_ha_result["league_season_home_advantage"]
 
         team_result = self.calculate_team_home_advantage(
             team=team,
-            league_id=team.league_id,
+            league_id=league_id,
             season=season or "",
             target_date=current_date,
             league_season_home_advantage=league_ha,
@@ -232,7 +247,7 @@ class HomeAdvantageCalculator:
         if cached is not None:
             return cached
 
-        goal_sums = self.historical_match_repo.get_goal_sums_by_league_before_date(
+        goal_sums = self.fixture_repo.get_goal_sums_by_league_before_date(
             before_date
         )
         buckets = self._bucket_goal_sums_by_competition_type(goal_sums)
@@ -356,12 +371,12 @@ class HomeAdvantageCalculator:
     ) -> tuple[float, int]:
         """Return (raw log HA, league match count) with strict date cutoff."""
         sum_home_goals, home_matches = (
-            self.historical_match_repo.get_home_goals_sum_by_league(
+            self.fixture_repo.get_home_goals_sum_by_league(
                 league_id, season, before_date
             )
         )
         sum_away_goals, away_matches = (
-            self.historical_match_repo.get_away_goals_sum_by_league(
+            self.fixture_repo.get_away_goals_sum_by_league(
                 league_id, season, before_date
             )
         )
@@ -466,7 +481,7 @@ class HomeAdvantageCalculator:
             baselines = self._league_baselines_before(
                 match_league.id,
                 row.season,
-                row.match.match_date,
+                fixture_match_date(row.match),
             )
             league_home_npxg = baselines.get("home_npxg")
             league_away_npxg = baselines.get("away_npxg")
@@ -484,7 +499,7 @@ class HomeAdvantageCalculator:
             expected_for, expected_against = self._expected_npxg(
                 team_id=team.id,
                 opponent_name=row.opponent_name,
-                match_date=row.match.match_date,
+                match_date=fixture_match_date(row.match),
                 played_at_home=row.played_at_home,
                 league_home_npxg=league_home_npxg,
                 league_away_npxg=league_away_npxg,
@@ -499,7 +514,7 @@ class HomeAdvantageCalculator:
             defence_residual = log(
                 (expected_against + epsilon) / (row.xg_against + epsilon)
             )
-            days_before = (target_date - row.match.match_date).days
+            days_before = (target_date - fixture_match_date(row.match)).days
             weight = exp(-decay_rate * days_before)
 
             if row.played_at_home:
@@ -680,41 +695,42 @@ class HomeAdvantageCalculator:
         self, team: TeamModel, before_date: date
     ) -> list[_MatchNpxg]:
         lookback = max(self.config.team_strength_lookback_matches * 3, 60)
-        historical_matches = self.historical_match_repo.find_before_date_by_team(
+        fixtures = self.fixture_repo.find_before_date_by_team(
             team_name=team.name,
             before_date=before_date,
             venue=None,
             limit=lookback,
         )
-        if not historical_matches:
+        if not fixtures:
             return []
 
         match_stat_rows = self.strength_calculator.attach_advanced_stats(
-            historical_matches, team.name
+            fixtures, team.name
         )
         results: list[_MatchNpxg] = []
-        for historical_match, advanced_stats, played_at_home in match_stat_rows:
+        for fixture, advanced_stats, played_at_home in match_stat_rows:
             xg_for, xg_against = self._npxg_pair(
                 advanced_stats, played_at_home=played_at_home
             )
             if xg_for is None or xg_against is None:
                 continue
-            if not historical_match.league or not historical_match.season:
+            league_code = code_for_api_football_league_id(fixture.league_id)
+            if not league_code or not fixture.league_season:
                 continue
             opponent_name = (
-                historical_match.away_team.name
+                fixture_away_name(fixture)
                 if played_at_home
-                else historical_match.home_team.name
+                else fixture_home_name(fixture)
             )
             results.append(
                 _MatchNpxg(
-                    match=historical_match,
+                    match=fixture,
                     played_at_home=played_at_home,
                     xg_for=xg_for,
                     xg_against=xg_against,
                     opponent_name=opponent_name,
-                    league_code=historical_match.league,
-                    season=historical_match.season,
+                    league_code=league_code,
+                    season=str(fixture.league_season),
                 )
             )
         return results
@@ -743,28 +759,32 @@ class HomeAdvantageCalculator:
         self, team: Team, before_date: date
     ) -> str | None:
         """Return season start-year for the team's current league only (no fallback)."""
-        if team.league_id is None:
+        league_id = self._team_league_id(team)
+        if league_id is None:
             return None
-        league = self.league_repo.get(team.league_id)
+        league = self.league_repo.get(league_id)
         if league is None:
             return None
-        league_code = LEAGUE_NAMES_REV.get(league.name)
+        league_code = LEAGUE_NAMES_REV.get(league.league_name) or code_for_api_football_league_id(
+            league.external_id
+        )
         if not league_code:
             return None
 
         lookback = max(self.config.team_strength_lookback_matches * 3, 60)
-        historical_matches = self.historical_match_repo.find_before_date_by_team(
+        fixtures = self.fixture_repo.find_before_date_by_team(
             team_name=team.name,
             before_date=before_date,
             venue=None,
             limit=lookback,
         )
-        for historical_match in historical_matches:
-            if historical_match.league != league_code:
+        for fixture in fixtures:
+            code = code_for_api_football_league_id(fixture.league_id)
+            if code != league_code:
                 continue
-            if not historical_match.season:
+            if not fixture.league_season:
                 continue
-            return self._season_to_repo_arg(historical_match.season)
+            return self._season_to_repo_arg(str(fixture.league_season))
         return None
 
     @staticmethod

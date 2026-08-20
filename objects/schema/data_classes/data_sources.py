@@ -13,21 +13,21 @@ def _project_root() -> Path:
     return Path(__file__).resolve().parent.parent.parent
 
 
+DISK_CACHE_TTL_ONE_YEAR = 365 * 24 * 3600
+
+
 class DataSourceConfig(BaseModel):
     """Paths and parameters for data ingestion and features."""
 
     team_aliases_path: Path = Field(
         default_factory=lambda: Path(__file__).resolve().parents[3] / "config" / "team_aliases.json"
     )
-    football_data_base_url: str = Field(
-        default="https://www.football-data.co.uk/mmz4281"
+    api_football_leagues_path: Path = Field(
+        default_factory=lambda: Path(__file__).resolve().parents[3]
+        / "config"
+        / "api_football_leagues.json"
     )
-    football_data_extra_base_url: str = Field(
-        default="https://www.football-data.co.uk/new"
-    )
-    football_data_world_cup_xlsx_url: str = Field(
-        default="https://www.football-data.co.uk/WorldCup2026.xlsx"
-    )
+    api_football_key: str = Field(default="6de75a404b5c1c996418d07d6ac70144")
     default_leagues: list[str] = Field(default_factory=lambda: ["E0", "E1", "SP1"])
     default_seasons: list[str] = Field(default_factory=lambda: ["2324", "2425"])
     elo_start: float = Field(default=1500.0)
@@ -61,9 +61,6 @@ class DataSourceConfig(BaseModel):
     thestatsapi_key: str | None = Field(
         default_factory=lambda: os.environ.get("THESTATSAPI_KEY")
     )
-    raw_football_data_dir: Path = Field(
-        default_factory=lambda: _project_root() / "data" / "raw" / "football-data"
-    )
     svenskaspel_base_url: str = Field(default="https://api.spela.svenskaspel.se")
     svenskaspel_access_key: str | None = Field(
         default_factory=lambda: os.environ.get("SVENSKASPEL_ACCESS_KEY")
@@ -73,19 +70,9 @@ class DataSourceConfig(BaseModel):
     odds_provider: Literal["svenskaspel", "the-odds-api", "manual"] = Field(default="svenskaspel")
     odds_aggregation_method: str = Field(default="average_probability")
 
-    # Historical FotMob / SofaScore ingestion
-    football_data_provider: Literal["fotmob", "sofascore"] = Field(
-        default_factory=lambda: (
-            "sofascore"
-            if os.environ.get("FOOTBALL_DATA_PROVIDER", "fotmob").lower()
-            == "sofascore"
-            else "fotmob"
-        )
-    )
-    fotmob_base_url: str = Field(
-        default_factory=lambda: os.environ.get(
-            "FOTMOB_BASE_URL", "https://www.fotmob.com/api/data"
-        )
+    # SofaScore xG / shot ingestion
+    football_data_provider: Literal["sofascore"] = Field(
+        default_factory=lambda: "sofascore"
     )
     sofascore_base_url: str = Field(
         default_factory=lambda: os.environ.get(
@@ -104,7 +91,9 @@ class DataSourceConfig(BaseModel):
     )
     football_data_cache_ttl_seconds: int = Field(
         default_factory=lambda: int(
-            os.environ.get("FOOTBALL_DATA_CACHE_TTL_SECONDS", "3600")
+            os.environ.get(
+                "FOOTBALL_DATA_CACHE_TTL_SECONDS", str(DISK_CACHE_TTL_ONE_YEAR)
+            )
         ),
         ge=0,
     )

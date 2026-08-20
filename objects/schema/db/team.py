@@ -6,25 +6,21 @@ from pydantic import BaseModel
 class TeamCreate(BaseModel):
     """Schema for creating a Team."""
 
-    external_id: Optional[int] = None
-    league_id: Optional[int] = None
+    external_id: int
     name: str
-    short_name: Optional[str] = None
-    medium_name: Optional[str] = None
-    country_name: Optional[str] = None
-    iso_code: Optional[str] = None
+    code: Optional[str] = None
+    country: Optional[str] = None
+    national: bool = False
 
 
 class Team(BaseModel):
     """Schema for Team with id (read/response)."""
 
     id: int
-    external_id: Optional[int] = None
-    league_id: Optional[int] = None
+    external_id: int
     name: str
-    short_name: Optional[str] = None
-    medium_name: Optional[str] = None
-    country_name: Optional[str] = None
-    iso_code: Optional[str] = None
+    code: Optional[str] = None
+    country: Optional[str] = None
+    national: bool = False
 
     model_config = {"from_attributes": True}

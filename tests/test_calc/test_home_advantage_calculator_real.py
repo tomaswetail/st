@@ -46,7 +46,7 @@ def _match_row(
     season: str = "2025",
 ):
     return SimpleNamespace(
-        match=SimpleNamespace(match_date=match_date),
+        match=SimpleNamespace(fixture_date=match_date),
         played_at_home=played_at_home,
         xg_for=xg_for,
         xg_against=xg_against,
@@ -80,7 +80,6 @@ def calculator():
     calc.historical_match_repo = MagicMock()
 
     calc.team_repo.get.return_value = _team()
-    calc.league_repo.get_by_code.return_value = SimpleNamespace(id=LEAGUE_ID)
     return calc
 
 
@@ -397,32 +396,44 @@ def test_team_history_loader_uses_strict_target_date_cutoff(calculator):
     team_model = _team()
     past = SimpleNamespace(
         id=1,
-        match_date=date(2026, 1, 19),
+        fixture_date=date(2026, 1, 19),
         home_team=SimpleNamespace(name="Target"),
         away_team=SimpleNamespace(name="Opponent"),
+        home_team_name="Target",
+        away_team_name="Opponent",
+        league_id=39,
+        league_season=2025,
         league="E0",
         season="2025",
     )
     on_target = SimpleNamespace(
         id=2,
-        match_date=TARGET_DATE,
+        fixture_date=TARGET_DATE,
         home_team=SimpleNamespace(name="Target"),
         away_team=SimpleNamespace(name="Opponent"),
+        home_team_name="Target",
+        away_team_name="Opponent",
+        league_id=39,
+        league_season=2025,
         league="E0",
         season="2025",
     )
     future = SimpleNamespace(
         id=3,
-        match_date=date(2026, 1, 21),
+        fixture_date=date(2026, 1, 21),
         home_team=SimpleNamespace(name="Target"),
         away_team=SimpleNamespace(name="Opponent"),
+        home_team_name="Target",
+        away_team_name="Opponent",
+        league_id=39,
+        league_season=2025,
         league="E0",
         season="2025",
     )
     db_rows = [past, on_target, future]
 
     def find_before_date_by_team(*, team_name, before_date, venue, limit):
-        return [m for m in db_rows if m.match_date < before_date][:limit]
+        return [m for m in db_rows if m.fixture_date < before_date][:limit]
 
     calculator.historical_match_repo.find_before_date_by_team.side_effect = (
         find_before_date_by_team
@@ -445,7 +456,7 @@ def test_team_history_loader_uses_strict_target_date_cutoff(calculator):
     first = calculator._load_team_npxg_matches(team_model, TARGET_DATE)
 
     # Change future data drastically; strict cutoff means result is unchanged.
-    future.match_date = date(2030, 1, 1)
+    future.fixture_date = date(2030, 1, 1)
     future_stats_change = 999.0  # documents that future data could be arbitrary
     assert future_stats_change == 999.0
 
@@ -453,7 +464,7 @@ def test_team_history_loader_uses_strict_target_date_cutoff(calculator):
 
     assert [r.match.id for r in first] == [1]
     assert [r.match.id for r in second] == [1]
-    assert all(r.match.match_date < TARGET_DATE for r in first + second)
+    assert all(r.match.fixture_date < TARGET_DATE for r in first + second)
 
     calculator.historical_match_repo.find_before_date_by_team.assert_called_with(
         team_name="Target",

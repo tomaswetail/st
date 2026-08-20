@@ -9,23 +9,22 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from calc.strength_calculator import StrengthCalculator
-from objects.models.historical_match import HistoricalMatchModel
+from objects.models.fixture import FixtureModel
 from objects.models.st_match import STMatchModel
 from objects.schema.data_classes.balance_and_environment_features import (
     BalanceAndEnvironmentFeatures,
 )
 from objects.schema.data_classes.data_sources import DataSourceConfig
-from objects.schema.db.historical_match import HistoricalMatch
+from objects.schema.db.fixture import Fixture
 from utils.common import ensure_unit_probabilities
-
-
-def _match_side_name(side: Any) -> str:
-    """Return team name from a pydantic string or ORM TeamModel relationship."""
-    if side is None:
-        return ""
-    if isinstance(side, str):
-        return side
-    return str(side.name)
+from utils.fixture_fields import (
+    fixture_goals_away,
+    fixture_goals_home,
+    fixture_home_name,
+    fixture_away_name,
+    fixture_match_date,
+    fixture_outcome,
+)
 
 
 class BalanceAndEnvironment:
@@ -47,7 +46,7 @@ class BalanceAndEnvironment:
     def calculate(
         self,
         match: STMatchModel,
-        historical_matches: Sequence[HistoricalMatch | HistoricalMatchModel],
+        fixtures: Sequence[Fixture | FixtureModel],
         market_probabilities: dict[str, float | None],
     ) -> BalanceAndEnvironmentFeatures:
         """Compute balance/environment features for one ST fixture."""
@@ -80,12 +79,12 @@ class BalanceAndEnvironment:
         p_away = unit_market_probabilities.get("2")
 
         home_rates = self._team_recent_rates(
-            historical_matches,
+            fixtures,
             team_name=match.home_team.name,
             before_date=cutoff,
         )
         away_rates = self._team_recent_rates(
-            historical_matches,
+            fixtures,
             team_name=match.away_team.name,
             before_date=cutoff,
         )
@@ -125,13 +124,13 @@ class BalanceAndEnvironment:
 
     def _team_recent_rates(
         self,
-        historical_matches: Sequence[HistoricalMatch | HistoricalMatchModel],
+        fixtures: Sequence[Fixture | FixtureModel],
         *,
         team_name: str,
         before_date: date,
     ) -> dict[str, Any]:
         recent = self._recent_team_matches(
-            historical_matches, team_name=team_name, before_date=before_date
+            fixtures, team_name=team_name, before_date=before_date
         )
         sample_size = len(recent)
         if sample_size == 0:
@@ -149,14 +148,14 @@ class BalanceAndEnvironment:
         low_scoring_count = 0
         low_scoring_threshold = self.config.balance_low_scoring_goal_threshold
 
-        for historical_match in recent:
+        for fixture in recent:
             goals_for, goals_against = self._goals_for_team(
-                historical_match, team_name
+                fixture, team_name
             )
             goal_diff = abs(goals_for - goals_against)
             total_goals = goals_for + goals_against
 
-            if self._is_draw(historical_match):
+            if self._is_draw(fixture):
                 draw_count += 1
             if goal_diff == 1:
                 one_goal_count += 1
@@ -175,38 +174,44 @@ class BalanceAndEnvironment:
 
     def _recent_team_matches(
         self,
-        historical_matches: Sequence[HistoricalMatch | HistoricalMatchModel],
+        fixtures: Sequence[Fixture | FixtureModel],
         *,
         team_name: str,
         before_date: date,
-    ) -> list[HistoricalMatch | HistoricalMatchModel]:
+    ) -> list[Fixture | FixtureModel]:
         relevant = [
-            historical_match
-            for historical_match in historical_matches
-            if historical_match.match_date < before_date
+            fixture
+            for fixture in fixtures
+            if fixture_match_date(fixture) < before_date
             and (
-                _match_side_name(historical_match.home_team) == team_name
-                or _match_side_name(historical_match.away_team) == team_name
+                fixture_home_name(fixture) == team_name
+                or fixture_away_name(fixture) == team_name
             )
         ]
-        relevant.sort(key=lambda row: row.match_date, reverse=True)
+        relevant.sort(key=lambda row: fixture_match_date(row), reverse=True)
         return relevant[: self.config.balance_recent_matches]
 
     @staticmethod
     def _goals_for_team(
-        historical_match: HistoricalMatch | HistoricalMatchModel,
+        fixture: Fixture | FixtureModel,
         team_name: str,
     ) -> tuple[int, int]:
-        if _match_side_name(historical_match.home_team) == team_name:
-            return historical_match.home_goals, historical_match.away_goals
-        return historical_match.away_goals, historical_match.home_goals
+        goals_home = fixture_goals_home(fixture) or 0
+        goals_away = fixture_goals_away(fixture) or 0
+        if fixture_home_name(fixture) == team_name:
+            return goals_home, goals_away
+        return goals_away, goals_home
 
     @staticmethod
-    def _is_draw(historical_match: HistoricalMatch | HistoricalMatchModel) -> bool:
-        result = str(historical_match.result).upper()
-        if result in {"X", "D"}:
+    def _is_draw(fixture: Fixture | FixtureModel) -> bool:
+        result = fixture_outcome(fixture)
+        if result == "X":
             return True
-        return historical_match.home_goals == historical_match.away_goals
+        goals_home = fixture_goals_home(fixture)
+        goals_away = fixture_goals_away(fixture)
+        if goals_home is None or goals_away is None:
+            return False
+        return goals_home == goals_away
 
     @staticmethod
     def _abs_diff(left: float | None, right: float | None) -> float | None:

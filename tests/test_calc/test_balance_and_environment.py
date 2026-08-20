@@ -28,22 +28,22 @@ class FakeTeam:
 
 
 @dataclass(frozen=True)
-class FakeHistoricalMatch:
-    match_date: date
-    home_team: str
-    away_team: str
-    home_goals: int
-    away_goals: int
+class FakeFixture:
+    fixture_date: date
+    home_team_name: str
+    away_team_name: str
+    goals_home: int
+    goals_away: int
     result: str
 
 
-def historical_match(
+def fixture(
     match_date: date,
     home_team: str,
     away_team: str,
     home_goals: int,
     away_goals: int,
-) -> FakeHistoricalMatch:
+) -> FakeFixture:
     """Build a HistoricalMatch-like row and derive its 1/X/2 result."""
     if home_goals > away_goals:
         result = "1"
@@ -52,12 +52,12 @@ def historical_match(
     else:
         result = "X"
 
-    return FakeHistoricalMatch(
-        match_date=match_date,
-        home_team=home_team,
-        away_team=away_team,
-        home_goals=home_goals,
-        away_goals=away_goals,
+    return FakeFixture(
+        fixture_date=match_date,
+        home_team_name=home_team,
+        away_team_name=away_team,
+        goals_home=home_goals,
+        goals_away=away_goals,
         result=result,
     )
 
@@ -120,7 +120,7 @@ def test_calculate_uses_strength_calculator_and_computes_core_features(
 ):
     features = calculator.calculate(
         match=target_match,
-        historical_matches=[],
+        fixtures=[],
         market_probabilities={"1": 0.46, "X": 0.30, "2": 0.24},
     )
 
@@ -149,22 +149,22 @@ def test_calculate_computes_all_recent_team_rates_and_combined_rates(
     history = [
         # Alpha: 4 matches
         # draw=2/4, one-goal=1/4, close=3/4, low-scoring=2/4
-        historical_match(date(2026, 8, 9), "Alpha", "A1", 1, 1),
-        historical_match(date(2026, 8, 8), "A2", "Alpha", 0, 1),
-        historical_match(date(2026, 8, 7), "Alpha", "A3", 3, 0),
-        historical_match(date(2026, 8, 6), "A4", "Alpha", 2, 2),
+        fixture(date(2026, 8, 9), "Alpha", "A1", 1, 1),
+        fixture(date(2026, 8, 8), "A2", "Alpha", 0, 1),
+        fixture(date(2026, 8, 7), "Alpha", "A3", 3, 0),
+        fixture(date(2026, 8, 6), "A4", "Alpha", 2, 2),
 
         # Beta: 4 matches
         # draw=1/4, one-goal=1/4, close=2/4, low-scoring=2/4
-        historical_match(date(2026, 8, 9), "B1", "Beta", 0, 0),
-        historical_match(date(2026, 8, 8), "Beta", "B2", 2, 1),
-        historical_match(date(2026, 8, 7), "B3", "Beta", 1, 3),
-        historical_match(date(2026, 8, 6), "Beta", "B4", 0, 2),
+        fixture(date(2026, 8, 9), "B1", "Beta", 0, 0),
+        fixture(date(2026, 8, 8), "Beta", "B2", 2, 1),
+        fixture(date(2026, 8, 7), "B3", "Beta", 1, 3),
+        fixture(date(2026, 8, 6), "Beta", "B4", 0, 2),
     ]
 
     features = calculator.calculate(
         match=target_match,
-        historical_matches=history,
+        fixtures=history,
         market_probabilities={"1": 0.46, "X": 0.30, "2": 0.24},
     )
 
@@ -193,19 +193,19 @@ def test_target_date_and_future_matches_are_excluded(
 ):
     history = [
         # The only valid pre-target match: a draw, close and low-scoring.
-        historical_match(date(2026, 8, 9), "Alpha", "OldOpponent", 1, 1),
+        fixture(date(2026, 8, 9), "Alpha", "OldOpponent", 1, 1),
 
         # Same date as target: MUST be excluded by the strict < cutoff.
         # These rows would materially change every rate if leaked.
-        historical_match(date(2026, 8, 10), "Alpha", "TargetOpponent", 5, 0),
+        fixture(date(2026, 8, 10), "Alpha", "TargetOpponent", 5, 0),
 
         # Future: MUST also be excluded.
-        historical_match(date(2026, 8, 11), "FutureOpponent", "Alpha", 4, 0),
+        fixture(date(2026, 8, 11), "FutureOpponent", "Alpha", 4, 0),
     ]
 
     features = calculator.calculate(
         match=target_match,
-        historical_matches=history,
+        fixtures=history,
         market_probabilities={"1": 0.46, "X": 0.30, "2": 0.24},
     )
 
@@ -232,15 +232,15 @@ def test_recent_window_uses_only_most_recent_matches_before_target(
 
     # Deliberately unsorted input. Only Aug 9 + Aug 8 should count.
     history = [
-        historical_match(date(2026, 8, 6), "Alpha", "A4", 1, 1),  # old draw
-        historical_match(date(2026, 8, 9), "Alpha", "A1", 0, 0),  # recent draw
-        historical_match(date(2026, 8, 7), "Alpha", "A3", 4, 0),  # old blowout
-        historical_match(date(2026, 8, 8), "A2", "Alpha", 0, 1),  # recent 1-goal
+        fixture(date(2026, 8, 6), "Alpha", "A4", 1, 1),  # old draw
+        fixture(date(2026, 8, 9), "Alpha", "A1", 0, 0),  # recent draw
+        fixture(date(2026, 8, 7), "Alpha", "A3", 4, 0),  # old blowout
+        fixture(date(2026, 8, 8), "A2", "Alpha", 0, 1),  # recent 1-goal
     ]
 
     features = calculator.calculate(
         match=target_match,
-        historical_matches=history,
+        fixtures=history,
         market_probabilities={"1": 0.46, "X": 0.30, "2": 0.24},
     )
 
@@ -266,13 +266,13 @@ def test_low_scoring_threshold_is_configurable(
     )
 
     history = [
-        historical_match(date(2026, 8, 9), "Alpha", "A1", 1, 1),  # total=2: not low at threshold=1
-        historical_match(date(2026, 8, 8), "Alpha", "A2", 1, 0),  # total=1: low
+        fixture(date(2026, 8, 9), "Alpha", "A1", 1, 1),  # total=2: not low at threshold=1
+        fixture(date(2026, 8, 8), "Alpha", "A2", 1, 0),  # total=1: low
     ]
 
     features = calculator.calculate(
         match=target_match,
-        historical_matches=history,
+        fixtures=history,
         market_probabilities={"1": 0.46, "X": 0.30, "2": 0.24},
     )
 
@@ -285,7 +285,7 @@ def test_no_history_is_handled_gracefully(
 ):
     features = calculator.calculate(
         match=target_match,
-        historical_matches=[],
+        fixtures=[],
         market_probabilities={"1": 0.46, "X": 0.30, "2": 0.24},
     )
 
@@ -312,13 +312,13 @@ def test_combined_rate_falls_back_to_team_with_available_history(
     target_match,
 ):
     history = [
-        historical_match(date(2026, 8, 9), "Alpha", "A1", 1, 1),
-        historical_match(date(2026, 8, 8), "Alpha", "A2", 1, 0),
+        fixture(date(2026, 8, 9), "Alpha", "A1", 1, 1),
+        fixture(date(2026, 8, 8), "Alpha", "A2", 1, 0),
     ]
 
     features = calculator.calculate(
         match=target_match,
-        historical_matches=history,
+        fixtures=history,
         market_probabilities={"1": 0.46, "X": 0.30, "2": 0.24},
     )
 
@@ -337,7 +337,7 @@ def test_market_percentages_are_normalized_to_unit_probabilities(
 ):
     features = calculator.calculate(
         match=target_match,
-        historical_matches=[],
+        fixtures=[],
         market_probabilities={"1": 50.0, "X": 30.0, "2": 20.0},
     )
 
@@ -367,7 +367,7 @@ def test_missing_strength_values_propagate_as_none(
 
     features = calculator.calculate(
         match=target_match,
-        historical_matches=[],
+        fixtures=[],
         market_probabilities={"1": 0.46, "X": 0.30, "2": 0.24},
     )
 
@@ -401,7 +401,7 @@ def test_missing_team_raises_value_error(
     with pytest.raises(ValueError, match="Missing team"):
         calculator.calculate(
             match=broken_match,
-            historical_matches=[],
+            fixtures=[],
             market_probabilities={"1": 0.46, "X": 0.30, "2": 0.24},
         )
 
@@ -420,7 +420,7 @@ def test_missing_start_time_raises_value_error(
     with pytest.raises(ValueError, match="Missing start_time"):
         calculator.calculate(
             match=broken_match,
-            historical_matches=[],
+            fixtures=[],
             market_probabilities={"1": 0.46, "X": 0.30, "2": 0.24},
         )
 
@@ -431,27 +431,27 @@ def test_result_d_or_x_is_recognized_as_draw_even_if_result_encoding_varies(
 ):
     # Explicitly test the implementation's support for both "D" and "X".
     history = [
-        FakeHistoricalMatch(
-            match_date=date(2026, 8, 9),
-            home_team="Alpha",
-            away_team="A1",
-            home_goals=1,
-            away_goals=1,
+        FakeFixture(
+            fixture_date=date(2026, 8, 9),
+            home_team_name="Alpha",
+            away_team_name="A1",
+            goals_home=1,
+            goals_away=1,
             result="D",
         ),
-        FakeHistoricalMatch(
-            match_date=date(2026, 8, 8),
-            home_team="Alpha",
-            away_team="A2",
-            home_goals=2,
-            away_goals=2,
+        FakeFixture(
+            fixture_date=date(2026, 8, 8),
+            home_team_name="Alpha",
+            away_team_name="A2",
+            goals_home=2,
+            goals_away=2,
             result="x",
         ),
     ]
 
     features = calculator.calculate(
         match=target_match,
-        historical_matches=history,
+        fixtures=history,
         market_probabilities={"1": 0.46, "X": 0.30, "2": 0.24},
     )
 
@@ -471,7 +471,7 @@ def test_prompt_interpretation_favourite_strength_is_distance_from_50_percent(
 ):
     features = calculator.calculate(
         match=target_match,
-        historical_matches=[],
+        fixtures=[],
         market_probabilities={"1": 0.46, "X": 0.30, "2": 0.24},
     )
 
@@ -492,7 +492,7 @@ def test_prompt_contract_exposes_strength_difference(
 ):
     features = calculator.calculate(
         match=target_match,
-        historical_matches=[],
+        fixtures=[],
         market_probabilities={"1": 0.46, "X": 0.30, "2": 0.24},
     )
 

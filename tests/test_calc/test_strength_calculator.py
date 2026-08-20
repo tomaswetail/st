@@ -38,7 +38,7 @@ def make_calculator():
     )
 
     calculator.team_repo = MagicMock()
-    calculator.historical_repo = MagicMock()
+    calculator.fixture_repo = MagicMock()
     calculator.stats_repo = MagicMock()
 
     return calculator
@@ -76,13 +76,17 @@ def make_match(
     )
     return SimpleNamespace(
         id=match_id,
-        match_date=match_date,
+        fixture_date=match_date,
         home_team=home_side,
         away_team=away_side,
+        home_team_name=getattr(home_side, "name", None),
+        away_team_name=getattr(away_side, "name", None),
         home_team_id=getattr(home_side, "id", None),
         away_team_id=getattr(away_side, "id", None),
-        home_goals=home_goals,
-        away_goals=away_goals,
+        goals_home=home_goals,
+        goals_away=away_goals,
+        league_id=39,
+        league_season=2024,
         league="PL",
     )
 
@@ -194,7 +198,7 @@ def test_get_team_features_full_calculation():
         1,
     )
 
-    calculator.historical_repo.find_before_date_by_team.return_value = [
+    calculator.fixture_repo.find_before_date_by_team.return_value = [
         match_1,
         match_2,
     ]
@@ -372,7 +376,7 @@ def test_get_opponent_strength_before():
         1,
     )
 
-    calculator.historical_repo.find_before_date_by_team.return_value = [
+    calculator.fixture_repo.find_before_date_by_team.return_value = [
         match_1,
         match_2,
     ]
@@ -437,7 +441,7 @@ def test_get_opponent_strength_before():
     assert 0.5 < defence < 1.5
 
     # Most important leakage assertion.
-    calculator.historical_repo.find_before_date_by_team.assert_called_once_with(
+    calculator.fixture_repo.find_before_date_by_team.assert_called_once_with(
         team_name="Chelsea",
         before_date=date(2026, 8, 1),
         venue=None,
@@ -520,7 +524,7 @@ def test_league_averages_uses_only_matches_before_cutoff():
         0,
     )
 
-    calculator.historical_repo.find_before_date_by_league_id.return_value = [
+    calculator.fixture_repo.find_before_date_by_league_id.return_value = [
         match_1,
         match_2,
     ]
@@ -551,7 +555,7 @@ def test_league_averages_uses_only_matches_before_cutoff():
 
     assert result == expected
 
-    calculator.historical_repo.find_before_date_by_league_id.assert_called_once_with(
+    calculator.fixture_repo.find_before_date_by_league_id.assert_called_once_with(
         league_id=100,
         before_date=date(2026, 8, 1),
         season=None,
@@ -591,7 +595,7 @@ def test_get_match_features_expected_goals_and_probabilities():
         0,
     )
 
-    calculator.historical_repo.get.return_value = target_match
+    calculator.fixture_repo.get.return_value = target_match
 
     home_features = make_match_team_features(
         attack=1.20,
@@ -769,7 +773,7 @@ def test_no_history_returns_empty_features():
 
     calculator.team_repo.get.return_value = arsenal
 
-    calculator.historical_repo.find_before_date_by_team.return_value = []
+    calculator.fixture_repo.find_before_date_by_team.return_value = []
 
     features = calculator.get_team_features(
         team_id=1,
@@ -807,7 +811,7 @@ def test_matches_without_advanced_stats_are_skipped():
         0,
     )
 
-    calculator.historical_repo.find_before_date_by_team.return_value = [
+    calculator.fixture_repo.find_before_date_by_team.return_value = [
         match_1
     ]
 
@@ -836,7 +840,7 @@ def test_history_query_uses_strict_pre_match_cutoff():
 
     calculator.team_repo.get.return_value = arsenal
 
-    calculator.historical_repo.find_before_date_by_team.return_value = []
+    calculator.fixture_repo.find_before_date_by_team.return_value = []
 
     target_date = datetime(
         2026,
@@ -852,7 +856,7 @@ def test_history_query_uses_strict_pre_match_cutoff():
         lookback_matches=20,
     )
 
-    calculator.historical_repo.find_before_date_by_team.assert_called_once_with(
+    calculator.fixture_repo.find_before_date_by_team.assert_called_once_with(
         team_name="Arsenal",
         before_date=date(2026, 8, 10),
         venue=None,

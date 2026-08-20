@@ -18,12 +18,11 @@ from data_sources.football_data.metrics import (
     shot_fingerprint,
 )
 from data_sources.football_data.protocol import FootballDataProvider
-from data_sources.football_data.providers.fotmob import FotMobProvider
 from data_sources.football_data.providers.sofascore import SofaScoreProvider
 from data_sources.football_data.results import BatchImportResult, MatchImportResult
 from database import SessionLocal
-from objects.models.historical_match import HistoricalMatchModel
-from objects.repositories.historical_match_repository import HistoricalMatchRepository
+from objects.models.fixture import FixtureModel
+from objects.repositories.fixture_repository import FixtureRepository
 from objects.repositories.match_advanced_stats_repository import (
     MatchAdvancedStatsRepository,
 )
@@ -37,9 +36,9 @@ from utils.seasons import last_n_season_codes
 
 logger = logging.getLogger(__name__)
 
-ProviderName = Literal["fotmob", "sofascore"]
+ProviderName = Literal["sofascore"]
 
-# FotMob season discovery is broken — use fixed season labels only.
+# SofaScore season labels used when none is passed explicitly.
 FIXED_IMPORT_SEASONS = ["2024/2025", "2025/2026"]
 
 
@@ -49,9 +48,7 @@ def build_provider(
     config: DataSourceConfig,
     client=None,
 ) -> FootballDataProvider:
-    """Construct a FotMob or SofaScore provider adapter."""
-    if name == "fotmob":
-        return FotMobProvider(client=client, config=config)
+    """Construct a SofaScore provider adapter."""
     if name == "sofascore":
         return SofaScoreProvider(client=client, config=config)
     raise ValueError(f"Unsupported provider: {name}")
@@ -62,15 +59,14 @@ class ExtendedMatchDataService:
 
     def __init__(
         self,
-        provider: ProviderName | FootballDataProvider = "fotmob",
+        provider: ProviderName | FootballDataProvider = "sofascore",
         session: Session | None = None,
         *,
-        fallback_provider: ProviderName | FootballDataProvider | None = None,
         config: DataSourceConfig | None = None,
         dry_run: bool = False,
     ) -> None:
-        """Wire primary/fallback providers, resolver, and repositories."""
-        self.config = DataSourceConfig()
+        """Wire provider, resolver, and repositories."""
+        self.config = config or DataSourceConfig()
         self.dry_run = dry_run
         self._owns_session = session is None
         self.session = session or SessionLocal()
@@ -82,33 +78,18 @@ class ExtendedMatchDataService:
             self.provider = provider
             self.provider_name = provider.name
 
-        self.fallback_provider: FootballDataProvider | None = None
-        self.fallback_provider_name: str | None = None
-        if isinstance(fallback_provider, str):
-            self.fallback_provider_name = fallback_provider
-            self.fallback_provider = build_provider(
-                fallback_provider, config=self.config
-            )
-        elif fallback_provider is not None:
-            self.fallback_provider = fallback_provider
-            self.fallback_provider_name = fallback_provider.name
-
         self.resolver = EntityResolver(
             self.session, config=self.config, provider=self.provider_name
         )
-        self.historical_repo = HistoricalMatchRepository(self.session)
+        self.fixture_repo = FixtureRepository(self.session)
         self.stats_repo = MatchAdvancedStatsRepository(self.session)
         self.shot_repo = MatchShotRepository(self.session)
 
     def close(self) -> None:
-        """Close owned provider clients and DB session."""
+        """Close owned provider client and DB session."""
         close = getattr(self.provider, "close", None)
         if callable(close):
             close()
-        if self.fallback_provider is not None:
-            close_fb = getattr(self.fallback_provider, "close", None)
-            if callable(close_fb):
-                close_fb()
         if self._owns_session:
             self.session.close()
 
@@ -118,7 +99,7 @@ class ExtendedMatchDataService:
         force_refresh: bool = False,
     ) -> MatchImportResult:
         """Import xG/shots for one historical match by id."""
-        historical = self.historical_repo.get(match_id)
+        historical = self.fixture_repo.get(match_id)
         if historical is None:
             return MatchImportResult(
                 internal_match_id=match_id,
@@ -141,7 +122,7 @@ class ExtendedMatchDataService:
 
         provider_match_id = self._provider_match_id_for_internal(match_id)
         try:
-            details, used_provider = self._fetch_details_with_fallback(
+            details, used_provider = self._fetch_match_details(
                 provider_match_id, historical
             )
         except Exception as exc:  # noqa: BLE001 — per-match isolation
@@ -219,24 +200,13 @@ class ExtendedMatchDataService:
             return BatchImportResult(requested=0)
 
         league_code = self.resolver.football_data_league_code(league)
-        country_code = self._resolve_provider_country_code(
-            league_id, provider_league_id
-        )
-        if self.provider_name == "fotmob" and not country_code:
-            logger.error(
-                "Cannot import league_id=%s: missing ccode3 for FotMob id=%s",
-                league_id,
-                provider_league_id,
-            )
-            return BatchImportResult(requested=0)
 
         seasons = [season] if season else list(FIXED_IMPORT_SEASONS)
         logger.info(
-            "league_id=%s provider=%s seasons=%s ccode3=%s",
+            "league_id=%s provider=%s seasons=%s",
             league_id,
             self.provider_name,
             seasons,
-            country_code,
         )
         batch = BatchImportResult(requested=0)
         imported_count = 0
@@ -251,7 +221,6 @@ class ExtendedMatchDataService:
                 fixtures = self.provider.fetch_season_matches(
                     provider_league_id,
                     season_id,
-                    country_code=country_code,
                 )
             except Exception as exc:  # noqa: BLE001
                 logger.exception(
@@ -328,13 +297,13 @@ class ExtendedMatchDataService:
         )
         warnings: list[str] = []
         if home.team is None:
-            home = self._create_team_from_fotmob(
+            home = self._create_team_from_provider(
                 fixture.home_team_id, league_id
             ) or home
             if home.team is None:
                 warnings.append(f"Unresolved home team: {fixture.home_team_name}")
         if away.team is None:
-            away = self._create_team_from_fotmob(
+            away = self._create_team_from_provider(
                 fixture.away_team_id, league_id
             ) or away
             if away.team is None:
@@ -388,7 +357,7 @@ class ExtendedMatchDataService:
         )
 
         try:
-            details, used_provider = self._fetch_details_with_fallback(
+            details, used_provider = self._fetch_match_details(
                 fixture.provider_match_id, historical, seed_match=fixture
             )
         except Exception as exc:  # noqa: BLE001
@@ -423,7 +392,7 @@ class ExtendedMatchDataService:
     def _persist_match_details(
         self,
         *,
-        historical: HistoricalMatchModel,
+        historical: FixtureModel,
         details: ProviderMatchDetails,
         provider_name: str,
         force_refresh: bool,
@@ -545,61 +514,28 @@ class ExtendedMatchDataService:
             warnings=warnings,
         )
 
-    def _fetch_details_with_fallback(
+    def _fetch_match_details(
         self,
         provider_match_id: str | None,
-        historical: HistoricalMatchModel,
+        historical: FixtureModel,
         seed_match: ProviderMatch | None = None,
     ) -> tuple[ProviderMatchDetails | None, str]:
-        """Fetch match details, falling back to the secondary provider if needed."""
+        """Fetch match details from SofaScore, or build a shell from fixture data."""
+        del historical  # reserved for future match-id lookup helpers
         details: ProviderMatchDetails | None = None
         used = self.provider_name
-        primary_error: str | None = None
 
         if provider_match_id:
             try:
                 details = self.provider.fetch_match_details(provider_match_id)
-            except NotFoundError as exc:
-                primary_error = str(exc)
+            except NotFoundError:
+                details = None
             except FootballDataHttpError as exc:
-                primary_error = str(exc)
-                if not exc.retryable and self.fallback_provider is None:
+                if not exc.retryable:
                     raise
-
-        needs_fallback = (
-            details is None
-            or not details.shots
-            or (details.home_xg is None and details.away_xg is None and not details.shots)
-        )
-        if needs_fallback and self.fallback_provider is not None:
-            fallback_id = self._provider_match_id_for_internal(
-                historical.id, provider=self.fallback_provider_name or "sofascore"
-            )
-            if fallback_id:
-                try:
-                    fb_details = self.fallback_provider.fetch_match_details(fallback_id)
-                    if details is None:
-                        details = fb_details
-                        used = self.fallback_provider_name or self.fallback_provider.name
-                    elif (not details.shots and fb_details.shots) or (
-                        details.home_xg is None
-                        and details.away_xg is None
-                        and (fb_details.home_xg is not None or fb_details.shots)
-                    ):
-                        # Do not merge silently — replace whole record with fallback.
-                        details = fb_details
-                        used = self.fallback_provider_name or self.fallback_provider.name
-                        if primary_error:
-                            logger.warning(
-                                "Using fallback provider %s after primary failure: %s",
-                                used,
-                                primary_error,
-                            )
-                except Exception as exc:  # noqa: BLE001
-                    logger.warning("Fallback provider failed: %s", exc)
+                details = None
 
         if details is None and seed_match is not None and provider_match_id:
-            # Minimal shell when only fixture list data exists.
             details = ProviderMatchDetails(
                 match=seed_match,
                 shots=[],
@@ -608,13 +544,13 @@ class ExtendedMatchDataService:
             )
         return details, used
 
-    def _create_team_from_fotmob(
+    def _create_team_from_provider(
         self,
         provider_team_id: str,
         league_id: int,
     ) -> TeamResolution | None:
-        """Fetch FotMob team profile and create an internal team row."""
-        if self.dry_run or self.provider_name != "fotmob":
+        """Fetch provider team profile and create an internal team row."""
+        if self.dry_run:
             return None
         fetch_team = getattr(self.provider, "fetch_team", None)
         if not callable(fetch_team):
@@ -622,16 +558,16 @@ class ExtendedMatchDataService:
         try:
             provider_team = fetch_team(provider_team_id)
             team = self.resolver.team_repo.create_from_provider_team(
+                external_id=int(provider_team_id),
                 name=provider_team.name,
-                league_id=league_id,
-                short_name=provider_team.short_name,
-                country_name=provider_team.country_name,
-                iso_code=provider_team.country_code,
+                code=provider_team.country_code or provider_team.short_name,
+                country=provider_team.country_name,
             )
             return TeamResolution(team=team, confidence=1.0, method="created")
         except Exception as exc:  # noqa: BLE001 — keep fixture import going
             logger.warning(
-                "Failed creating team from FotMob id=%s: %s",
+                "Failed creating team from %s id=%s: %s",
+                self.provider_name,
                 provider_team_id,
                 exc,
             )
@@ -655,23 +591,6 @@ class ExtendedMatchDataService:
         )
         return mapping.external_entity_id if mapping else None
 
-    def _resolve_provider_country_code(
-        self,
-        league_id: int,
-        provider_league_id: str,
-    ) -> str | None:
-        """Resolve FotMob ccode3 from mapping metadata or CSV."""
-        mapping = self.resolver.mapping_repo.get_by_internal(
-            provider=self.provider_name,
-            entity_type="league",
-            internal_entity_id=league_id,
-        )
-        if mapping is not None and mapping.metadata_json:
-            ccode = mapping.metadata_json.get("ccode")
-            if ccode:
-                return str(ccode)
-        return _ccode_from_all_leagues_csv(provider_league_id)
-
     @staticmethod
     def _map_season_label(provider_season_name: str) -> str | None:
         """Normalize a provider season label to an internal season code."""
@@ -683,23 +602,3 @@ class ExtendedMatchDataService:
             return digits[:4]
         codes = last_n_season_codes(1)
         return codes[0] if codes else None
-
-
-_CSV_CCODE_CACHE: dict[str, str] | None = None
-
-
-def _ccode_from_all_leagues_csv(provider_league_id: str) -> str | None:
-    """Look up FotMob ccode3 for a league id in all_leagues.csv."""
-    global _CSV_CCODE_CACHE
-    if _CSV_CCODE_CACHE is None:
-        import csv
-        from pathlib import Path
-
-        path = Path(__file__).resolve().parents[1] / "all_leagues.csv"
-        cache: dict[str, str] = {}
-        if path.exists():
-            with path.open(encoding="latin-1", newline="") as handle:
-                for row in csv.DictReader(handle):
-                    cache[str(row["id"])] = str(row["ccode"])
-        _CSV_CCODE_CACHE = cache
-    return _CSV_CCODE_CACHE.get(str(provider_league_id))

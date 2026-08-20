@@ -199,7 +199,7 @@ def test_competition_home_advantage_added_exactly_once_in_process():
     calculator.calculate_team_home_advantage.return_value.team_home_advantage = 0.05
     calculator.calculate_team_home_advantage.return_value.home_advantage = 0.17
 
-    team = Team(id=1, name="Arsenal", league_id=10)
+    team = Team(id=1, external_id=42, name="Arsenal")
     calculator._resolve_season_from_team_history = MagicMock(return_value="2023")
 
     result = calculator.process(

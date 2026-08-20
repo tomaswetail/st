@@ -45,6 +45,10 @@ def stryktipset_result(
     return "2"
 
 
+# Alias used by fixture / calc code paths.
+fixture_result = stryktipset_result
+
+
 def distribution_by_outcome(
     bet_metrics: dict[str, Any] | None, outcome: str
 ) -> int | None:

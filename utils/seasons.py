@@ -2,7 +2,16 @@ from __future__ import annotations
 
 from datetime import date
 
-from data_sources.football_data_uk_xlsx_provider import start_year_to_season_code
+
+def season_code_to_start_year(season: str) -> int:
+    """Convert football season code (e.g. 2324) to start calendar year (2023)."""
+    return 2000 + int(season[:2])
+
+
+def start_year_to_season_code(start_year: int) -> str:
+    """Convert start calendar year (2023) to football season code (2324)."""
+    end = start_year + 1
+    return f"{start_year % 100:02d}{end % 100:02d}"
 
 
 def current_season_start_year(*, today: date | None = None) -> int:
@@ -12,7 +21,7 @@ def current_season_start_year(*, today: date | None = None) -> int:
 
 
 def last_n_season_codes(n: int = 5, *, today: date | None = None) -> list[str]:
-    """Return football-data season codes like '2425' for the last n seasons."""
+    """Return football season codes like '2425' for the last n seasons."""
     if n < 1:
         raise ValueError("n must be at least 1")
 

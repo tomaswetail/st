@@ -529,11 +529,7 @@ class SofaScoreProvider:
         self,
         provider_league_id: str,
         provider_season_id: str,
-        *,
-        country_code: str | None = None,
     ) -> list[ProviderMatch]:
-        # SofaScore exposes events per season; page 0 covers early rounds.
-        # country_code is ignored (FotMob-only).
         """Fetch recent season events for a unique tournament."""
         payload = self.client.get_json(
             f"unique-tournament/{provider_league_id}/season/{provider_season_id}/events/last/0"

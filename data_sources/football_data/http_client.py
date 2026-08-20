@@ -11,6 +11,8 @@ from typing import Any
 
 import httpx
 
+from objects.schema.data_classes.data_sources import DISK_CACHE_TTL_ONE_YEAR
+
 logger = logging.getLogger(__name__)
 
 
@@ -47,7 +49,7 @@ class ThrottledHttpClient:
         timeout_sec: float = 20.0,
         max_retries: int = 3,
         request_delay_ms: int = 500,
-        cache_ttl_seconds: int = 3600,
+        cache_ttl_seconds: int = DISK_CACHE_TTL_ONE_YEAR,
         cache_dir: Path | None = None,
         user_agent: str = "st-football-data/1.0",
         enable_cache: bool = True,

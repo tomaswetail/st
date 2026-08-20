@@ -1,4 +1,4 @@
-"""Per-provider advanced match statistics attached to historical_matches."""
+"""Per-provider advanced match statistics attached to fixtures."""
 
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ class MatchAdvancedStatsModel(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     match_id: Mapped[int] = mapped_column(
-        ForeignKey("historical_matches.id"),
+        ForeignKey("fixtures.id"),
         nullable=False,
         index=True,
     )

@@ -2,95 +2,8 @@ import re
 from enum import Enum
 from typing import Literal
 
-MAIN_LEAGUE_CODES = frozenset(
-    {
-        "E0",
-        "E1",
-        "E2",
-        "E3",
-        "EC",
-        "SC0",
-        "SC1",
-        "SC2",
-        "SC3",
-        "D1",
-        "D2",
-        "I1",
-        "I2",
-        "SP1",
-        "SP2",
-        "F1",
-        "F2",
-        "N1",
-        "B1",
-        "P1",
-        "T1",
-        "G1",
-    }
-)
+LEAGUES_EXTERNAL_IDS = ["39","40","41","42","43","179","180","183","184","78","79","135","136","140","141","61","62","88","144","94","203","197","113","114","563","564","593","597","595","592","594","549","736","45"]
 
-LEAGUES = [
-    "Premier League",
-    "Championship",
-    "League One",
-    "League Two",
-    "Allsvenskan",
-    "Superettan",
-    "Ettan Norra",
-    "Ettan Södra",
-    "Division 2 Norra Svealand",
-    "Division 2 Södra Götaland",
-    "Division 2 Södra Svealand",
-    "Eliteserien",
-    "Superligaen",
-    "LaLiga"
-
-]
-
-LEAGUE_MAPPINGS = {
-    "Premier League": "E0",
-    "Championship": "E1",
-    "League One": "E2",
-    "League Two": "E3",
-    "Allsvenskan": "SWE",
-    "Superettan": "SWE_SE",
-    "Ettan Norra": "SWE_ETTAN_NORRA",
-    "Ettan Södra": "SWE_ETTAN_SODRA",
-    "Division 2 Norra Svealand": "SWE_DIV2_NORRA_SVEALAND",
-    "Division 2 Södra Götaland": "SWE_DIV2_SODRA_GOTALAND",
-    "Division 2 Södra Svealand": "SWE_DIV2_SODRA_SVEALAND",
-    "Eliteserien": "NOR",
-    "Superligaen": "DNK",
-    "LaLiga": "SP1"
-}
-
-
-LEAGUE_NAMES = {
-    "E0": "England Premier League",
-    "E1": "England Championship",
-    "E2": "England League One",
-    "E3": "England League Two",
-    "EC": "England National League",
-    "SC0": "Scotland Premiership",
-    "SC1": "Scotland Championship",
-    "SC2": "Scotland League One",
-    "SC3": "Scotland League Two",
-    "D1": "Germany Bundesliga",
-    "D2": "Germany 2. Bundesliga",
-    "I1": "Italy Serie A",
-    "I2": "Italy Serie B",
-    "SP1": "Spain La Liga",
-    "SP2": "Spain Segunda División",
-    "F1": "France Ligue 1",
-    "F2": "France Ligue 2",
-    "N1": "Netherlands Eredivisie",
-    "B1": "Belgium First Division A",
-    "P1": "Portugal Primeira Liga",
-    "T1": "Turkey Süper Lig",
-    "G1": "Greece Super League",
-    "SWE": "Allsvenskan",
-    "ENG-FA Cup": "England FA Cup",
-}
 
 LEAGUE_NAMES_REV = {
     "England Premier League": "E0",
@@ -144,6 +57,21 @@ LEAGUE_COUNTRIES = {
     "T1": "Turkey",
     "G1": "Greece",
     "SWE": "Sweden",
+    "SWE_SE": "Sweden",
+    "SWE_ETTAN_NORRA": "Sweden",
+    "SWE_ETTAN_SODRA": "Sweden",
+    "SWE_DIV2_NORRA_SVEALAND": "Sweden",
+    "SWE_DIV2_SODRA_GOTALAND": "Sweden",
+    "SWE_DIV2_SODRA_SVEALAND": "Sweden",
+    "SWE_DIV2_NORRA_GOTALAND": "Sweden",
+    "SWE_DIV2_NORRA_NORRLAND": "Sweden",
+    "SWE_DIV2_OSTRA_GOTALAND": "Sweden",
+    "SWE_DAM": "Sweden",
+    "SWE_ELITETAN": "Sweden",
+    "SWE_DIV1_NORRA": "Sweden",
+    "SWE_DIV1_SODRA": "Sweden",
+    "SWE_U19": "Sweden",
+    "SWE_U17": "Sweden",
     "ENG-FA Cup": "England",
 }
 
@@ -272,18 +200,7 @@ def get_season_rev(season: str):
         '2425': '2024',
         '2526': '2025',
     }
-
-    seasons_other = {
-        '2022/2023': '2022',
-        '2023/2024': '2023',
-        '2024/2025': '2024',
-        '2025/2026': '2025',
-    }
-
-    if season in seasons:
-        return seasons[season]
-    else:
-        return seasons_other[season]
+    return seasons[season]
 
 def get_season(season: str):
     seasons = {

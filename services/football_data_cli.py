@@ -1,4 +1,4 @@
-"""Typer CLI for historical FotMob / SofaScore data ingestion."""
+"""Typer CLI for historical SofaScore xG and shot data ingestion."""
 
 from __future__ import annotations
 
@@ -13,46 +13,50 @@ from objects.schema.data_classes.data_sources import DataSourceConfig
 
 app = typer.Typer(
     name="football-data",
-    help="Import historical football xG and shot data from FotMob or SofaScore.",
+    help="Import historical football xG and shot data from SofaScore.",
     no_args_is_help=True,
 )
+
+
+def _require_sofascore(provider: str) -> None:
+    if provider != "sofascore":
+        raise typer.BadParameter("provider must be sofascore")
 
 
 def _build_service(
     *,
     provider: str,
-    fallback_provider: Optional[str],
     dry_run: bool,
     request_delay: Optional[int],
 ) -> ExtendedMatchDataService:
-    if provider not in {"fotmob", "sofascore"}:
-        raise typer.BadParameter("provider must be fotmob or sofascore")
-    if fallback_provider is not None and fallback_provider not in {
-        "fotmob",
-        "sofascore",
-    }:
-        raise typer.BadParameter("fallback-provider must be fotmob or sofascore")
+    _require_sofascore(provider)
     config = DataSourceConfig()
     if request_delay is not None:
         config.football_data_request_delay_ms = request_delay
     session = SessionLocal()
     return ExtendedMatchDataService(
         provider=provider,  # type: ignore[arg-type]
-        fallback_provider=fallback_provider,  # type: ignore[arg-type]
         session=session,
         config=config,
         dry_run=dry_run,
     )
 
 
+def _build_catalogue(*, provider: str) -> LeagueCatalogueService:
+    _require_sofascore(provider)
+    return LeagueCatalogueService(
+        provider=provider,  # type: ignore[arg-type]
+        session=SessionLocal(),
+    )
+
+
 @app.command("import-league")
 def import_league(
     league_id: int = typer.Option(..., "--league-id", help="Internal leagues.id"),
-    provider: str = typer.Option("fotmob", "--provider", help="fotmob or sofascore"),
+    provider: str = typer.Option("sofascore", "--provider", help="sofascore"),
     season: Optional[str] = typer.Option(None, "--season", help="Season label or provider id"),
     force_refresh: bool = typer.Option(False, "--force-refresh"),
     dry_run: bool = typer.Option(False, "--dry-run"),
-    fallback_provider: Optional[str] = typer.Option(None, "--fallback-provider"),
     request_delay: Optional[int] = typer.Option(
         None, "--request-delay", help="Delay between HTTP requests in ms"
     ),
@@ -62,7 +66,6 @@ def import_league(
     init_db()
     service = _build_service(
         provider=provider,
-        fallback_provider=fallback_provider,
         dry_run=dry_run,
         request_delay=request_delay,
     )
@@ -93,12 +96,11 @@ def import_league(
 @app.command("import-match")
 def import_match(
     match_id: int = typer.Option(
-        ..., "--match-id", help="Internal historical_matches.id"
+        ..., "--match-id", help="Internal fixtures.id"
     ),
-    provider: str = typer.Option("fotmob", "--provider", help="fotmob or sofascore"),
+    provider: str = typer.Option("sofascore", "--provider", help="sofascore"),
     force_refresh: bool = typer.Option(False, "--force-refresh"),
     dry_run: bool = typer.Option(False, "--dry-run"),
-    fallback_provider: Optional[str] = typer.Option(None, "--fallback-provider"),
     request_delay: Optional[int] = typer.Option(
         None, "--request-delay", help="Delay between HTTP requests in ms"
     ),
@@ -107,7 +109,6 @@ def import_match(
     init_db()
     service = _build_service(
         provider=provider,
-        fallback_provider=fallback_provider,
         dry_run=dry_run,
         request_delay=request_delay,
     )
@@ -129,32 +130,14 @@ def import_match(
         service.close()
 
 
-def _build_catalogue(
-    *,
-    provider: str,
-    request_delay: Optional[int],
-) -> LeagueCatalogueService:
-    if provider not in {"fotmob", "sofascore"}:
-        raise typer.BadParameter("provider must be fotmob or sofascore")
-    config = DataSourceConfig()
-    if request_delay is not None:
-        config.football_data_request_delay_ms = request_delay
-    return LeagueCatalogueService(
-        provider=provider,  # type: ignore[arg-type]
-        session=SessionLocal(),
-        config=config,
-    )
-
-
 @app.command("list-leagues")
 def list_leagues(
-    provider: str = typer.Option("fotmob", "--provider"),
+    provider: str = typer.Option("sofascore", "--provider"),
     query: Optional[str] = typer.Option(None, "--query"),
     country: Optional[str] = typer.Option(None, "--country"),
-    request_delay: Optional[int] = typer.Option(None, "--request-delay"),
 ) -> None:
-    """List provider league catalogue ids (thin wrapper around LeagueCatalogueService)."""
-    catalogue = _build_catalogue(provider=provider, request_delay=request_delay)
+    """List provider league catalogue ids."""
+    catalogue = _build_catalogue(provider=provider)
     try:
         leagues = catalogue.find_leagues(query=query, country=country)
         for league in leagues:
@@ -168,12 +151,11 @@ def list_leagues(
 
 @app.command("suggest-league-mappings")
 def suggest_league_mappings(
-    provider: str = typer.Option("fotmob", "--provider"),
-    request_delay: Optional[int] = typer.Option(None, "--request-delay"),
+    provider: str = typer.Option("sofascore", "--provider"),
 ) -> None:
     """Suggest provider ids for internal leagues (does not write)."""
     init_db()
-    catalogue = _build_catalogue(provider=provider, request_delay=request_delay)
+    catalogue = _build_catalogue(provider=provider)
     try:
         for suggestion in catalogue.suggest_mappings():
             candidate = suggestion.candidate
@@ -193,15 +175,14 @@ def suggest_league_mappings(
 @app.command("map-league")
 def map_league(
     league_id: int = typer.Option(..., "--league-id"),
-    provider: str = typer.Option("fotmob", "--provider"),
+    provider: str = typer.Option("sofascore", "--provider"),
     external_id: Optional[str] = typer.Option(None, "--external-id"),
     query: Optional[str] = typer.Option(None, "--query"),
     dry_run: bool = typer.Option(False, "--dry-run"),
-    request_delay: Optional[int] = typer.Option(None, "--request-delay"),
 ) -> None:
-    """Map an internal leagues.id to a provider league id."""
+    """Map an internal leagues.id to a SofaScore league id."""
     init_db()
-    catalogue = _build_catalogue(provider=provider, request_delay=request_delay)
+    catalogue = _build_catalogue(provider=provider)
     try:
         result = catalogue.map_league(
             league_id,

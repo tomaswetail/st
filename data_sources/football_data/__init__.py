@@ -1,4 +1,4 @@
-"""Provider-agnostic historical football data ingestion (FotMob / SofaScore)."""
+"""Historical SofaScore xG / shot ingestion."""
 
 from __future__ import annotations
 

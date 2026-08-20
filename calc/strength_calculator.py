@@ -1,6 +1,6 @@
 """Team strength features and Dixon-Coles 1/X/2 probabilities.
 
-Uses only persisted ``match_advanced_stats`` joined to ``historical_matches``.
+Uses only persisted ``match_advanced_stats`` joined to ``fixtures``.
 History is always filtered with ``match_date < before`` so the target match
 cannot leak into ratings.
 """
@@ -14,10 +14,12 @@ from typing import TYPE_CHECKING, Literal
 
 from sqlalchemy.orm import Session
 
-from objects.models.historical_match import HistoricalMatchModel
+from objects.models.fixture import FixtureModel
+from utils.fixture_fields import fixture_goals_away, fixture_goals_home, fixture_home_name, fixture_away_name, fixture_match_date
+
 from objects.models.match_advanced_stats import MatchAdvancedStatsModel
 from objects.models.team import TeamModel
-from objects.repositories.historical_match_repository import HistoricalMatchRepository
+from objects.repositories.fixture_repository import FixtureRepository
 from objects.repositories.match_advanced_stats_repository import (
     MatchAdvancedStatsRepository,
 )
@@ -43,7 +45,7 @@ from calc.strength_helpers import (
 
 # (xg, shots, recency_weight) for average shot xG = sum(w*xg) / sum(w*shots).
 ShotQualityObservation = tuple[float, float, float]
-MatchStatRow = tuple[HistoricalMatchModel, MatchAdvancedStatsModel, bool]
+MatchStatRow = tuple[FixtureModel, MatchAdvancedStatsModel, bool]
 
 
 @dataclass
@@ -224,15 +226,15 @@ def _weighted_shot_quality(
 
 
 def _extract_side_metrics(
-    historical_match: HistoricalMatchModel,
+    fixture: FixtureModel,
     advanced_stats: MatchAdvancedStatsModel,
     played_at_home: bool,
 ) -> _MatchSideMetrics:
     """Map home/away advanced-stats columns onto the team's perspective."""
     if played_at_home:
         return _MatchSideMetrics(
-            opponent_team_name=historical_match.away_team.name,
-            match_date=historical_match.match_date,
+            opponent_team_name=fixture_away_name(fixture),
+            match_date=fixture_match_date(fixture),
             non_penalty_xg_for=advanced_stats.home_non_penalty_xg,
             non_penalty_xg_against=advanced_stats.away_non_penalty_xg,
             shots_for=advanced_stats.home_shots,
@@ -240,7 +242,7 @@ def _extract_side_metrics(
             set_piece_xg_for=advanced_stats.home_set_piece_xg,
             set_piece_xg_against=advanced_stats.away_set_piece_xg,
             goalkeeper_xgot_faced=advanced_stats.away_xgot,
-            goals_conceded=float(historical_match.away_goals),
+            goals_conceded=float(fixture_goals_away(fixture) or 0),
             attack_xg=(
                 advanced_stats.home_xg_from_shots
                 if advanced_stats.home_xg_from_shots is not None
@@ -255,8 +257,8 @@ def _extract_side_metrics(
             shots_on_target_faced=advanced_stats.away_shots_on_target,
         )
     return _MatchSideMetrics(
-        opponent_team_name=historical_match.home_team.name,
-        match_date=historical_match.match_date,
+        opponent_team_name=fixture_home_name(fixture),
+        match_date=fixture_match_date(fixture),
         non_penalty_xg_for=advanced_stats.away_non_penalty_xg,
         non_penalty_xg_against=advanced_stats.home_non_penalty_xg,
         shots_for=advanced_stats.away_shots,
@@ -264,7 +266,7 @@ def _extract_side_metrics(
         set_piece_xg_for=advanced_stats.away_set_piece_xg,
         set_piece_xg_against=advanced_stats.home_set_piece_xg,
         goalkeeper_xgot_faced=advanced_stats.home_xgot,
-        goals_conceded=float(historical_match.home_goals),
+        goals_conceded=float(fixture_goals_home(fixture) or 0),
         attack_xg=(
             advanced_stats.away_xg_from_shots
             if advanced_stats.away_xg_from_shots is not None
@@ -300,7 +302,7 @@ class StrengthCalculator:
         self.provider = provider or self.config.football_data_provider
         self.stats_repo = MatchAdvancedStatsRepository(self.session)
         self.team_repo = TeamRepository(self.session)
-        self.historical_repo = HistoricalMatchRepository(self.session)
+        self.fixture_repo = FixtureRepository(self.session)
         self._home_advantage_calculator: HomeAdvantageCalculator | None = None
 
     def close(self) -> None:
@@ -346,8 +348,8 @@ class StrengthCalculator:
         lookback_matches: int | None = None,
     ) -> MatchStrengthFeatures:
         """Combine home/away team features and Dixon–Coles 1/X/2 for one match."""
-        historical_match = self.historical_repo.get(match_id)
-        if historical_match is None:
+        fixture = self.fixture_repo.get(match_id)
+        if fixture is None:
             return MatchStrengthFeatures(
                 match_id=match_id,
                 home_team_id=None,
@@ -356,10 +358,10 @@ class StrengthCalculator:
                 away=None,
             )
 
-        home_team = historical_match.home_team
-        away_team = historical_match.away_team
+        home_team = fixture.home_team
+        away_team = fixture.away_team
         feature_cutoff = datetime.combine(
-            historical_match.match_date, datetime.min.time()
+            fixture_match_date(fixture), datetime.min.time()
         )
         home_features = self._team_features_for_side(
             home_team, feature_cutoff, "home", lookback_matches
@@ -373,8 +375,8 @@ class StrengthCalculator:
             away_team=away_team,
             home_features=home_features,
             away_features=away_features,
-            match_date=historical_match.match_date,
-            target_league_code=historical_match.league,
+            match_date=fixture_match_date(fixture),
+            target_league_code=fixture.league_id ##TODO CHECK if not external id,
         )
 
     def get_fixture_features(
@@ -518,20 +520,24 @@ class StrengthCalculator:
         """League home/away goal baselines with safe defaults."""
         league_home_goal_rate = 1.35
         league_away_goal_rate = 1.20
-        if home_team is None or home_team.league_id is None:
+        league_id = (
+            None
+            if home_team is None
+            else self.fixture_repo.resolve_internal_league_id_for_team(home_team)
+        )
+        if home_team is None or league_id is None:
             return league_home_goal_rate, league_away_goal_rate
         try:
             league_home_goal_rate = float(
-                self.historical_repo.get_home_goal_average_by_league_before_date(
-                    home_team.league_id,
+                self.fixture_repo.get_home_goal_average_by_league_before_date(
+                    league_id,
                     before_date
                 )
             )
             league_away_goal_rate = float(
-                self.historical_repo.get_away_goal_average_by_league_before_date(
-                    home_team.league_id,
+                self.fixture_repo.get_away_goal_average_by_league(
+                    league_id,
                     before_date
-
                 )
             )
         except (TypeError, ZeroDivisionError, KeyError):
@@ -754,11 +760,11 @@ class StrengthCalculator:
         match_weights = recency_weights(
             len(match_stat_rows), self.config.team_strength_recency_decay
         )
-        for match_index, (historical_match, advanced_stats, played_at_home) in enumerate(
+        for match_index, (fixture, advanced_stats, played_at_home) in enumerate(
             match_stat_rows
         ):
             metrics = _extract_side_metrics(
-                historical_match, advanced_stats, played_at_home
+                fixture, advanced_stats, played_at_home
             )
             self._accumulate_match_metrics(
                 buckets,
@@ -850,7 +856,7 @@ class StrengthCalculator:
         if team is None:
             return None, None, None
 
-        matches = self.historical_repo.find_before_date_by_team(
+        matches = self.fixture_repo.find_before_date_by_team(
             team_name=opponent_team_name,
             before_date=before_date,
             venue=None,
@@ -1188,38 +1194,38 @@ class StrengthCalculator:
         lookback_matches: int,
     ) -> list[MatchStatRow]:
         """Load newest-first (match, stats, played_at_home) rows before cutoff."""
-        historical_matches = self.historical_repo.find_before_date_by_team(
+        fixtures = self.fixture_repo.find_before_date_by_team(
             team_name=team.name,
             before_date=before_date,
             venue=venue,
             limit=lookback_matches,
         )
-        if not historical_matches:
+        if not fixtures:
             return []
-        return self.attach_advanced_stats(historical_matches, team.name)
+        return self.attach_advanced_stats(fixtures, team.name)
 
     def attach_advanced_stats(
         self,
-        historical_matches: list[HistoricalMatchModel],
+        fixtures: list[FixtureModel],
         team_name: str,
     ) -> list[MatchStatRow]:
         """Join matches to provider advanced stats; skip matches without stats."""
         advanced_stats_by_match_id = {
             row.match_id: row
             for row in self.stats_repo.list_for_matches(
-                [match.id for match in historical_matches], provider=self.provider
+                [match.id for match in fixtures], provider=self.provider
             )
         }
         match_stat_rows: list[MatchStatRow] = []
-        for historical_match in historical_matches:
-            advanced_stats = advanced_stats_by_match_id.get(historical_match.id)
+        for fixture in fixtures:
+            advanced_stats = advanced_stats_by_match_id.get(fixture.id)
             if advanced_stats is None:
                 continue
             match_stat_rows.append(
                 (
-                    historical_match,
+                    fixture,
                     advanced_stats,
-                    historical_match.home_team.name == team_name,
+                    fixture_home_name(fixture) == team_name,
                 )
             )
         return match_stat_rows
@@ -1228,10 +1234,11 @@ class StrengthCalculator:
         self, team: TeamModel, before_date: date, season: str | None = None
     ) -> dict[str, float]:
         """League baselines from league matches played before the cutoff (no leakage)."""
-        if team.league_id is None:
+        league_id = self.fixture_repo.resolve_internal_league_id_for_team(team)
+        if league_id is None:
             return {}
         return self.league_averages_by_league_id(
-            team.league_id, before_date, season=season
+            league_id, before_date, season=season
         )
 
     def league_averages_by_league_id(
@@ -1241,7 +1248,7 @@ class StrengthCalculator:
         season: str | None = None,
     ) -> dict[str, float]:
         """League npxG baselines for ``league_id`` (optionally one season) before cutoff."""
-        league_matches = self.historical_repo.find_before_date_by_league_id(
+        league_matches = self.fixture_repo.find_before_date_by_league_id(
             league_id=league_id,
             before_date=before_date,
             season=season,

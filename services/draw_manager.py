@@ -13,7 +13,7 @@ from objects.repositories.st_round_repository import STRoundRepository
 from objects.repositories.team_repository import TeamRepository
 from objects.schema.db.st_round import STRound
 
-from utils.common import LEAGUES
+
 
 
 def _participant_by_type(
@@ -70,18 +70,9 @@ class STDrawManager:
             participants = match_data.get("participants") or []
 
             league_data = _league_data(match_data)
-            league = None
-            if league_data['name'] in LEAGUES:
-
-                league = self.leagues_repo.upsert_from_match(league_data)
-                self.leagues_repo.flush()
 
             home_participant = _participant_by_type(participants, "home")
             away_participant = _participant_by_type(participants, "away")
-
-            if league:
-                home_participant["league_id"] = league.id
-                away_participant["league_id"] = league.id
 
             home_team = self.teams_repo.upsert_from_participant(home_participant)
             away_team = self.teams_repo.upsert_from_participant(away_participant)

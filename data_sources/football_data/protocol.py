@@ -14,7 +14,7 @@ from objects.schema.data_classes.provider_dtos import (
 
 
 class FootballDataProvider(Protocol):
-    """Sync interface implemented by FotMob and SofaScore adapters."""
+    """Sync interface implemented by SofaScore (xG) adapters."""
 
     name: str
 
@@ -30,10 +30,8 @@ class FootballDataProvider(Protocol):
         self,
         provider_league_id: str,
         provider_season_id: str,
-        *,
-        country_code: str | None = None,
     ) -> list[ProviderMatch]:
-        """List fixtures for a league season (ccode3 for FotMob)."""
+        """List fixtures for a league season."""
         ...
 
     def fetch_match_details(self, provider_match_id: str) -> ProviderMatchDetails:

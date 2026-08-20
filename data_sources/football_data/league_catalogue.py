@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import csv
 import logging
 from difflib import SequenceMatcher
-from pathlib import Path
 
 from sqlalchemy.orm import Session
 
@@ -33,8 +31,7 @@ class LeagueCatalogueService:
     def __init__(
         self,
         session: Session | None = None,
-        provider: ProviderName | FootballDataProvider = "fotmob",
-
+        provider: ProviderName | FootballDataProvider = "sofascore",
     ) -> None:
         """Build provider client and DB session for catalogue operations."""
         self.config = DataSourceConfig()
@@ -132,13 +129,13 @@ class LeagueCatalogueService:
             if existing is not None:
                 candidate = ProviderLeague(
                     provider_league_id=existing.external_entity_id,
-                    name=existing.external_name or league.name,
-                    country=league.country,
+                    name=existing.external_name or league.league_name,
+                    country=league.country_name,
                 )
                 suggestions.append(
                     LeagueMappingSuggestion(
                         internal_league_id=league.id,
-                        internal_name=league.name,
+                        internal_name=league.league_name,
                         candidate=candidate,
                         confidence=1.0,
                         method="mapping",
@@ -147,12 +144,12 @@ class LeagueCatalogueService:
                 continue
 
             method, confidence, candidate = self._best_candidate(
-                league.name, league.country, catalogue
+                league.league_name, league.country_name, catalogue
             )
             suggestions.append(
                 LeagueMappingSuggestion(
                     internal_league_id=league.id,
-                    internal_name=league.name,
+                    internal_name=league.league_name,
                     candidate=candidate,
                     confidence=confidence,
                     method=method,
@@ -205,13 +202,15 @@ class LeagueCatalogueService:
                 ),
                 ProviderLeague(
                     provider_league_id=str(external_entity_id),
-                    name=league.name,
-                    country=league.country,
+                    name=league.league_name,
+                    country=league.country_name,
                 ),
             )
         else:
-            search_query = query or league.name
-            candidates = self.find_leagues(query=search_query, country=league.country)
+            search_query = query or league.league_name
+            candidates = self.find_leagues(
+                query=search_query, country=league.country_name
+            )
             threshold = self.config.fuzzy_match_threshold / 100
             query_norm = normalize_team_name(search_query)
             strong = [
@@ -302,56 +301,6 @@ class LeagueCatalogueService:
             status="mapped",
             candidates=[chosen],
         )
-
-    def map_leagues_from_all_leagues_csv(
-        self,
-        path: Path | None = None,
-        *,
-        dry_run: bool = False,
-    ) -> dict[str, int]:
-        """Map FotMob all_leagues.csv rows to internal leagues by name+country."""
-        csv_path = path or Path(__file__).resolve().parents[1] / "all_leagues.csv"
-        mapped = []
-        unmatched = 0
-
-        with csv_path.open(encoding="latin-1", newline="") as handle:
-            for row in csv.DictReader(handle):
-                name = (row.get("name") or "").strip()
-                country = (row.get("country") or "").strip()
-                external_id = str(row.get("id") or "").strip()
-                ccode = (row.get("ccode") or "").strip() or None
-                if not name or not country or not external_id:
-                    unmatched += 1
-                    continue
-
-                league = self.league_repo.get_by_name_and_country(name, country)
-                if league is None:
-                    league = self.league_repo.get_by_likely_name_and_country(name, country)
-                if league is None:
-                    unmatched += 1
-                    continue
-
-                mapped.append(name)
-                if dry_run:
-                    continue
-                self.mapping_repo.upsert(
-                    provider="fotmob",
-                    entity_type="league",
-                    internal_entity_id=league.id,
-                    external_entity_id=external_id,
-                    external_name=name,
-                    metadata={"ccode": ccode, "country": country},
-                )
-        if mapped and not dry_run:
-            self.session.commit()
-        logger.info(
-            "CSV league mapping path=%s mapped=%s unmatched=%s dry_run=%s",
-            csv_path,
-            len(mapped),
-            unmatched,
-            dry_run,
-        )
-        return {"mapped": len(mapped), "unmatched": unmatched}
 
     def _best_candidate(
         self,

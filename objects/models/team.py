@@ -1,11 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional
-
-from sqlalchemy import (
-    Integer,
-    String,
-)
+from sqlalchemy import Boolean, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from database import Base
@@ -15,16 +10,16 @@ class TeamModel(Base):
     __tablename__ = "teams"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-
-    # External API team id, e.g. 1000512
-    external_id: Mapped[Optional[int]] = mapped_column(
-        Integer, unique=True, nullable=True
+    external_id: Mapped[int] = mapped_column(
+        Integer,
+        unique=True,
+        nullable=False,
     )
-    league_id: Mapped[int] = mapped_column(Integer, nullable=True)
     name: Mapped[str] = mapped_column(String(150), nullable=False)
-    machine_name: Mapped[str] = mapped_column(String(150), nullable=False)
-    short_name: Mapped[Optional[str]] = mapped_column(String(50))
-    medium_name: Mapped[Optional[str]] = mapped_column(String(100))
-
-    country_name: Mapped[Optional[str]] = mapped_column(String(100))
-    iso_code: Mapped[Optional[str]] = mapped_column(String(10))
+    code: Mapped[str | None] = mapped_column(String(20))
+    country: Mapped[str | None] = mapped_column(String(100))
+    national: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
