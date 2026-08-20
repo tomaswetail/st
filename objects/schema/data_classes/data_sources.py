@@ -70,9 +70,19 @@ class DataSourceConfig(BaseModel):
     odds_provider: Literal["svenskaspel", "the-odds-api", "manual"] = Field(default="svenskaspel")
     odds_aggregation_method: str = Field(default="average_probability")
 
-    # SofaScore xG / shot ingestion
-    football_data_provider: Literal["sofascore"] = Field(
-        default_factory=lambda: "sofascore"
+    # Historical FotMob / SofaScore ingestion
+    football_data_provider: Literal["fotmob", "sofascore"] = Field(
+        default_factory=lambda: (
+            "sofascore"
+            if os.environ.get("FOOTBALL_DATA_PROVIDER", "fotmob").lower()
+            == "sofascore"
+            else "fotmob"
+        )
+    )
+    fotmob_base_url: str = Field(
+        default_factory=lambda: os.environ.get(
+            "FOTMOB_BASE_URL", "https://www.fotmob.com/api/data"
+        )
     )
     sofascore_base_url: str = Field(
         default_factory=lambda: os.environ.get(

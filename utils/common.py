@@ -75,6 +75,42 @@ API_FOOTBALL_TO_FOTMOB_LEAGUE_MAPPING = {
     None: [592, 593, 594, 595, 597, 736],
 }
 
+FOTMOBLEAGUE_EXTERNAL_ID_TO_CCODE = {
+    39: "ENG",
+    40: "ENG",
+    41: "ENG",
+    42: "ENG",
+    43: "ENG",
+    45: "ENG",
+    61: "FRA",
+    62: "FRA",
+    78: "GER",
+    79: "GER",
+    88: "NED",
+    94: "POR",
+    113: "SWE",
+    114: "SWE",
+    135: "ITA",
+    136: "ITA",
+    140: "ESP",
+    141: "ESP",
+    144: "BEL",
+    179: "SCO",
+    180: "SCO",
+    183: "SCO",
+    184: "SCO",
+    197: "GRE",
+    203: "TUR",
+    549: "SWE",
+    563: "SWE",
+    564: "SWE",
+    592: "SWE",
+    593: "SWE",
+    594: "SWE",
+    595: "SWE",
+    597: "SWE",
+    736: "SWE",
+}
 
 Outcome = Literal["1", "X", "2"]
 OUTCOMES: tuple[Outcome, ...] = ("1", "X", "2")

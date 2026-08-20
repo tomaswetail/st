@@ -67,7 +67,7 @@ def main_extra_data() -> None:
         football_data_request_delay_ms=750,
     )
     service = ExtendedMatchDataService(
-        provider="sofascore",
+        provider="fotmob",
         session=session,
         config=config,
     )

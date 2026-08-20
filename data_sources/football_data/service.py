@@ -19,6 +19,7 @@ from data_sources.football_data.metrics import (
 )
 from data_sources.football_data.protocol import FootballDataProvider
 from data_sources.football_data.providers.sofascore import SofaScoreProvider
+from data_sources.football_data.providers.fotmob import FotMobProvider
 from data_sources.football_data.results import BatchImportResult, MatchImportResult
 from database import SessionLocal
 from objects.models.fixture import FixtureModel
@@ -33,6 +34,7 @@ from objects.schema.data_classes.provider_dtos import (
     ProviderMatch,
     ProviderMatchDetails,
 )
+from utils.common import FOTMOBLEAGUE_EXTERNAL_ID_TO_CCODE
 from utils.seasons import last_n_season_codes
 
 logger = logging.getLogger(__name__)
@@ -52,6 +54,8 @@ def build_provider(
     """Construct a SofaScore provider adapter."""
     if name == "sofascore":
         return SofaScoreProvider(client=client, config=config)
+    if name == "fotmob":
+        return FotMobProvider(client=client, config=config)
     raise ValueError(f"Unsupported provider: {name}")
 
 
@@ -213,6 +217,7 @@ class ExtendedMatchDataService:
                 fixtures = self.provider.fetch_season_matches(
                     provider_league_id,
                     season_id,
+                    country_code=FOTMOBLEAGUE_EXTERNAL_ID_TO_CCODE[provider_league_id]
                 )
             except Exception as exc:  # noqa: BLE001
                 logger.exception(
