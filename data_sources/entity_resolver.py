@@ -22,6 +22,7 @@ from objects.repositories.league_repository import LeagueRepository
 from objects.repositories.team_repository import TeamRepository
 from objects.schema.data_classes.data_sources import DataSourceConfig
 from objects.schema.data_classes.provider_dtos import ProviderMatch
+from utils.common import FOTMOB_TO_API_FOOTBALL_TEAM_MAPPING
 from utils.team_name_matcher import _load_aliases, normalize_team_name
 
 # Temporary alias for call sites / type hints still using the old name.
@@ -124,6 +125,7 @@ class EntityResolver:
         When ``create_if_missing`` is True (historical upsert), create a TeamModel
         on miss and store an external mapping for reimports.
         """
+
         mapping = self.mapping_repo.get_by_external(
             provider=self.provider,
             entity_type="team",

@@ -61,12 +61,27 @@ class ExternalEntityMappingRepository(BaseRepository[ExternalEntityMappingModel]
         safe_metadata = json_safe(metadata) if metadata is not None else None
         external_id = str(external_entity_id)
 
-        existing_by_external = self.get_by_external(
-            provider=provider,
-            entity_type=entity_type,
-            external_entity_id=external_id,
-        )
+        with self.session.no_autoflush:
+            existing_by_external = self.get_by_external(
+                provider=provider,
+                entity_type=entity_type,
+                external_entity_id=external_id,
+            )
+            existing_by_internal = self.get_by_internal(
+                provider=provider,
+                entity_type=entity_type,
+                internal_entity_id=internal_entity_id,
+            )
+
         if existing_by_external is not None:
+            if existing_by_external.internal_entity_id == internal_entity_id:
+                existing_by_external.external_name = external_name
+                existing_by_external.metadata_json = safe_metadata
+                return existing_by_external
+            # External id already maps elsewhere. Never move it onto an internal
+            # team that already has its own mapping (uq_external_entity_by_internal_id).
+            if existing_by_internal is not None:
+                return existing_by_internal
             existing_by_external.internal_entity_id = internal_entity_id
             existing_by_external.external_name = external_name
             existing_by_external.metadata_json = safe_metadata
@@ -74,11 +89,6 @@ class ExternalEntityMappingRepository(BaseRepository[ExternalEntityMappingModel]
 
         # One internal entity may only have one external id per provider.
         # Alternate spellings that resolve to the same team keep the first mapping.
-        existing_by_internal = self.get_by_internal(
-            provider=provider,
-            entity_type=entity_type,
-            internal_entity_id=internal_entity_id,
-        )
         if existing_by_internal is not None:
             return existing_by_internal
 

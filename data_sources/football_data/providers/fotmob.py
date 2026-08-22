@@ -516,11 +516,69 @@ def parse_fotmob_team(payload: Any) -> ProviderTeam:
         raw_payload=payload if isinstance(payload, dict) else {"raw": payload},
     )
 
+
+def _fotmob_table_row_blocks(payload: Any) -> list[dict[str, Any]]:
+    """Collect standings row dicts from a FotMob leagues payload."""
+    if not isinstance(payload, dict):
+        return []
+    table_blocks = payload.get("table") or []
+    if isinstance(table_blocks, dict):
+        table_blocks = [table_blocks]
+    if not isinstance(table_blocks, list):
+        return []
+
+    rows: list[dict[str, Any]] = []
+    for block in table_blocks:
+        if not isinstance(block, dict):
+            continue
+        data = block.get("data") if isinstance(block.get("data"), dict) else block
+        nested = data.get("table")
+        if isinstance(nested, dict):
+            chunk = nested.get("all")
+            if isinstance(chunk, list):
+                rows.extend(item for item in chunk if isinstance(item, dict))
+                continue
+        tables = data.get("tables")
+        if isinstance(tables, list):
+            for sub in tables:
+                if not isinstance(sub, dict):
+                    continue
+                sub_table = sub.get("table")
+                if not isinstance(sub_table, dict):
+                    continue
+                chunk = sub_table.get("all")
+                if isinstance(chunk, list):
+                    rows.extend(item for item in chunk if isinstance(item, dict))
+    return rows
+
+
+def parse_fotmob_league_teams(payload: Any) -> list[ProviderTeam]:
+    """Parse unique teams from a FotMob league standings payload."""
+    teams_by_id: dict[str, ProviderTeam] = {}
+    for row in _fotmob_table_row_blocks(payload):
+        team_id = row.get("id")
+        name = row.get("name") or row.get("longName")
+        if team_id is None or not name:
+            continue
+        provider_team_id = str(team_id)
+        if provider_team_id in teams_by_id:
+            continue
+        teams_by_id[provider_team_id] = ProviderTeam(
+            provider_team_id=provider_team_id,
+            name=str(name),
+            short_name=(
+                str(row["shortName"]) if row.get("shortName") is not None else None
+            ),
+            raw_payload=row,
+        )
+    return list(teams_by_id.values())
+
+
 def _get_season(season_id: str, league_id: str):
     season_mapping ={
         '40': 'keep',
-        '47': 'keep',
-        '48': 'keep',
+        '47': 'convert',
+        '48': 'convert',
         '67': 'convert',
         '108': 'keep',
         '109': 'keep',
@@ -537,6 +595,7 @@ def _get_season(season_id: str, league_id: str):
         '124': 'keep',
         '125': 'keep',
         '171': 'keep',
+        '140': 'convert',
         '168': 'convert',
         '169': 'convert',
     }
@@ -545,7 +604,7 @@ def _get_season(season_id: str, league_id: str):
         if season_mapping[league_id] == 'keep':
             return season_id
         else:
-            get_season_rev(season_id)
+            return get_season_rev(season_id)
     return season_id
 
 class FotMobProvider:
@@ -604,13 +663,14 @@ class FotMobProvider:
             raise ValueError(
                 f"FotMob leagues require ccode3 (league_id={provider_league_id})"
             )
+        params = {
+            "id": provider_league_id,
+            "season": _get_season(provider_season_id, str(provider_league_id)),
+            "ccode3": country_code,
+        }
         payload = self.client.get_json(
             "leagues",
-            params={
-                "id": provider_league_id,
-                "season": _get_season(provider_season_id, provider_league_id),
-                "ccode3": country_code,
-            },
+            params=params,
         )
         return parse_fotmob_matches(payload, provider_league_id, provider_season_id)
 
@@ -637,3 +697,36 @@ class FotMobProvider:
             params={"id": provider_team_id},
         )
         return parse_fotmob_team(payload)
+
+    def fetch_league_teams(
+        self,
+        provider_league_id: str | int,
+        *,
+        country_code: str | None = None,
+    ) -> list[ProviderTeam]:
+        """Fetch teams for one FotMob league from the standings table."""
+        params: dict[str, Any] = {"id": str(provider_league_id)}
+        if country_code:
+            params["ccode3"] = country_code
+        payload = self.client.get_json("leagues", params=params)
+        return parse_fotmob_league_teams(payload)
+
+    def fetch_teams_for_leagues(
+        self,
+        provider_league_ids: list[str | int],
+        *,
+        country_codes: dict[str | int, str] | None = None,
+    ) -> list[ProviderTeam]:
+        """Fetch unique teams across multiple FotMob league ids."""
+        teams_by_id: dict[str, ProviderTeam] = {}
+        for league_id in provider_league_ids:
+            country_code = None
+            if country_codes is not None:
+                country_code = country_codes.get(league_id)
+                if country_code is None:
+                    country_code = country_codes.get(str(league_id))
+            for team in self.fetch_league_teams(
+                league_id, country_code=country_code
+            ):
+                teams_by_id.setdefault(team.provider_team_id, team)
+        return list(teams_by_id.values())

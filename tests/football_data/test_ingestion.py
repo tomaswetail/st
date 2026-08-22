@@ -254,6 +254,50 @@ def test_provider_id_mapping_upsert_keeps_existing_internal_link():
         insert_mock.assert_not_called()
 
 
+def test_provider_id_mapping_upsert_does_not_steal_internal_slot():
+    """External A→teamX must not be moved onto teamY if teamY already mapped."""
+    from contextlib import nullcontext
+
+    session = MagicMock()
+    session.no_autoflush = nullcontext()
+    from objects.repositories.external_entity_mapping_repository import (
+        ExternalEntityMappingRepository,
+    )
+
+    repo = ExternalEntityMappingRepository(session)
+    existing_external = SimpleNamespace(
+        id=2045,
+        external_entity_id="999",
+        internal_entity_id=10,
+        external_name="Other",
+        metadata_json=None,
+    )
+    existing_internal = SimpleNamespace(
+        id=100,
+        external_entity_id="111",
+        internal_entity_id=35,
+        external_name="Keep",
+        metadata_json=None,
+    )
+    repo.get_by_external = MagicMock(return_value=existing_external)
+    repo.get_by_internal = MagicMock(return_value=existing_internal)
+
+    with patch(
+        "objects.repositories.external_entity_mapping_repository.pg_insert"
+    ) as insert_mock:
+        row = repo.upsert(
+            provider="fotmob",
+            entity_type="team",
+            internal_entity_id=35,
+            external_entity_id="999",
+            external_name="Conflict",
+        )
+
+    assert row is existing_internal
+    assert existing_external.internal_entity_id == 10
+    insert_mock.assert_not_called()
+
+
 # ---------------------------------------------------------------------------
 # 6–9. Metrics / missing xG / shot dedupe
 # ---------------------------------------------------------------------------

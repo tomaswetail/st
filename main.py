@@ -10,12 +10,13 @@ from calc.probality_manager import ProbabilityManager
 from data_sources.api_football_client import APIFootballClient, get_all_leagues
 from data_sources.data_collector import DataCollector
 from data_sources.football_data import ExtendedMatchDataService
+from data_sources.football_data.providers.fotmob import FotMobProvider
 from database import SessionLocal, init_db
 from objects.models.external_entity_mapping import ExternalEntityMappingModel
 from objects.repositories.league_repository import LeagueRepository
 from objects.schema.data_classes.data_sources import DataSourceConfig
 from services.draw_manager import STDrawManager
-from utils.common import FOTMOB_TO_API_FOOTBALL_LEAGUE_MAPPING
+from utils.common import FOTMOB_TO_API_FOOTBALL_LEAGUE_MAPPING, FOTMOBLEAGUE_EXTERNAL_ID_TO_CCODE
 
 logging.basicConfig(
     level=logging.INFO,
@@ -24,11 +25,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 MIN_SEASON_YEAR = 2020
-
-
-def mapped_sofascore_league_ids(session) -> list[tuple[int, str, str | None]]:
-    """Return (leagues.id, sofascore_id, external_name) for mapped leagues."""
-    return FOTMOB_TO_API_FOOTBALL_LEAGUE_MAPPING.values()
 
 
 def calc() -> None:
@@ -55,6 +51,16 @@ def _get_leagues(session):
 def main() -> None:
     init_db()
     session = SessionLocal()
+    country_codes = {}
+    for k,v in FOTMOB_TO_API_FOOTBALL_LEAGUE_MAPPING.items():
+        country_codes[v] = FOTMOBLEAGUE_EXTERNAL_ID_TO_CCODE[k]
+    teams = FotMobProvider().fetch_teams_for_leagues(
+        FOTMOB_TO_API_FOOTBALL_LEAGUE_MAPPING.values(),
+        country_codes=country_codes,
+    )
+    for i in teams:
+        print(f"{i.provider_team_id}, {i.name}")
+
     #collector = DataCollector(session)
     #collector.refresh_all_data(["2223", "2324", "2425", "2526"])
     main_extra_data()
@@ -70,6 +76,7 @@ def main_extra_data() -> None:
         provider="fotmob",
         session=session,
         config=config,
+        dry_run=False
     )
     try:
         totals = {
@@ -81,17 +88,26 @@ def main_extra_data() -> None:
             "failed": 0,
         }
 
-        for fotmob_league_id, api_fotball_league_id in FOTMOB_TO_API_FOOTBALL_LEAGUE_MAPPING.items():
+        for api_football_league_id, fotmob_league_id in (
+            FOTMOB_TO_API_FOOTBALL_LEAGUE_MAPPING.items()
+        ):
+            if fotmob_league_id is None:
+                logger.info(
+                    "Skipping api_league_id=%s (no FotMob mapping)",
+                    api_football_league_id,
+                )
+                continue
             result = service.fetch_and_store_league_history(
-                external_league_id=api_fotball_league_id,
+                external_league_id=api_football_league_id,
                 provider_league_id=fotmob_league_id,
                 season=None,
                 force_refresh=False,
                 min_season_year=MIN_SEASON_YEAR,
             )
             logger.info(
-                "league_id=%s requested=%s imported=%s updated=%s "
-                "skipped=%s unresolved=%s failed=%s",
+                "api_league_id=%s fotmob_league_id=%s requested=%s imported=%s "
+                "updated=%s skipped=%s unresolved=%s failed=%s",
+                api_football_league_id,
                 fotmob_league_id,
                 result.requested,
                 result.imported,

@@ -120,9 +120,11 @@ class DataSourceConfig(BaseModel):
     conflicting_matches_csv_path: Path = Field(
         default_factory=lambda: _project_root() / "data" / "conflicting_matches.csv"
     )
+    missing_team_mapping_csv_path: Path = Field(
+        default_factory=lambda: _project_root() / "data" / "missing_team_mappings.csv"
+    )
     kickoff_match_tolerance_minutes: int = Field(default=24 * 60, ge=0)
     xg_aggregate_tolerance: float = Field(default=0.15, ge=0.0)
-    create_missing_historical_matches: bool = Field(default=False)
     football_data_feature_shrinkage_prior_matches: int = Field(default=10, ge=0)
     football_data_opponent_adjustment: Literal["none", "simple"] = Field(default="none")
     team_strength_lookback_matches: int = Field(

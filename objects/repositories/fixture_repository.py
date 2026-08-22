@@ -321,6 +321,7 @@ class FixtureRepository(BaseRepository[FixtureModel]):
         resolved_home_ids = home_team_ids or self._team_external_ids_for_names(
             home_names or []
         )
+
         resolved_away_ids = away_team_ids or self._team_external_ids_for_names(
             away_names or []
         )
@@ -335,6 +336,12 @@ class FixtureRepository(BaseRepository[FixtureModel]):
         )
         if league_external_id is not None:
             query = query.where(self.model.league_id == league_external_id)
+        sql = str(
+            query.compile(
+                dialect=self.session.get_bind().dialect,
+                compile_kwargs={"literal_binds": True},
+            )
+        )
         return list(self.session.scalars(query).all())
 
     def find_by_season_and_teams(

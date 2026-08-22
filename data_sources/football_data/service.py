@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import csv
 import logging
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Literal
 
 from sqlalchemy.orm import Session
@@ -29,12 +31,13 @@ from objects.repositories.match_advanced_stats_repository import (
     MatchAdvancedStatsRepository,
 )
 from objects.repositories.match_shot_repository import MatchShotRepository
+from objects.repositories.team_repository import TeamRepository
 from objects.schema.data_classes.data_sources import DataSourceConfig
 from objects.schema.data_classes.provider_dtos import (
     ProviderMatch,
     ProviderMatchDetails,
 )
-from utils.common import FOTMOBLEAGUE_EXTERNAL_ID_TO_CCODE
+from utils.common import FOTMOBLEAGUE_EXTERNAL_ID_TO_CCODE, FOTMOB_TO_API_FOOTBALL_TEAM_MAPPING
 from utils.seasons import last_n_season_codes
 
 logger = logging.getLogger(__name__)
@@ -42,7 +45,7 @@ logger = logging.getLogger(__name__)
 ProviderName = Literal["sofascore"]
 
 # SofaScore season labels used when none is passed explicitly.
-FIXED_IMPORT_SEASONS = ["2024", "2025"]
+FIXED_IMPORT_SEASONS = ["2022", "2023"]
 
 
 def build_provider(
@@ -88,6 +91,7 @@ class ExtendedMatchDataService:
         )
         self.fixture_repo = FixtureRepository(self.session)
         self.leagues_repo = LeagueRepository(self.session)
+        self.teams_repo = TeamRepository(self.session)
         self.stats_repo = MatchAdvancedStatsRepository(self.session)
         self.shot_repo = MatchShotRepository(self.session)
 
@@ -197,6 +201,7 @@ class ExtendedMatchDataService:
         if league is None:
             return BatchImportResult(requested=0)
 
+        country_code = FOTMOBLEAGUE_EXTERNAL_ID_TO_CCODE.get(external_league_id)
         seasons = [season] if season else list(FIXED_IMPORT_SEASONS)
         logger.info(
             "league_id=%s provider=%s seasons=%s",
@@ -217,7 +222,7 @@ class ExtendedMatchDataService:
                 fixtures = self.provider.fetch_season_matches(
                     provider_league_id,
                     season_id,
-                    country_code=FOTMOBLEAGUE_EXTERNAL_ID_TO_CCODE[provider_league_id]
+                    country_code=country_code,
                 )
             except Exception as exc:  # noqa: BLE001
                 logger.exception(
@@ -238,8 +243,8 @@ class ExtendedMatchDataService:
                     with self.session.begin_nested():
                         result = self._import_provider_fixture(
                             fixture=fixture,
-                            league_id=league_id,
-                            league_external_id=league_external_id,
+                            league_id=league.id,
+                            league_external_id=external_league_id,
                             season=season or self._map_season_label(season_id),
                             force_refresh=force_refresh,
                         )
@@ -268,6 +273,26 @@ class ExtendedMatchDataService:
                     )
         return batch
 
+    def _append_missing_mapping_key(
+        self,
+        key: str,
+        team_name: str,
+    ) -> None:
+        """Append an unresolved fixture to CSV, creating the file with a header if needed."""
+        csv_path = Path(self.config.missing_team_mapping_csv_path)
+        csv_path.parent.mkdir(parents=True, exist_ok=True)
+        write_header = not csv_path.exists() or csv_path.stat().st_size == 0
+        row = {
+            "key": key,
+            "team_name": team_name
+
+        }
+        with csv_path.open("a", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=('key', 'team_name'))
+            if write_header:
+                writer.writeheader()
+            writer.writerow(row)
+
     def _import_provider_fixture(
         self,
         *,
@@ -277,21 +302,37 @@ class ExtendedMatchDataService:
         season: str | None,
         force_refresh: bool,
     ) -> MatchImportResult:
+        home, away = None, None
+        if self.provider.name == 'fotmob':
+            try:
+                home_external_id = FOTMOB_TO_API_FOOTBALL_TEAM_MAPPING[int(fixture.home_team_id)]
+                home_team = self.teams_repo.get_by_external_id(home_external_id)
+                home = TeamResolution(team=home_team, confidence=1.0, method="exact_name")
+            except KeyError:
+                self._append_missing_mapping_key(str(fixture.home_team_id), fixture.home_team_name)
 
-        if fixture.provider_match_id == '4506273':
-            p=1
-        """Resolve teams/match and persist details for one fixture."""
-        home = self.resolver.resolve_team(
-            provider_team_id=fixture.home_team_id,
-            provider_team_name=fixture.home_team_name,
-            league_id=league_id,
-        )
+            try:
+                away_external_id = FOTMOB_TO_API_FOOTBALL_TEAM_MAPPING[int(fixture.away_team_id)]
+                away_team = self.teams_repo.get_by_external_id(away_external_id)
+                away = TeamResolution(team=away_team, confidence=1.0, method="exact_name")
+            except KeyError:
+                self._append_missing_mapping_key(str(fixture.away_team_id), fixture.away_team_name)
 
-        away = self.resolver.resolve_team(
-            provider_team_id=fixture.away_team_id,
-            provider_team_name=fixture.away_team_name,
-            league_id=league_id,
-        )
+
+
+        if not home:
+            """Resolve teams/match and persist details for one fixture."""
+            home = self.resolver.resolve_team(
+                provider_team_id=fixture.home_team_id,
+                provider_team_name=fixture.home_team_name,
+                league_id=league_id,
+            )
+        if not away:
+            away = self.resolver.resolve_team(
+                provider_team_id=fixture.away_team_id,
+                provider_team_name=fixture.away_team_name,
+                league_id=league_id,
+            )
         warnings: list[str] = []
         if home.team is None:
             home = self._create_team_from_provider(
@@ -317,7 +358,7 @@ class ExtendedMatchDataService:
         warnings.extend(match_resolution.warnings)
 
         if match_resolution.match is None:
-            if self.config.create_missing_historical_matches and not self.dry_run:
+            if self.dry_run:
                 # Intentionally disabled by default; reserved for future use.
                 pass
             return MatchImportResult(
