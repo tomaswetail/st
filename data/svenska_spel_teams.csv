@@ -1,0 +1,530 @@
+external_id,name
+60,Leicester
+86,Tottenham
+64,Bournemouth
+88,Newcastle
+70,Coventry
+93,Birmingham
+96,Bristol City
+1,Burnley
+90,Cardiff
+94,Huddersfield
+91,Blackburn
+36,Luton
+38,Blackpool
+33,Millwall
+63,West Bromwich
+6,Norwich
+39,Sheffield U
+37,Preston
+32,Stoke
+40,Queens Park Rangers
+129,Sunderland
+79,Watford
+31,Reading
+111,Wigan
+102,Rotherham
+67,Middlesbrough
+689,Sverige
+675,Serbien
+674,Norge
+690,Slovenien
+673,Schweiz
+683,Spanien
+684,Portugal
+672,Tjeckien
+679,Irland
+725,Skottland
+685,Albanien
+688,Israel
+682,Kosovo
+676,Nordirland
+12,Grekland
+681,Cypern
+307,Åtvidaberg
+446,Oddevold
+215,Trollhättan
+444,Olympic
+443,Ängelholms FF
+256,Oskarshamn
+390,Haninge
+310,Sandviken
+442,Täby
+455,BK Forward
+89,Wolverhampton
+52,West Ham
+71,Chelsea
+87,Crystal Palace
+5,Brighton
+41,Liverpool
+68,Fulham
+62,Everton
+81,Southampton
+80,Brentford
+34,Swansea
+69,Nottingham
+234,Kalmar
+201,Värnamo
+85,Manchester United
+2,Manchester City
+92,Hull
+103,Charlton
+130,Shrewsbury
+82,Leeds
+84,Aston Villa
+83,Arsenal
+774,Algeriet
+719,Turkiet
+680,Armenien
+142,Milton Keynes Dons
+95,Barnsley
+126,Plymouth
+109,Burton
+35,Peterborough 
+137,Bristol Rovers
+128,Wycombe
+101,Cheltenham
+108,Accrington
+112,Cambridge
+44,Bolton
+105,Fleetwood
+107,Morecambe
+104,Lincoln
+138,Forest Green
+106,Oxford
+141,Port Vale
+100,Sheffield W
+694,Danmark
+693,Frankrike
+604,Mexiko
+755,Argentina
+118,Harrogate
+143,Hartlepool
+123,Exeter
+45,Portsmouth
+120,Mansfield
+132,Carlisle
+116,Walsall
+636,Chesterfield
+140,Wimbledon
+807,Costa Rica
+713,Japan
+739,Marocko
+677,Belgien
+710,Kanada
+23,Kroatien
+717,Tyskland
+709,USA
+678,Nederländerna
+134,Swindon
+98,Crawley Town
+1039,Stockport
+124,Colchester
+136,Tranmere
+113,Northampton
+115,Rochdale
+575,Ibiza
+538,Real Zaragoza
+1214,Albacete
+311,Mirandes
+17,Las Palmas
+317,Sporting Gijón
+18,Leganes
+1066,Villarreal B
+1056,Parma
+172,Cagliari
+145,Partick Thistle
+1488,Cove Rangers
+697,England
+110,Ipswich
+785,Grimsby
+724,Wales
+718,Rumänien
+13,Andorra
+97,Derby
+121,Sutton
+117,Salford
+133,Stevenage
+173,Juventus
+316,Lazio
+203,Bologna
+78,Atalanta
+57,Roma
+193,Torino
+65,Villarreal
+72,Real Madrid
+241,Athletic Bilbao
+243,Espanyol
+179,Paris Saint-Germain
+247,Nice
+210,Elfsborg
+235,Degerfors
+454,Brommapojkarna
+207,Halmstad
+236,Häcken
+194,Milan
+230,Inter
+66,Bayern München
+1062,Werder Bremen
+358,Osasuna
+58,Marseille
+267,Lens
+223,Rennes
+192,AZ Alkmaar
+180,Ajax
+498,Royale Union SG
+414,Club Brügge
+54,Braga
+42,Benfica
+2005,Notts County
+356,IFK Norrköping
+354,Varberg
+229,Spezia
+167,Getafe
+114,Bradford
+342,Verona
+416,Mallorca
+430,Almería
+242,Celta de Vigo
+266,Lille
+190,Montpellier
+253,Nantes
+77,RB Leipzig
+407,Lilleström
+850,Brann
+232,Real Sociedad
+43,Atlético Madrid
+209,Malmö
+51,Frankfurt
+268,Brest
+468,Toulouse
+224,Monaco
+188,Levante
+419,Alavés
+522,Eibar
+457,Stockholm Internazionale
+449,Hammarby TFF
+393,Motala AIF
+459,Vasalund
+599,Ahlafors
+828,AFC Malmö
+208,Norrby
+1557,Wolfsburg
+592,Barcelona
+333,Dalkurd
+1301,Nordic United
+565,Örebro Syrianska
+306,Ljungskile
+308,Lund
+389,Tvååker
+550,Kristianstad
+564,Räppe
+3963,Viggbyholm
+561,Gute
+570,Mjölby
+3491,Farsta
+545,Breidablik
+661,Hafnarfjördur
+823,Vestmannaeyja
+540,KR Reykjavik
+692,Österrike
+723,Slovakien
+687,Island
+698,Ungern
+11,Montenegro
+701,Estland
+21,Azerbajdzjan
+696,Moldavien
+670,Georgien
+720,Färöarna
+704,Bosnien & Hercegovina
+450,Falkenberg
+579,Eskilsminne
+448,IF Karlstad
+262,Sollentuna
+420,Sarpsborg
+383,Rosenborg
+875,Stabæk
+590,Tromsö
+56,Bodö/Glimt
+491,Strömsgodset
+421,Odds
+493,Ham-Kam
+489,Haugesund
+384,Molde
+4357,Tyskland
+1298,Tjeckien
+4359,Italien
+4358,Schweiz
+3471,Arlanda
+821,Järfälla
+3490,Zenith
+515,Nordvärmland
+202,Sirius
+199,Viking
+345,Vålerenga
+866,Portugal
+862,England
+641,Haka
+639,Oulu
+830,KuPS
+642,Lahti
+640,SJK
+644,Ilves
+4148,Kotka
+831,Mariehamn
+643,Inter Åbo
+819,VPS
+182,Fluminense
+327,Sao Paulo
+663,Gremio
+864,Bahia
+48,Fortaleza
+283,Flamengo
+582,Cruzeiro
+196,Internacional
+175,New England Revolution
+388,Cincinnati
+258,AFC Eskilstuna
+392,Gefle
+832,Honka
+543,Fram
+408,Vasco da Gama
+531,Cuiaba Esporte
+198,Corinthians
+195,Atletico Mineiro
+298,America
+436,Coritiba
+275,Palmeiras
+259,Landskrona
+206,Östersund
+648,Cork
+168,Sligo Rovers
+382,Orlando City
+431,Atlanta United FC
+237,IFK Göteborg
+269,Hammarby
+270,Mjällby
+334,Brage
+216,GAIS
+337,FC Köpenhamn
+1024,Lyngby
+817,HJK Helsingfors
+255,AIK
+272,Jönköpings Södra
+257,Utsikten
+447,Sylvia
+305,Torn
+213,Vejle
+532,Stjarnan
+183,Santos
+415,Randers
+445,Vänersborgs FK
+726,Ukraina
+716,Italien
+702,Nordmakedonien
+429,Burgos
+703,Finland
+699,Litauen
+24,Bulgarien
+122,Leyton Orient
+139,Crewe
+127,Gillingham
+1554,Wrexham
+50,Barcelona
+99,Barrow
+135,Newport
+387,Sassuolo
+352,Salernitana
+395,Dundee FC
+222,Kilmarnock
+401,St. Mirren
+394,Aberdeen
+403,Ross County
+402,Hearts
+1412,Eastleigh
+712,Brasilien
+353,Fiorentina
+212,Valencia
+149,Dortmund
+248,Reims
+53,Lyon
+252,Metz
+205,Västerås
+347,Monza
+574,Girona
+350,Freiburg
+424,Köln
+343,Napoli
+160,Sevilla
+366,Mainz
+233,Real Betis
+55,Rangers
+302,Celtic
+246,Bayer Leverkusen
+630,Kaiserslautern
+355,Djurgården
+593,Lyon
+1008,Fredrikstad FK
+1029,Aris
+1047,Panathinaikos
+5042,Catanzaro
+497,Cremonese
+5366,Avs Futebol Sad
+315,Portimonense
+546,Trelleborg
+567,Friska Viljor
+588,Rosengård
+619,Onsala
+847,Bryne
+3965,Kongsvinger
+841,Akranes
+813,Akureyrar
+707,Colombia
+318,Real Oviedo
+456,Piteå
+573,Stocksund
+758,Karlberg
+610,Torslanda
+829,Stenungsund
+613,Gauthiod
+612,Västra Frölunda
+451,Qviding
+1540,Bolivia
+530,Juventude
+299,Bragantino
+332,Goianiense
+504,Skövde AIK
+506,Linköping
+537,Kristianstad
+7149,IK Kongahälla
+4193,Panama
+668,Uruguay
+705,Peru
+714,Chile
+3809,Laholm
+3808,Simrishamn
+615,Berga
+607,IFK Hässleholm
+3534,Kopavogur
+174,Inter Miami
+381,Toronto FC
+576,Columbus Crew
+324,Vancouver Whitecaps
+185,CF Montreal
+187,DC United
+184,New York Red Bulls
+434,Philadelphia Union
+492,Sandefjord
+852,KFUM Oslo
+490,Kristiansund
+534,Seattle Sounders
+554,Austin FC
+535,Minnesota United
+380,Houston Dynamo
+335,Örgryte
+271,Örebro
+6808,Ekenas Idrottsforening
+544,Vikingur
+6982,IF Vestri
+3966,Moss
+917,Raufoss
+1009,IK Start
+176,Grasshoppers
+553,Lugano
+412,Midtjylland
+458,Nordsjälland
+577,Basel
+177,Luzern
+551,Lausanne
+552,Sion
+1022,St. Truidense
+340,Anderlecht
+1004,OH Leuven
+7429,Beerschot
+238,Helsingborg
+461,Aalborg
+314,Porto
+171,Sporting Lissabon
+331,Besiktas
+417,Galatasaray
+322,Servette
+397,Motherwell
+1010,Westerlo
+374,Mechelen
+426,Genk
+375,Charleroi
+22,Lettland
+721,Malta
+722,Polen
+131,Doncaster
+336,Öster
+250,Strasbourg
+312,Vitória de Guimarães
+148,Stuttgart
+240,Union Berlin
+320,Hamburg
+499,Schalke 04
+1061,Lecce
+473,Le Havre
+159,Saint Etienne
+217,Royal Antwerp
+512,Hässleholms IF
+9037,Åstorps FF
+357,GIF Sundsvall
+263,Umeå
+568,Husqvarna
+3964,Hödd
+853,Sogndal
+4363,Georgien
+4360,Frankrike
+5051,Polen
+801,Portugal
+1294,Slovakien
+4362,Rumänien
+4361,Spanien
+309,Team TG
+4303,IFK Skövde
+851,Ranheim
+9202,FF Jaro
+909,Frankrike
+863,Nederländerna
+905,Wales
+907,Tyskland
+897,Sverige
+858,Danmark
+288,Polen
+197,Botafogo RJ
+4443,Mirassol
+501,St. Gallen
+373,Young Boys
+1547,Barnet
+125,Oldham
+591,Pisa
+351,Udinese
+396,Dundee U
+1606,Falkirk
+9635,Raal La Louviere
+1019,Standard Liege
+166,Twente
+349,Elche
+211,Rayo Vallecano
+496,Como
+6878,IF Gnistan
+11255,TPS
+294,Paranaense
+706,Nya Zeeland
+741,Egypten
+734,Australien
+737,Venezuela
+700,Luxemburg
+7775,Castellón
+1480,Qatar
+4397,Haiti
+761,Elfenbenskusten
+3408,Curacao
+669,Ecuador
+747,Tunisien
+708,Saudiarabien
+711,Iran
+16,Kap Verde

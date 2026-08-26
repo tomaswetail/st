@@ -16,7 +16,7 @@ from objects.models.external_entity_mapping import ExternalEntityMappingModel
 from objects.repositories.league_repository import LeagueRepository
 from objects.schema.data_classes.data_sources import DataSourceConfig
 from services.draw_manager import STDrawManager
-from utils.common import FOTMOB_TO_API_FOOTBALL_LEAGUE_MAPPING, FOTMOBLEAGUE_EXTERNAL_ID_TO_CCODE
+from utils.common import API_FOOTBALL_TO_FOTMOB_LEAGUE_MAPPING, FOTMOBLEAGUE_EXTERNAL_ID_TO_CCODE
 
 logging.basicConfig(
     level=logging.INFO,
@@ -34,34 +34,22 @@ def calc() -> None:
     prob_manager = ProbabilityManager(session)
     prob_manager.process(4750)
 
-def _get_leagues(session):
-    client = APIFootballClient()
-    all_leagues = get_all_leagues(client)
-    league_repo = LeagueRepository(session)
 
-    for l in all_leagues:
-        league_repo.upsert_from_api(
-            external_id=l.league_id,
-            league_name=l.league_name,
-            league_type=l.league_type,
-            country_name=l.country_name,
-            country_code=l.country_code,
-        )
-    league_repo.commit()
 def main() -> None:
     init_db()
     session = SessionLocal()
     country_codes = {}
-    for k,v in FOTMOB_TO_API_FOOTBALL_LEAGUE_MAPPING.items():
+    """
+    for k,v in API_FOOTBALL_TO_FOTMOB_LEAGUE_MAPPING.items():
         country_codes[v] = FOTMOBLEAGUE_EXTERNAL_ID_TO_CCODE[k]
     teams = FotMobProvider().fetch_teams_for_leagues(
-        FOTMOB_TO_API_FOOTBALL_LEAGUE_MAPPING.values(),
+        API_FOOTBALL_TO_FOTMOB_LEAGUE_MAPPING.values(),
         country_codes=country_codes,
     )
     for i in teams:
         print(f"{i.provider_team_id}, {i.name}")
-
-    #collector = DataCollector(session)
+    """
+    collector = DataCollector(session)
     #collector.refresh_all_data(["2223", "2324", "2425", "2526"])
     main_extra_data()
 
@@ -89,8 +77,10 @@ def main_extra_data() -> None:
         }
 
         for api_football_league_id, fotmob_league_id in (
-            FOTMOB_TO_API_FOOTBALL_LEAGUE_MAPPING.items()
+            API_FOOTBALL_TO_FOTMOB_LEAGUE_MAPPING.items()
         ):
+            if api_football_league_id != 39:
+                pass
             if fotmob_league_id is None:
                 logger.info(
                     "Skipping api_league_id=%s (no FotMob mapping)",
@@ -129,5 +119,13 @@ def main_extra_data() -> None:
         session.close()
 
 
+def import_st():
+    from services.draw_manager import STDrawManager
+    init_db()
+    session = SessionLocal()
+    d = STDrawManager(session)
+    h = d.import_all_draws()
+    print(h)
+
 if __name__ == "__main__":
-    main()
+    import_st()

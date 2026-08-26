@@ -18,7 +18,6 @@ class STRoundModel(Base):
     product_name: Mapped[str] = mapped_column(String(100), nullable=False)
 
     draw_number: Mapped[int] = mapped_column(Integer, nullable=False)
-    event_number: Mapped[int] = mapped_column(Integer, nullable=False)
 
     description: Mapped[Optional[str]] = mapped_column(String(255))
     comment: Mapped[Optional[str]] = mapped_column(String(255))
@@ -33,7 +32,6 @@ class STRoundModel(Base):
         UniqueConstraint(
             "product_id",
             "draw_number",
-            "event_number",
             name="uq_event_product_draw_event",
         ),
     )

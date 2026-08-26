@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from data_sources.entity_resolver import EntityResolver
 from objects.schema.data_classes.provider_dtos import ProviderMatch
@@ -185,10 +185,8 @@ def test_resolve_team_create_if_missing_creates_and_maps():
     resolver.team_repo.get_by_name_and_league = MagicMock(return_value=None)
     resolver.team_repo.get_by_name = MagicMock(return_value=None)
     resolver.team_repo.team_name_wide_search = MagicMock(return_value=None)
-    resolver.team_repo.team_likely_name_wide_search = MagicMock(return_value=None)
     resolver._candidate_team_names = MagicMock(return_value=[])
     resolver._aliases = {}
-    resolver.ensure_mapping = MagicMock()
     resolver.team_repo.find_exact_normalized = MagicMock(return_value=None)
     resolver.team_repo.find_by_club_affix = MagicMock(return_value=None)
     resolver.team_repo.find_fuzzy_duplicate = MagicMock(return_value=None)
@@ -207,8 +205,6 @@ def test_resolve_team_create_if_missing_creates_and_maps():
         external_id=999,
         name="New FC",
     )
-    resolver.ensure_mapping.assert_called_once()
-    assert resolver.ensure_mapping.call_args.kwargs["internal_entity_id"] == 42
 
 
 def test_resolve_team_reuses_normalized_duplicate_instead_of_creating():
@@ -218,7 +214,6 @@ def test_resolve_team_reuses_normalized_duplicate_instead_of_creating():
     resolver.team_repo.create = MagicMock()
     resolver._candidate_team_names = MagicMock(return_value=[])
     resolver._aliases = {}
-    resolver.ensure_mapping = MagicMock()
     resolver.team_repo.find_exact_normalized = MagicMock(return_value=existing)
     resolver.team_repo.find_by_club_affix = MagicMock(return_value=None)
     resolver.team_repo.find_fuzzy_duplicate = MagicMock(return_value=None)
@@ -234,8 +229,6 @@ def test_resolve_team_reuses_normalized_duplicate_instead_of_creating():
     assert result.method == "normalized"
     assert result.team is existing
     resolver.team_repo.create.assert_not_called()
-    resolver.ensure_mapping.assert_called_once()
-    assert resolver.ensure_mapping.call_args.kwargs["internal_entity_id"] == 7
 
 
 def test_resolve_team_does_not_fuzzy_match_angers_to_rangers():
@@ -246,7 +239,6 @@ def test_resolve_team_does_not_fuzzy_match_angers_to_rangers():
     resolver.team_repo.flush = MagicMock()
     resolver._candidate_team_names = MagicMock(return_value=["Rangers"])
     resolver._aliases = {}
-    resolver.ensure_mapping = MagicMock()
     resolver.team_repo.find_exact_normalized = MagicMock(return_value=None)
     resolver.team_repo.find_by_club_affix = MagicMock(return_value=None)
     resolver.team_repo.find_fuzzy_duplicate = MagicMock(return_value=None)
@@ -279,7 +271,6 @@ def test_resolve_team_does_not_alias_manchester_city_to_man_united():
     )
     resolver._candidate_team_names = MagicMock(return_value=["Man United"])
     resolver._aliases = {"Manchester City": "Man City"}
-    resolver.ensure_mapping = MagicMock()
     resolver.team_repo.find_exact_normalized = MagicMock(return_value=None)
     resolver.team_repo.find_by_club_affix = MagicMock(return_value=None)
     resolver.team_repo.find_fuzzy_duplicate = MagicMock(return_value=None)
@@ -310,7 +301,6 @@ def test_resolve_team_still_aliases_manchester_city_to_man_city():
     )
     resolver._candidate_team_names = MagicMock(return_value=[])
     resolver._aliases = {"Manchester City": "Man City"}
-    resolver.ensure_mapping = MagicMock()
 
     result = resolver.resolve_team(
         provider_team_id="502",
@@ -333,7 +323,6 @@ def test_resolve_team_does_not_match_villarreal_to_villarreal_b_duplicate():
     resolver.team_repo.flush = MagicMock()
     resolver._candidate_team_names = MagicMock(return_value=[])
     resolver._aliases = {}
-    resolver.ensure_mapping = MagicMock()
     resolver.team_repo.find_exact_normalized = MagicMock(return_value=None)
     resolver.team_repo.find_by_club_affix = MagicMock(return_value=None)
     resolver.team_repo.find_fuzzy_duplicate = MagicMock(return_value=duplicate)
@@ -362,7 +351,6 @@ def test_resolve_team_does_not_exact_match_oxford_city_to_oxford():
     resolver.team_repo.get_by_name = MagicMock(return_value=oxford)
     resolver._candidate_team_names = MagicMock(return_value=["Oxford"])
     resolver._aliases = {}
-    resolver.ensure_mapping = MagicMock()
     resolver.team_repo.find_exact_normalized = MagicMock(return_value=None)
     resolver.team_repo.find_by_club_affix = MagicMock(return_value=None)
     resolver.team_repo.find_fuzzy_duplicate = MagicMock(return_value=None)
@@ -423,3 +411,82 @@ def test_resolve_match_appends_unresolved_row_to_csv(tmp_path):
     )
     rows = csv_path.read_text(encoding="utf-8").strip().splitlines()
     assert len(rows) == 3
+
+
+def test_resolve_team_svenska_spel_uses_static_mapping():
+    session = MagicMock()
+    resolver = EntityResolver(session, provider="svenska-spel")
+    mapped_team = SimpleNamespace(id=1, name="Leicester", external_id=46)
+    resolver.team_repo.get_by_external_id = MagicMock(return_value=mapped_team)
+    resolver._candidate_team_names = MagicMock(return_value=[])
+    resolver._aliases = {}
+
+    with patch.dict(
+        "data_sources.entity_resolver.SVENSKA_SPEL_TO_API_FOOTBALL_TEAMS",
+        {60: 46},
+        clear=False,
+    ):
+        result = resolver.resolve_team(
+            provider_team_id="60",
+            provider_team_name="Leicester",
+        )
+
+    assert result.method == "static_mapping"
+    assert result.team is mapped_team
+    assert result.confidence == 1.0
+    resolver.team_repo.get_by_external_id.assert_called_once_with(46)
+
+
+def test_resolve_team_svenska_spel_falls_through_when_unmapped():
+    session = MagicMock()
+    resolver = EntityResolver(session, provider="svenska-spel")
+    named_team = SimpleNamespace(id=2, name="Unknown FC", external_id=999)
+    resolver.team_repo.get_by_external_id = MagicMock(return_value=None)
+    resolver._candidate_team_names = MagicMock(return_value=["Unknown FC"])
+    resolver._aliases = {}
+    resolver.team_repo.get_by_name = MagicMock(return_value=named_team)
+    resolver.team_repo.find_exact_normalized = MagicMock(return_value=None)
+    resolver.team_repo.find_by_club_affix = MagicMock(return_value=None)
+    resolver.team_repo.find_fuzzy_duplicate = MagicMock(return_value=None)
+    resolver.team_repo.find_substring_duplicate = MagicMock(return_value=None)
+
+    with patch.dict(
+        "data_sources.entity_resolver.SVENSKA_SPEL_TO_API_FOOTBALL_TEAMS",
+        {},
+        clear=True,
+    ):
+        result = resolver.resolve_team(
+            provider_team_id="999999",
+            provider_team_name="Unknown FC",
+        )
+
+    assert result.method == "exact_name"
+    assert result.team is named_team
+    resolver.team_repo.get_by_external_id.assert_not_called()
+
+
+def test_resolve_team_api_football_ignores_svenska_spel_mapping():
+    session = MagicMock()
+    resolver = EntityResolver(session, provider="api-football")
+    resolver.team_repo.get_by_external_id = MagicMock()
+    resolver._candidate_team_names = MagicMock(return_value=["Leicester"])
+    resolver._aliases = {}
+    named_team = SimpleNamespace(id=1, name="Leicester", external_id=46)
+    resolver.team_repo.get_by_name = MagicMock(return_value=named_team)
+    resolver.team_repo.find_exact_normalized = MagicMock(return_value=None)
+    resolver.team_repo.find_by_club_affix = MagicMock(return_value=None)
+    resolver.team_repo.find_fuzzy_duplicate = MagicMock(return_value=None)
+    resolver.team_repo.find_substring_duplicate = MagicMock(return_value=None)
+
+    with patch.dict(
+        "data_sources.entity_resolver.SVENSKA_SPEL_TO_API_FOOTBALL_TEAMS",
+        {60: 46},
+        clear=False,
+    ):
+        result = resolver.resolve_team(
+            provider_team_id="60",
+            provider_team_name="Leicester",
+        )
+
+    assert result.method == "exact_name"
+    resolver.team_repo.get_by_external_id.assert_not_called()

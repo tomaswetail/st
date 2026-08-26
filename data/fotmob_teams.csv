@@ -1,0 +1,822 @@
+external_id,name
+915807,Nashville SC
+960720,Inter Miami CF
+6397,Chicago Fire FC
+6580,New England Revolution
+1323940,Charlotte FC
+722265,FC Cincinnati
+546238,New York City FC
+6514,Red Bull New York
+267810,Orlando City
+56453,Toronto FC
+6602,DC United
+773958,Atlanta United
+191716,Philadelphia Union
+161195,CF Montreal
+6001,Columbus Crew
+307691,Vancouver Whitecaps
+8259,Houston Dynamo FC
+867280,Los Angeles FC
+6603,San Jose Earthquakes
+6399,FC Dallas
+1427963,St. Louis City
+8314,Colorado Rapids
+6606,Real Salt Lake
+307690,Portland Timbers
+207242,Minnesota United
+1701119,San Diego FC
+6637,LA Galaxy
+130394,Seattle Sounders FC
+1218886,Austin FC
+6604,Sporting Kansas City
+6701,FC KTP
+260273,PK-35
+7870,Haka
+2362,JIPPO
+1906,JäPS
+162142,EIF
+6003,MP
+2160,Klubi 04
+2159,KäPa
+741816,SJK Akatemia
+7896,Lugano
+9931,Basel
+10192,Young Boys
+10190,St. Gallen
+10179,Sion
+7730,Lausanne
+10199,Luzern
+9777,Servette
+10191,Thun
+10243,FC Zürich
+9956,Grasshopper
+9824,FC Vaduz
+4131,Shamrock Rovers
+1854,St. Patrick's Athletic
+4594,Bohemian FC
+1853,Dundalk
+5751,Shelbourne
+8338,Derry City
+520517,Galway United FC
+6042,Waterford FC
+8339,Drogheda United
+6361,Sligo Rovers
+1022955,Forge FC
+1022952,Cavalry FC
+1135780,Atlético Ottawa
+1436202,Vancouver FC
+1022948,HFX Wanderers FC
+1899648,Supra du Quebec
+1022954,Inter Toronto FC
+1022953,Pacific FC
+1693,KuPS
+6550,FC Inter Turku
+9861,HJK
+6597,VPS
+4449,AC Oulu
+2361,IF Gnistan
+8424,FC Lahti
+6633,TPS
+162146,Ilves
+162162,SJK
+8473,FF Jaro
+6634,IFK Mariehamn
+6017,Vikingur Reykjavik
+8130,KR Reykjavik
+6291,Fram Reykjavik
+8332,Breidablik
+8004,IA Akranes
+4472,Keflavik
+8064,Valur
+6343,Stjarnan
+8299,IBV Vestmannaeyjar
+8151,FH Hafnarfjordur
+2165,KA Akureyri
+4496,Thor Akureyri
+10283,Palmeiras
+9770,Flamengo
+10273,Athletico Paranaense
+9863,Fluminense
+9781,Cruzeiro
+7877,Bahia
+10272,Atlético-MG
+109705,Bragantino
+9808,Corinthians
+9767,Coritiba
+8517,Botafogo RJ
+7733,Vitória
+10277,São Paulo
+8514,Santos FC
+9769,Grêmio
+8702,Internacional
+163782,Mirassol
+1626,Remo
+10276,Vasco da Gama
+197693,Chapecoense AF
+9918,Stabæk
+8179,Kongsvinger
+8512,FK Haugesund
+8180,Strømsgodset
+7937,Hødd
+7988,Odds Ballklubb
+8531,Bryne
+4722,Egersund
+6563,Ranheim
+8616,Sogndal
+10224,Lyn
+8133,Sandnes Ulf
+8405,Moss
+10021,Åsane
+9812,Raufoss
+4249,Strømmen
+8402,Bodø/Glimt
+8478,Viking
+8608,Tromsø
+9917,Molde
+8476,Lillestrøm
+8468,Brann
+8422,Rosenborg
+8417,Fredrikstad
+8509,Sarpsborg 08
+8448,Hamarkameratene
+8007,Vålerenga
+2305,KFUM
+8609,Sandefjord
+8605,Kristiansund
+8404,Aalesund
+9919,Start
+8595,Brøndby IF
+8391,FC København
+10202,Nordsjælland
+8113,FC Midtjylland
+9939,Viborg
+9814,AC Horsens
+8415,Silkeborg
+8410,Randers FC
+8414,OB
+8071,AGF
+9907,Lyngby
+8487,Sønderjyske
+8678,AFC Bournemouth
+9825,Arsenal
+10252,Aston Villa
+9937,Brentford
+10204,Brighton & Hove Albion
+8455,Chelsea
+8669,Coventry City
+9826,Crystal Palace
+8668,Everton
+9879,Fulham
+8667,Hull City
+9902,Ipswich Town
+8463,Leeds United
+8650,Liverpool
+8456,Manchester City
+10260,Manchester United
+10261,Newcastle United
+10203,Nottingham Forest
+8472,Sunderland
+8586,Tottenham Hotspur
+10172,Queens Park Rangers
+10004,Millwall
+10003,Swansea City
+8659,West Bromwich Albion
+8559,Bolton Wanderers
+8451,Charlton Athletic
+8549,Middlesbrough
+9817,Watford
+8655,Blackburn Rovers
+8654,West Ham United
+8191,Burnley
+8602,Wolverhampton Wanderers
+9841,Wrexham
+8344,Cardiff City
+8658,Birmingham City
+8657,Sheffield United
+10170,Derby County
+8430,Lincoln City
+8411,Preston North End
+9850,Norwich City
+10194,Stoke City
+8462,Portsmouth
+8427,Bristol City
+8466,Southampton
+8484,Bradford City
+9796,Huddersfield Town
+10007,Stockport County
+8346,Luton Town
+9834,Cambridge United
+9818,Mansfield Town
+45729,Bromley
+10163,Sheffield Wednesday
+8645,Milton Keynes Dons
+8653,Oxford United
+8197,Leicester City
+10253,Stevenage
+8676,Wycombe Wanderers
+8483,Blackpool
+9792,Burton Albion
+9819,Notts County
+9798,Reading
+8528,Wigan Athletic
+9903,Doncaster Rovers
+8351,Leyton Orient
+8283,Barnsley
+8401,Plymouth Argyle
+8677,Peterborough United
+158319,AFC Wimbledon
+10006,Walsall
+10262,Newport County
+8175,Barnet
+9785,Oldham Athletic
+8313,Tranmere Rovers
+9916,York City
+8680,Cheltenham Town
+9784,Crewe Alexandra
+45723,Fleetwood Town
+10005,Grimsby Town
+8416,Colchester United
+8671,Accrington Stanley
+8651,Northampton Town
+9795,Swindon Town
+10104,Bristol Rovers
+8119,Rotherham United
+9786,Chesterfield
+8647,Crawley Town
+9833,Exeter City
+282326,Salford City
+9799,Port Vale
+9896,Shrewsbury Town
+10173,Gillingham
+8493,Rochdale
+7946,Harrogate Town
+4047,Hornchurch
+158316,Sutton United
+8652,Southend United
+8488,Hartlepool United
+9828,Forest Green Rovers
+2488,Boreham Wood
+282396,AFC Fylde
+6189,Gateshead FC
+8646,Boston United
+282351,Worthing
+161803,Eastleigh
+8465,Aldershot Town
+10284,Kidderminster Harriers
+10198,Yeovil Town
+10254,Tamworth
+10196,Carlisle United
+8412,Scunthorpe United
+161812,Wealdstone
+10195,FC Halifax Town
+9915,Altrincham
+6350,Barrow
+161801,Solihull Moors
+8345,Woking
+8121,Angers
+8583,Auxerre
+8521,Brest
+9746,Le Havre
+8682,Le Mans
+8588,Lens
+8639,Lille
+8689,Lorient
+9748,Lyon
+8592,Marseille
+9829,Monaco
+9831,Nice
+6379,Paris FC
+9847,Paris Saint-Germain
+9851,Rennes
+9848,Strasbourg
+9941,Toulouse
+10242,Troyes
+9853,Saint-Etienne
+293352,Annecy FC
+47214,Dunkerque
+10249,Montpellier
+8550,Metz
+6390,Red Star
+4120,Rodez
+9747,Guingamp
+6355,Pau
+7853,Laval
+9837,Reims
+8481,Nancy
+4170,Boulogne
+9836,Dijon
+9855,Grenoble
+8311,Clermont Foot
+9874,Sochaux
+9830,Nantes
+8406,Augsburg
+8178,Bayer Leverkusen
+9823,Bayern München
+9789,Borussia Dortmund
+9788,Borussia Mönchengladbach
+9810,Eintracht Frankfurt
+8232,Elversberg
+8722,1. FC Köln
+8358,Freiburg
+9790,Hamburger SV
+8226,Hoffenheim
+9905,Mainz 05
+8460,Paderborn
+178475,RB Leipzig
+10189,Schalke 04
+8149,Union Berlin
+10269,VfB Stuttgart
+8697,Werder Bremen
+8165,1. FC Nürnberg
+8177,Hertha BSC
+8295,Karlsruher SC
+8721,Wolfsburg
+9776,Eintracht Braunschweig
+9912,Arminia Bielefeld
+9911,Bochum
+8398,Energie Cottbus
+94937,FC Heidenheim
+8188,Magdeburg
+8480,Dynamo Dresden
+8150,Holstein Kiel
+8152,St. Pauli
+8350,Kaiserslautern
+8262,Darmstadt
+8357,Greuther Fürth
+9904,Hannover 96
+9775,VfL Osnabrück
+10229,AZ Alkmaar
+8674,FC Groningen
+6433,Go Ahead Eagles
+6422,Fortuna Sittard
+8593,Ajax
+8640,PSV Eindhoven
+10235,Feyenoord
+10228,SC Heerenveen
+10218,Excelsior
+8464,NEC Nijmegen
+8611,FC Twente
+8614,Sparta Rotterdam
+6414,Telstar
+9908,FC Utrecht
+6413,PEC Zwolle
+10217,ADO Den Haag
+8525,Willem II
+7788,Cambuur
+158085,Arouca
+9773,FC Porto
+10212,Maritimo
+9772,Benfica
+10214,Nacional
+9768,Sporting CP
+1567,Santa Clara
+9764,Gil Vicente
+1074320,Estrela da Amadora
+10264,Braga
+1786,Academico Viseu
+1634,Famalicao
+9780,Alverca
+7842,Estoril
+8348,Moreirense
+7844,Vitoria de Guimaraes
+7841,Rio Ave
+212821,Casa Pia AC
+6694,Sirius
+8248,Hammarby
+8428,Häcken
+8349,AIK
+8014,Elfsborg
+9802,Djurgården
+10237,Malmö FF
+6194,Västerås SK
+8297,GAIS
+8501,Brommapojkarna
+8127,Mjällby
+9893,IFK Göteborg
+9892,Kalmar FF
+6544,Degerfors
+10002,Örgryte
+8310,Halmstads BK
+8449,IFK Norrköping
+6545,Falkenbergs FF
+6692,Varbergs BoIS FC
+2004,Östersunds FK
+8511,Landskrona BoIS
+1144284,Nordic United FC
+8641,Östers IF
+6241,Sandvikens IF
+6160,IK Oddevold
+9859,Helsingborg
+2014,Norrby
+6690,IK Brage
+8500,Ljungskile
+6181,IFK Värnamo
+8527,Örebro
+8359,GIF Sundsvall
+8564,Milan
+8524,Atalanta
+9857,Bologna
+8529,Cagliari
+10171,Como
+8535,Fiorentina
+9891,Frosinone
+10233,Genoa
+8636,Inter
+9885,Juventus
+8543,Lazio
+9888,Lecce
+6504,Monza
+10167,Parma
+8686,Roma
+9875,Napoli
+7943,Sassuolo
+9804,Torino
+8600,Udinese
+7881,Venezia
+8522,Ascoli
+6722,Avellino
+6266,Benevento
+583944,Padova
+6488,Carrarese
+10168,Catanzaro
+584022,Cesena
+7801,Cremonese
+8534,Empoli
+9876,Hellas Verona
+6106,Juve Stabia
+145007,LR Vicenza
+9889,Mantova
+9887,Modena
+8540,Palermo
+6479,Pisa
+9849,Arezzo
+9882,Sampdoria
+189475,Südtirol
+208932,Virtus Entella
+9866,Deportivo Alaves
+8558,Espanyol
+9906,Atletico Madrid
+8302,Sevilla
+8696,Racing Santander
+10205,Villarreal
+9783,Deportivo A Coruña
+10268,Elche
+8370,Rayo Vallecano
+8315,Athletic Club
+8634,Barcelona
+9910,Celta Vigo
+8371,Osasuna
+8603,Real Betis
+8633,Real Madrid
+8560,Real Sociedad
+10267,Valencia
+9864,Malaga
+8305,Getafe
+8581,Levante
+494050,FC Andorra
+9865,Almeria
+9867,Tenerife
+8661,Mallorca
+7876,Burgos CF
+8306,Las Palmas
+10279,Castellon
+7732,Girona
+7854,Leganes
+8385,Cadiz
+161743,Celta Fortuna
+7878,Granada
+8670,Real Oviedo
+4033,Sabadell
+9869,Sporting Gijon
+7869,Cordoba
+8393,Albacete
+161744,Real Sociedad B
+8372,Eibar
+10281,Real Valladolid
+8288,Eldense
+357259,AD Ceuta FC
+8342,Club Brugge
+9988,Royal Antwerp
+9991,Gent
+9986,Sporting Charleroi
+7978,Union St.Gilloise
+10000,Zulte Waregem
+9987,Genk
+8475,SK Beveren
+8635,Anderlecht
+9985,Standard Liege
+9984,Cercle Brugge
+9997,St.Truiden
+6702,Lommel
+8203,KV Mechelen
+1218969,RAAL La Louviere
+10001,Westerlo
+1773,OH Leuven
+8571,Kortrijk
+9925,Celtic
+9800,St. Mirren
+9927,Motherwell
+9860,Heart of Midlothian
+8284,Dundee FC
+8467,St. Johnstone
+10251,Hibernian
+8485,Aberdeen
+8548,Rangers
+8596,Falkirk
+9938,Dundee United
+8597,Kilmarnock
+8426,Partick Thistle
+9913,Ayr United
+8143,Stenhousemuir
+10250,Raith Rovers
+8282,Livingston
+8457,Dunfermline Athletic
+8066,Inverness Caledonian Thistle
+8280,Arbroath
+8235,Queen's Park
+8648,Greenock Morton
+8429,Hamilton Academical
+575419,East Kilbride
+8649,Ross County
+8158,Peterhead
+8160,Alloa Athletic
+9758,East Fife
+8176,Airdrieonians
+6002,Cove Rangers
+9924,Queen of the South
+8257,Montrose
+9914,Elgin City
+8145,Forfar Athletic
+8409,Clyde
+6661,Spartans FC
+46036,Annan Athletic
+8141,Stirling Albion
+9926,Stranraer
+675817,Kelty Hearts
+8321,Dumbarton
+4130,Edinburgh City
+8563,AEK Athens
+8239,Aris Thessaloniki
+80654,Asteras Tripolis
+10187,Atromitos
+8675,Iraklis
+1585,Kalamata
+488099,Kifisia FC
+4493,Levadiakos
+885256,NFC Volos
+7753,OFI Crete
+8638,Olympiacos
+8619,PAOK Thessaloniki
+10200,Panathinaikos
+162386,Panetolikos
+96498,Amed Sportif
+1933,Başakşehir
+7800,Gençlerbirliği
+10188,Beşiktaş
+2166,Rizespor
+1925,Göztepe
+9750,Samsunspor
+357274,Çorum FK
+8637,Galatasaray
+4678,Alanyaspor
+4081,Gaziantep FK
+4685,Kasımpaşa
+9752,Trabzonspor
+8695,Fenerbahçe
+4681,Eyüpspor
+8622,Konyaspor
+1569,Kocaelispor
+281467,Erzurumspor FK
+181464,BK Häcken
+181469,Hammarby IF
+1598854,Malmö FF
+181468,AIK
+514392,Eskilstuna United DFF
+181470,Kristianstads DFF
+300220,Vittsjö GIK
+181471,Piteå IF
+1142849,Brommapojkarna
+554004,Växjö DFF
+181466,Djurgården
+550910,IFK Norrköping
+181463,FC Rosengård
+1120766,IK Uppsala Fotboll
+4438,Hammarby TFF
+191433,IF Karlstad
+1011931,FC Stockholm
+841094,FC Arlanda
+6238,AFC Eskilstuna
+627694,FBK Karlstad
+8425,Enköping
+303472,Karlbergs BK
+10225,Assyriska FF
+1967,Vasalunds IF
+7997,Gefle
+111120,Sollentuna FK
+8601,Umeå
+1225382,FC Järfälla
+916701,IFK Stocksund
+2006,Piteå
+8333,Trelleborgs FF
+6622,Åtvidaberg
+418688,Hässleholms IF
+1331261,AFC Malmoe
+6174,Lunds BK
+6170,FC Rosengård
+241285,Tvååkers IF
+303470,Eskilsminne IF
+241064,BK Olympic
+8510,Jönköping S.
+6183,Trollhättan FC
+8189,Ängelholms FF
+6173,Laholms FK
+1965,Kristianstad FC
+6153,Skövde AIK
+73158,Utsiktens BK
+7729,Criciúma
+10274,Juventude
+109706,Vila Nova
+581838,Novorizontino
+8287,Fortaleza
+6305,Sport Recife
+104821,CRB
+197429,Operário
+1221604,Athletic Club
+9862,Goiás
+165545,Atlético-GO
+197815,Cuiabá
+231931,São Bernardo
+8355,Botafogo SP
+2369,Náutico
+104822,Avaí
+172341,Ceará
+298660,Londrina EC
+1757,América-MG
+8630,Ponte Preta
+9797,Chester FC
+161836,Oxford City
+292923,Hebburn Town
+8599,Macclesfield FC
+865163,South Shields
+799249,Hereford
+1382661,Harborough Town FC
+580382,Scarborough Athletic
+274599,Chorley
+9894,Worksop Town
+10197,Southport
+5762,Merthyr Town
+580400,Spalding United
+161824,Buxton
+158321,Brackley Town
+45731,King's Lynn Town
+557101,Spennymoor Town FC
+161816,Marine
+8598,Darlington
+8717,Bedford Town
+282390,Radcliffe
+6315,AFC Telford United
+9923,Hednesford
+8489,Morecambe
+8009,Dagenham & Redbridge
+105554,Horsham
+6314,Weston Super Mare
+177067,Truro City
+8131,Maidstone United
+161831,Hemel Hempstead
+7954,Farnborough
+2261,Billericay
+161808,Tonbridge Angels
+4454,Dover
+275027,AFC Totton
+6206,Folkestone Invicta
+10193,Torquay United
+45725,Maidenhead United
+1114695,Salisbury
+580438,Dorking Wanderers
+45724,Chelmsford
+207145,Chesham United
+674293,Farnham Town
+5763,Braintree Town
+105552,Hampton & Richmond
+9794,Ebbsfleet United
+6432,Slough Town
+6093,Walton and Hersham
+1659622,Real Bedford
+158320,Bury Town
+865168,Alvechurch
+953607,Bromsgrove Sporting
+274600,Rushall Olympic
+960130,Anstey Nomads
+6647,Kettering Town FC
+161834,Stourbridge
+2260,Halesowen Town FC
+158543,Leiston
+960127,Racing Club Warwick
+282507,Leighton Town
+161841,Banbury United
+6292,Worcester
+161800,Redditch United
+282375,Needham Market
+161838,Hitchin Town
+674289,Peterborough Sports
+459581,Stratford Town
+5764,Leamington
+4046,Bishop's Stortford
+282333,Stamford AFC
+282503,Chertsey Town
+282505,Uxbridge
+292925,Hanworth Villa
+6095,Bath City
+161839,Yate Town
+674304,Plymouth Parkway
+275029,Frome Town
+282502,Taunton Town
+1071515,Chichester City FC
+238635,Poole Town FC
+158317,Evesham United
+582838,Hanwell Town
+282358,Wimborne Town
+45807,Basingstoke
+161833,Gloucester City
+282356,Gosport Borough
+282360,Sholing
+7962,Chippenham Town
+626250,Bracknell Town
+879829,Berkhamsted
+1767,Havant and Waterlooville
+1508925,Malvern Town
+580402,Cleethorpes Town
+282389,Warrington Town
+1290988,Avro
+1804164,Redcar Athletic
+161818,Ashton United
+4096,Guiseley
+9895,Bury
+6450,Gainsborough
+1532123,Emley
+161802,Hyde United
+6258,Alfreton Town
+1186092,Warrington Rylands
+1291005,Ilkeston Town
+6195,Whitby
+282510,Leek Town
+158390,Curzon
+1087122,Stockton Town
+4451,Lancaster City
+105553,Workington
+282395,Bamber Bridge
+129937,Quorn
+161822,FC United of Manchester
+161809,Carshalton Athletic
+282365,Enfield Town
+8679,Welling United
+282368,Chatham Town
+161813,Dartford
+177063,Aveley
+6627,Eastbourne Borough
+45722,Leatherhead
+8660,Lewes
+282508,Dulwich Hamlet
+5767,Ramsgate
+282501,Maldon & Tiptree
+10174,St Albans
+282340,Burgess Hill Town
+177064,Cray Wanderers
+274594,Wingate & Finchley
+282343,Brentwood Town
+282369,Cheshunt
+282373,Whitehawk
+282339,Whyteleafe
+626208,Stanway Rovers
+338317,Three Bridges
+773645,Southampton U21
+1177187,Leeds United U21
+1389162,Nottingham Forest U21
+773656,West Bromwich Albion U21
+1070261,Aston Villa U21
+773658,Norwich City U21
+773660,Middlesbrough U21
+860798,Newcastle United U21
+773657,Sunderland U21
+773650,Stoke City U21
+773680,Derby County U21
+1070257,Manchester United U21
+860800,Manchester City U21
+860802,Tottenham Hotspur U21
+860801,Fulham U21
+2054260,Brentford Academy
+2128213,AFC Bournemouth Academy
+950214,Arsenal U21
+1267874,Crystal Palace U21
+773653,Everton U21
+1070259,Liverpool U21
+773649,West Ham United U21
+1796111,Birmingham U21
+773685,Blackburn Rovers U21
+773642,Leicester City U21
+1796112,Burnley U21
+773678,Brighton & Hove Albion U21
+773652,Chelsea U21
+773686,Reading U21
+773683,Wolverhampton Wanderers U21
+1796115,Ipswich Town U21

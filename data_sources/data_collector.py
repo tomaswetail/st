@@ -159,7 +159,7 @@ class DataCollector:
         )
         total = self.import_api_football_matches(
             seasons=season_list,
-            leagues=LEAGUES_EXTERNAL_IDS,
+            leagues=["253"]#LEAGUES_EXTERNAL_IDS,#
         )
         self._set_last_refresh_at(datetime.now(timezone.utc))
         logger.info("Refreshed %d fixtures via API-Football", total)

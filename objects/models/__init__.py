@@ -8,6 +8,7 @@ from objects.models.match_shot import MatchShotModel
 from objects.models.meta_data import MetadataRow
 from objects.models.st_match import STMatchModel
 from objects.models.st_match_bet import STMatchBetModel
+from objects.models.st_match_odds import STMatchOddsModel
 from objects.models.st_round import STRoundModel
 from objects.models.team import TeamModel
 
@@ -20,6 +21,7 @@ __all__ = [
     "MetadataRow",
     "STMatchModel",
     "STMatchBetModel",
+    "STMatchOddsModel",
     "STRoundModel",
     "TeamModel",
 ]

@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
+import time
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -20,9 +24,6 @@ def _participant_name(participants: list[dict[str, Any]], role: str) -> str:
         if p.get("type") == role:
             return str(p["name"])
     raise ValueError(f"Missing participant with type={role!r}")
-
-
-
 
 
 def draw_is_open(draw: dict[str, Any], *, now: datetime | None = None) -> bool:
@@ -50,6 +51,13 @@ class SvenskaSpelClient:
         config = config or SvenskaSpelConfig.from_env()
         self.svenskaspel_base_url = config.svenskaspel_base_url
         self.svenskaspel_access_key = config.svenskaspel_access_key or None
+        self.enable_cache = config.enable_cache and config.cache_ttl_open_seconds > 0
+        self.cache_dir = config.cache_dir
+        self.cache_ttl_open_seconds = config.cache_ttl_open_seconds
+        self.cache_ttl_finalized_seconds = config.cache_ttl_finalized_seconds
+        self.cache_ttl_not_found_seconds = config.cache_ttl_not_found_seconds
+        if self.enable_cache:
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
 
     def _draw_url(self, draw_number: int) -> str:
         base = self.svenskaspel_base_url.rstrip("/")
@@ -60,21 +68,103 @@ class SvenskaSpelClient:
             )
         return f"{base}/draw/1/stryktipset/draws/{draw_number}"
 
-    def fetch_draw_raw(self, draw_number: int) -> dict[str, Any]:
+    def _cache_key(self, draw_number: int) -> str:
+        return hashlib.sha256(self._draw_url(draw_number).encode("utf-8")).hexdigest()
+
+    def _cache_path(self, key: str) -> Path:
+        return self.cache_dir / f"{key}.json"
+
+    def _read_cache(self, draw_number: int) -> dict[str, Any] | None:
+        if not self.enable_cache:
+            return None
+        path = self._cache_path(self._cache_key(draw_number))
+        if not path.exists():
+            return None
+        try:
+            envelope = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+        cached_at = envelope.get("_cached_at")
+        ttl_seconds = envelope.get("_ttl_seconds")
+        if cached_at is None or ttl_seconds is None:
+            return None
+        if time.time() - float(cached_at) > float(ttl_seconds):
+            return None
+        return envelope
+
+    def _write_cache(self, draw_number: int, envelope: dict[str, Any]) -> None:
+        if not self.enable_cache:
+            return
+        path = self._cache_path(self._cache_key(draw_number))
+        try:
+            path.write_text(
+                json.dumps(envelope, ensure_ascii=False),
+                encoding="utf-8",
+            )
+        except OSError as exc:
+            logger.warning("Failed to write Svenska Spel cache %s: %s", path, exc)
+
+    def _cache_ttl_for_payload(self, payload: dict[str, Any]) -> int:
+        draw = payload.get("draw") or {}
+        if draw_is_open(draw):
+            return self.cache_ttl_open_seconds
+        return self.cache_ttl_finalized_seconds
+
+    def fetch_draw_raw(
+        self,
+        draw_number: int,
+        *,
+        use_cache: bool = True,
+    ) -> dict[str, Any]:
         """Fetch raw draw JSON; raises DrawNotFoundError on 404."""
+        if use_cache and self.enable_cache:
+            envelope = self._read_cache(draw_number)
+            if envelope is not None:
+                if envelope.get("_not_found"):
+                    raise DrawNotFoundError(f"Draw {draw_number} not found")
+                data = envelope.get("data")
+                if data is not None:
+                    return data
 
         url = self._draw_url(draw_number)
         resp = httpx.get(url, timeout=30.0, follow_redirects=True)
         if resp.status_code == 404:
+            self._write_cache(
+                draw_number,
+                {
+                    "_cached_at": time.time(),
+                    "_ttl_seconds": self.cache_ttl_not_found_seconds,
+                    "_not_found": True,
+                },
+            )
             raise DrawNotFoundError(f"Draw {draw_number} not found")
         resp.raise_for_status()
         data = resp.json()
         if data.get("draw") is None:
             err = data.get("error") or {}
             if err.get("code") == 404 or err.get("message") == DRAW_NOT_FOUND:
+                self._write_cache(
+                    draw_number,
+                    {
+                        "_cached_at": time.time(),
+                        "_ttl_seconds": self.cache_ttl_not_found_seconds,
+                        "_not_found": True,
+                    },
+                )
                 raise DrawNotFoundError(f"Draw {draw_number} not found")
-            raise ValueError(f"Unexpected API response for draw {draw_number}: {err or data}")
+            raise ValueError(
+                f"Unexpected API response for draw {draw_number}: {err or data}"
+            )
 
+        self._write_cache(
+            draw_number,
+            {
+                "_cached_at": time.time(),
+                "_ttl_seconds": self._cache_ttl_for_payload(data),
+                "_not_found": False,
+                "data": data,
+            },
+        )
         return data
 
     def fetch_draw(

@@ -212,9 +212,6 @@ class TeamRepository(BaseRepository[TeamModel]):
             return self.get_by_likely_name(team_name.split(" ")[0])
         return self.get_by_likely_name(team_name)
 
-    def team_likely_name_wide_search(self, team_name: str) -> TeamModel | None:
-        return self.team_name_wide_search(sanitize_string(team_name) if team_name else "")
-
     def create_from_provider_team(
         self,
         *,

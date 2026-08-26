@@ -15,6 +15,7 @@ _SUFFIXES = (
     " fk",
     " bk",
     " cf",
+    " sc",
     " afc",
     " fc",
     " utd",
@@ -56,6 +57,7 @@ def _load_aliases() -> dict[str, str]:
     if not isinstance(data, dict):
         return {}
     return {str(k): str(v) for k, v in data.items()}
+
 
 
 def to_football_data_name(

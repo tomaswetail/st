@@ -309,6 +309,22 @@ class StrengthCalculator:
         self.team_repo = TeamRepository(self.session)
         self.fixture_repo = FixtureRepository(self.session)
         self._home_advantage_calculator: HomeAdvantageCalculator | None = None
+        self._team_features_cache: dict[
+            tuple[int, date, Literal["home", "away"] | None, int],
+            TeamStrengthFeatures,
+        ] = {}
+        self._league_averages_cache: dict[
+            tuple[int, date, str | None], dict[str, float]
+        ] = {}
+        self._team_match_stats_cache: dict[
+            tuple[int, date, Literal["home", "away"] | None, int],
+            list[MatchStatRow],
+        ] = {}
+        self._opponent_strength_cache: dict[
+            tuple[str, date], tuple[float | None, float | None, float | None]
+        ] = {}
+        self._league_goal_rates_cache: dict[tuple[int, date], tuple[float, float]] = {}
+        self._team_by_id_cache: dict[int, TeamModel | None] = {}
 
     def close(self) -> None:
         """Close the session when this calculator created it."""
@@ -324,11 +340,18 @@ class StrengthCalculator:
     ) -> TeamStrengthFeatures:
         """Return recency-weighted strength features for one team before a cutoff."""
         lookback = lookback_matches or self.config.team_strength_lookback_matches
-        team = self.team_repo.get(team_id)
-        if team is None:
-            return self._empty_team_features(team_id, before, venue, lookback)
-
         before_date = before.date() if isinstance(before, datetime) else before
+        cache_key = (team_id, before_date, venue, lookback)
+        cached = self._team_features_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        team = self._get_team(team_id)
+        if team is None:
+            features = self._empty_team_features(team_id, before, venue, lookback)
+            self._team_features_cache[cache_key] = features
+            return features
+
         match_stat_rows = self._load_team_match_stats(
             team=team,
             before_date=before_date,
@@ -336,9 +359,11 @@ class StrengthCalculator:
             lookback_matches=lookback,
         )
         if not match_stat_rows:
-            return self._empty_team_features(team_id, before, venue, lookback)
+            features = self._empty_team_features(team_id, before, venue, lookback)
+            self._team_features_cache[cache_key] = features
+            return features
 
-        return self._build_team_features_from_rows(
+        features = self._build_team_features_from_rows(
             team_id=team_id,
             before=before,
             venue=venue,
@@ -346,6 +371,13 @@ class StrengthCalculator:
             match_stat_rows=match_stat_rows,
             league_baselines=self.league_averages(team, before_date),
         )
+        self._team_features_cache[cache_key] = features
+        return features
+
+    def _get_team(self, team_id: int) -> TeamModel | None:
+        if team_id not in self._team_by_id_cache:
+            self._team_by_id_cache[team_id] = self.team_repo.get(team_id)
+        return self._team_by_id_cache[team_id]
 
     def get_match_features(
         self,
@@ -395,8 +427,8 @@ class StrengthCalculator:
         target_league_external_id: int | None = None,
     ) -> MatchStrengthFeatures:
         """Combine home/away team features for a fixture without a historical match row."""
-        home_team = self.team_repo.get(home_team_id)
-        away_team = self.team_repo.get(away_team_id)
+        home_team = self._get_team(home_team_id)
+        away_team = self._get_team(away_team_id)
         cutoff_date = before.date() if isinstance(before, datetime) else before
         feature_cutoff = datetime.combine(cutoff_date, datetime.min.time())
         home_features = self._team_features_for_side(
@@ -532,6 +564,10 @@ class StrengthCalculator:
         )
         if home_team is None or league_id is None:
             return league_home_goal_rate, league_away_goal_rate
+        cache_key = (league_id, before_date)
+        cached = self._league_goal_rates_cache.get(cache_key)
+        if cached is not None:
+            return cached
         try:
             league_home_goal_rate = float(
                 self.fixture_repo.get_home_goal_average_by_league_before_date(
@@ -547,7 +583,9 @@ class StrengthCalculator:
             )
         except (TypeError, ZeroDivisionError, KeyError):
             pass
-        return league_home_goal_rate, league_away_goal_rate
+        rates = (league_home_goal_rate, league_away_goal_rate)
+        self._league_goal_rates_cache[cache_key] = rates
+        return rates
 
     def _match_expected_goals(
         self,
@@ -856,10 +894,16 @@ class StrengthCalculator:
             before_date: date,
     ) -> tuple[float | None, float | None, float | None]:
         """Return opponent attack/defence and league npxG using only earlier matches."""
+        cache_key = (opponent_team_name, before_date)
+        cached = self._opponent_strength_cache.get(cache_key)
+        if cached is not None:
+            return cached
 
         team = self.team_repo.get_by_name(opponent_team_name)
         if team is None:
-            return None, None, None
+            result = (None, None, None)
+            self._opponent_strength_cache[cache_key] = result
+            return result
 
         matches = self.fixture_repo.find_before_date_by_team(
             team_name=opponent_team_name,
@@ -868,11 +912,15 @@ class StrengthCalculator:
             limit=self.config.team_strength_lookback_matches,
         )
         if not matches:
-            return None, None, None
+            result = (None, None, None)
+            self._opponent_strength_cache[cache_key] = result
+            return result
 
         rows = self.attach_advanced_stats(matches, opponent_team_name)
         if not rows:
-            return None, None, None
+            result = (None, None, None)
+            self._opponent_strength_cache[cache_key] = result
+            return result
 
         weights = recency_weights(
             len(rows),
@@ -903,12 +951,14 @@ class StrengthCalculator:
 
         league_npxg = baselines.get("npxg")
         if league_npxg is None or league_npxg <= 0:
-            return None, None, None
+            result = (None, None, None)
+            self._opponent_strength_cache[cache_key] = result
+            return result
 
         prior_match_count = self.config.team_strength_prior_matches or (
             self.config.football_data_feature_shrinkage_prior_matches
         )
-        return (
+        result = (
             shrink(
                 normalize_strength(attack_npxg, league_npxg),
                 len(attack),
@@ -923,6 +973,8 @@ class StrengthCalculator:
             ),
             league_npxg,
         )
+        self._opponent_strength_cache[cache_key] = result
+        return result
 
     def _accumulate_opponent_adjustment(
         self,
@@ -1199,6 +1251,10 @@ class StrengthCalculator:
         lookback_matches: int,
     ) -> list[MatchStatRow]:
         """Load newest-first (match, stats, played_at_home) rows before cutoff."""
+        cache_key = (team.id, before_date, venue, lookback_matches)
+        cached = self._team_match_stats_cache.get(cache_key)
+        if cached is not None:
+            return cached
         fixtures = self.fixture_repo.find_before_date_by_team(
             team_name=team.name,
             before_date=before_date,
@@ -1206,8 +1262,11 @@ class StrengthCalculator:
             limit=lookback_matches,
         )
         if not fixtures:
+            self._team_match_stats_cache[cache_key] = []
             return []
-        return self.attach_advanced_stats(fixtures, team.name)
+        rows = self.attach_advanced_stats(fixtures, team.name)
+        self._team_match_stats_cache[cache_key] = rows
+        return rows
 
     def attach_advanced_stats(
         self,
@@ -1253,6 +1312,10 @@ class StrengthCalculator:
         season: str | None = None,
     ) -> dict[str, float]:
         """League npxG baselines for ``league_id`` (optionally one season) before cutoff."""
+        cache_key = (league_id, before_date, season)
+        cached = self._league_averages_cache.get(cache_key)
+        if cached is not None:
+            return cached
         league_matches = self.fixture_repo.find_before_date_by_league_id(
             league_id=league_id,
             before_date=before_date,
@@ -1260,6 +1323,7 @@ class StrengthCalculator:
             limit=500,
         )
         if not league_matches:
+            self._league_averages_cache[cache_key] = {}
             return {}
         stats_by_match_id = {
             row.match_id: row
@@ -1273,10 +1337,12 @@ class StrengthCalculator:
             for match in league_matches
             if match.id in stats_by_match_id
         ]
-        return baselines_from_stats(
+        baselines = baselines_from_stats(
             ordered_stats,
             decay=self.config.team_strength_recency_decay,
         )
+        self._league_averages_cache[cache_key] = baselines
+        return baselines
 
     @staticmethod
     def _empty_team_features(

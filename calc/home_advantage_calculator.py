@@ -84,6 +84,9 @@ class HomeAdvantageCalculator:
         self._competition_beta_cache: dict[
             date, dict[str, tuple[float, float, float, int]]
         ] = {}
+        self._process_cache: dict[
+            tuple[int, date, int | None], HomeAdvantageResult
+        ] = {}
 
     def _team_league_id(self, team: Team | TeamModel) -> int | None:
         team_model = self.team_repo.get(team.id)
@@ -105,6 +108,11 @@ class HomeAdvantageCalculator:
         target_league_external_id: int | None = None,
     ) -> HomeAdvantageResult:
         """Return combined league + team + competition home advantage before cutoff."""
+        cache_key = (team.id, current_date, target_league_external_id)
+        cached = self._process_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
         competition = self._calc_competition_home_advantage(
             target_league_external_id, current_date
         )
@@ -114,7 +122,7 @@ class HomeAdvantageCalculator:
 
         league_id = self._team_league_id(team)
         if league_id is None:
-            return self._empty_result(
+            result = self._empty_result(
                 0.0,
                 competition_home_advantage=competition_home_advantage,
                 raw_competition_home_advantage=float(
@@ -127,6 +135,8 @@ class HomeAdvantageCalculator:
                     competition["competition_home_advantage_sample_size"]
                 ),
             )
+            self._process_cache[cache_key] = result
+            return result
 
         season = self._resolve_season_from_team_history(team, current_date)
         if season is None:
@@ -150,7 +160,7 @@ class HomeAdvantageCalculator:
             target_date=current_date,
             league_season_home_advantage=league_ha,
         )
-        return HomeAdvantageResult(
+        result = HomeAdvantageResult(
             home_advantage=(
                 league_ha
                 + team_result.team_home_advantage
@@ -190,6 +200,8 @@ class HomeAdvantageCalculator:
                 competition["competition_home_advantage_sample_size"]
             ),
         )
+        self._process_cache[cache_key] = result
+        return result
 
     def _calc_competition_home_advantage(
         self,

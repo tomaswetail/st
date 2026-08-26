@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Any
 
 from data_sources.football_data.http_client import (
@@ -179,6 +179,46 @@ def parse_fotmob_matches(payload: Any, provider_league_id: str, provider_season_
         match = _parse_fotmob_match_dict(item, provider_league_id, provider_season_id)
         if match is not None:
             result.append(match)
+    return result
+
+
+def parse_fotmob_matches_by_date(payload: Any) -> list[ProviderMatch]:
+    """Parse FotMob matches?date= payload into ProviderMatch rows."""
+    leagues_raw: list[Any] = []
+    if isinstance(payload, list):
+        leagues_raw = payload
+    elif isinstance(payload, dict):
+        leagues_raw = (
+            payload.get("leagues")
+            or payload.get("data")
+            or []
+        )
+        if isinstance(leagues_raw, dict):
+            leagues_raw = (
+                leagues_raw.get("leagues")
+                or leagues_raw.get("matches")
+                or []
+            )
+
+    result: list[ProviderMatch] = []
+    for league in leagues_raw or []:
+        if not isinstance(league, dict):
+            continue
+        league_id = str(
+            league.get("id")
+            or league.get("primaryId")
+            or league.get("leagueId")
+            or ""
+        )
+        matches_raw = league.get("matches") or league.get("fixtures") or []
+        if isinstance(matches_raw, dict):
+            matches_raw = matches_raw.get("matches") or matches_raw.get("allMatches") or []
+        for item in matches_raw or []:
+            if not isinstance(item, dict):
+                continue
+            match = _parse_fotmob_match_dict(item, league_id, None)
+            if match is not None:
+                result.append(match)
     return result
 
 
@@ -517,6 +557,85 @@ def parse_fotmob_team(payload: Any) -> ProviderTeam:
     )
 
 
+def parse_fotmob_team_search(payload: Any) -> list[ProviderTeam]:
+    """Extract team hits from FotMob search/suggest payloads."""
+    suggestions: list[dict[str, Any]] = []
+    if isinstance(payload, list):
+        for section in payload:
+            if not isinstance(section, dict):
+                continue
+            nested = section.get("suggestions")
+            if isinstance(nested, list):
+                for item in nested:
+                    if isinstance(item, dict):
+                        suggestions.append(item)
+            elif section.get("type") == "team":
+                suggestions.append(section)
+    elif isinstance(payload, dict):
+        for key in ("suggestions", "teamSuggest", "teams"):
+            block = payload.get(key)
+            if isinstance(block, list):
+                for item in block:
+                    if not isinstance(item, dict):
+                        continue
+                    options = item.get("options")
+                    if isinstance(options, list):
+                        for option in options:
+                            if not isinstance(option, dict):
+                                continue
+                            body = option.get("payload")
+                            if isinstance(body, dict):
+                                suggestions.append(
+                                    {
+                                        "type": "team",
+                                        "id": body.get("id"),
+                                        "name": body.get("name"),
+                                        **body,
+                                    }
+                                )
+                            else:
+                                suggestions.append(option)
+                    elif item.get("type") == "team" or "id" in item:
+                        suggestions.append(item)
+
+    teams: list[ProviderTeam] = []
+    seen: set[str] = set()
+    for item in suggestions:
+        if item.get("type") not in (None, "team"):
+            continue
+        team_id = item.get("id") or item.get("teamId")
+        name = item.get("name") or item.get("teamName")
+        if team_id is None or not name:
+            continue
+        external_id = str(team_id)
+        if external_id in seen:
+            continue
+        seen.add(external_id)
+        teams.append(
+            ProviderTeam(
+                provider_team_id=external_id,
+                name=str(name),
+                short_name=(
+                    str(item["shortName"])
+                    if item.get("shortName") is not None
+                    else None
+                ),
+                country_name=(
+                    str(item["countryName"])
+                    if item.get("countryName") is not None
+                    else None
+                ),
+                country_code=(
+                    str(item["countryCode"] or item.get("ccode"))
+                    if item.get("countryCode") is not None or item.get("ccode") is not None
+                    else None
+                ),
+                raw_payload=item,
+            )
+        )
+    return teams
+
+
 def _fotmob_table_row_blocks(payload: Any) -> list[dict[str, Any]]:
     """Collect standings row dicts from a FotMob leagues payload."""
     if not isinstance(payload, dict):
@@ -674,6 +793,14 @@ class FotMobProvider:
         )
         return parse_fotmob_matches(payload, provider_league_id, provider_season_id)
 
+    def fetch_matches_by_date(self, match_date: date) -> list[ProviderMatch]:
+        """Fetch all FotMob matches for a calendar date (disk-cached)."""
+        payload = self.client.get_json(
+            "matches",
+            params={"date": match_date.strftime("%Y%m%d")},
+        )
+        return parse_fotmob_matches_by_date(payload)
+
     def fetch_match_details(self, provider_match_id: str) -> ProviderMatchDetails:
         """Fetch and parse FotMob matchDetails."""
         payload = self.client.get_json(
@@ -698,6 +825,20 @@ class FotMobProvider:
         )
         return parse_fotmob_team(payload)
 
+    def search_teams(
+        self,
+        name: str,
+        *,
+        hits: int = 20,
+        lang: str = "en",
+    ) -> list[ProviderTeam]:
+        """Search FotMob teams via search/suggest."""
+        payload = self.client.get_json(
+            "search/suggest",
+            params={"term": name, "hits": hits, "lang": lang},
+        )
+        return parse_fotmob_team_search(payload)
+
     def fetch_league_teams(
         self,
         provider_league_id: str | int,
@@ -720,6 +861,8 @@ class FotMobProvider:
         """Fetch unique teams across multiple FotMob league ids."""
         teams_by_id: dict[str, ProviderTeam] = {}
         for league_id in provider_league_ids:
+            if league_id == 130:
+                l=1
             country_code = None
             if country_codes is not None:
                 country_code = country_codes.get(league_id)

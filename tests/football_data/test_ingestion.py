@@ -84,8 +84,6 @@ def test_team_resolution_order_mapping_then_exact():
         return_value=SimpleNamespace(id=11, name="Arsenal")
     )
     resolver.team_repo.get_by_name_and_league = MagicMock(return_value=None)
-    resolver.team_repo.team_name_wide_search = MagicMock(return_value=None)
-    resolver.team_repo.team_likely_name_wide_search = MagicMock(return_value=None)
     result = resolver.resolve_team(
         provider_team_id="999",
         provider_team_name="Arsenal FC",
@@ -104,7 +102,6 @@ def test_team_resolution_unresolved_low_confidence(caplog):
     resolver.team_repo.get_by_name = MagicMock(return_value=None)
     resolver.team_repo.get_by_name_and_league = MagicMock(return_value=None)
     resolver.team_repo.team_name_wide_search = MagicMock(return_value=None)
-    resolver.team_repo.team_likely_name_wide_search = MagicMock(return_value=None)
     resolver.team_repo.find_exact_normalized = MagicMock(return_value=None)
     resolver.team_repo.find_by_club_affix = MagicMock(return_value=None)
     resolver.team_repo.find_fuzzy_duplicate = MagicMock(return_value=None)
@@ -512,6 +509,153 @@ def test_http_404_raises_not_found(tmp_path):
         client.get_json("/missing")
 
 
+def test_fetch_match_details_resolves_by_date_and_team_names():
+    session = MagicMock()
+    provider = MagicMock()
+    provider.name = "fotmob"
+    listed = ProviderMatch(
+        provider_match_id="5739001",
+        provider_league_id="47",
+        provider_season_id=None,
+        home_team_id="8456",
+        away_team_id="10260",
+        home_team_name="Arsenal FC",
+        away_team_name="Chelsea",
+        kickoff_at=datetime(2024, 8, 17, 14, 0, tzinfo=timezone.utc),
+        status="finished",
+    )
+    provider.fetch_matches_by_date.return_value = [
+        listed,
+        ProviderMatch(
+            provider_match_id="other",
+            provider_league_id="47",
+            provider_season_id=None,
+            home_team_id="1",
+            away_team_id="2",
+            home_team_name="Liverpool",
+            away_team_name="Everton",
+            kickoff_at=datetime(2024, 8, 17, 16, 0, tzinfo=timezone.utc),
+            status="finished",
+        ),
+    ]
+    details = SimpleNamespace(match=listed, shots=[], statistics={}, raw_payload={})
+    provider.fetch_match_details.return_value = details
+
+    service = ExtendedMatchDataService(
+        provider=provider, session=session, dry_run=True
+    )
+    historical = SimpleNamespace(
+        id=5,
+        home_team_name="Arsenal",
+        away_team_name="Chelsea",
+        fixture_date=datetime(2024, 8, 17, 15, 0, tzinfo=timezone.utc),
+    )
+
+    fetched, used = service._fetch_match_details(historical)
+
+    assert used == "fotmob"
+    assert fetched is details
+    provider.fetch_matches_by_date.assert_called_once_with(date(2024, 8, 17))
+    provider.fetch_match_details.assert_called_once_with("5739001")
+
+
+def test_resolve_provider_match_matches_int_team_ids():
+    session = MagicMock()
+    listed = ProviderMatch(
+        provider_match_id="5739001",
+        provider_league_id="47",
+        provider_season_id=None,
+        home_team_id="8456",
+        away_team_id="10260",
+        home_team_name="Arsenal FC",
+        away_team_name="Chelsea",
+        kickoff_at=datetime(2024, 8, 17, 14, 0, tzinfo=timezone.utc),
+        status="finished",
+    )
+    other = ProviderMatch(
+        provider_match_id="other",
+        provider_league_id="47",
+        provider_season_id=None,
+        home_team_id="1",
+        away_team_id="2",
+        home_team_name="Liverpool",
+        away_team_name="Everton",
+        kickoff_at=datetime(2024, 8, 17, 16, 0, tzinfo=timezone.utc),
+        status="finished",
+    )
+    team_resolver = MagicMock()
+    team_resolver.resolve_team.side_effect = [8456, 10260]
+    provider = MagicMock()
+    provider.name = "fotmob"
+    service = ExtendedMatchDataService(
+        provider=provider,
+        session=session,
+        team_resolver=team_resolver,
+        dry_run=True,
+    )
+    historical = SimpleNamespace(
+        home_team_name="Arsenal",
+        away_team_name="Chelsea",
+        home_team_id=42,
+        away_team_id=43,
+        fixture_date=datetime(2024, 8, 17, 15, 0, tzinfo=timezone.utc),
+    )
+
+    matched = service._resolve_provider_match_by_team_names(
+        historical, date_matches=[other, listed]
+    )
+
+    assert matched is listed
+
+
+def test_fetch_and_store_matches_fetches_listings_by_date():
+    session = MagicMock()
+    session.begin_nested.return_value.__enter__ = MagicMock(return_value=None)
+    session.begin_nested.return_value.__exit__ = MagicMock(return_value=False)
+
+    listed = ProviderMatch(
+        provider_match_id="5739001",
+        provider_league_id="47",
+        provider_season_id=None,
+        home_team_id="8456",
+        away_team_id="10260",
+        home_team_name="Arsenal FC",
+        away_team_name="Chelsea",
+        kickoff_at=datetime(2024, 8, 17, 14, 0, tzinfo=timezone.utc),
+        status="finished",
+    )
+    provider = MagicMock()
+    provider.name = "fotmob"
+    provider.fetch_matches_by_date.return_value = [listed]
+    details = SimpleNamespace(match=listed, shots=[], statistics={}, raw_payload={})
+    provider.fetch_match_details.return_value = details
+
+    fixture = SimpleNamespace(
+        id=10,
+        home_team_name="Arsenal",
+        away_team_name="Chelsea",
+        fixture_date=datetime(2024, 8, 17, 15, 0, tzinfo=timezone.utc),
+    )
+    service = ExtendedMatchDataService(
+        provider=provider, session=session, dry_run=True
+    )
+    service.fixture_repo.get = MagicMock(return_value=fixture)
+    service.stats_repo.get_by_match_and_provider = MagicMock(return_value=None)
+    service._persist_match_details = MagicMock(
+        return_value=MatchImportResult(
+            internal_match_id=10,
+            provider_match_id="5739001",
+            status="imported",
+        )
+    )
+
+    batch = service.fetch_and_store_matches([10, 11])
+
+    provider.fetch_matches_by_date.assert_called_once_with(date(2024, 8, 17))
+    assert batch.imported == 2
+    assert provider.fetch_match_details.call_count == 2
+
+
 def test_fetch_match_details_uses_seed_when_provider_missing():
     session = MagicMock()
     provider = MagicMock()
@@ -536,7 +680,7 @@ def test_fetch_match_details_uses_seed_when_provider_missing():
         status="finished",
     )
     fetched, used = service._fetch_match_details(
-        "fb-1", historical, seed_match=seed
+        historical, provider_match_id="fb-1", seed_match=seed
     )
     assert used == "sofascore"
     assert fetched is not None
@@ -605,7 +749,6 @@ def test_unresolved_teams_created_from_sofascore():
             match=historical, method="date_teams", warnings=[]
         )
     )
-    service.resolver.ensure_mapping = MagicMock()
     service._fetch_match_details = MagicMock(
         return_value=(_sample_details(), "sofascore")
     )
@@ -647,11 +790,6 @@ def test_unresolved_teams_created_from_sofascore():
     )
     provider.fetch_team.assert_any_call("8456")
     provider.fetch_team.assert_any_call("9825")
-    assert any(
-        call.kwargs.get("entity_type") == "team"
-        and call.kwargs.get("internal_entity_id") == 101
-        for call in service.resolver.ensure_mapping.call_args_list
-    )
 
 
 # ---------------------------------------------------------------------------

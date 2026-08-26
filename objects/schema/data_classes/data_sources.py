@@ -10,7 +10,8 @@ from pydantic import BaseModel, Field
 
 
 def _project_root() -> Path:
-    return Path(__file__).resolve().parent.parent.parent
+    """Repository root (…/st), not objects/."""
+    return Path(__file__).resolve().parents[3]
 
 
 DISK_CACHE_TTL_ONE_YEAR = 365 * 24 * 3600
@@ -112,7 +113,7 @@ class DataSourceConfig(BaseModel):
         default="st-football-data/1.0 (+historical-ingestion)"
     )
     football_data_cache_dir: Path = Field(
-        default_factory=lambda: _project_root() / "data" / "cache" / "football-data"
+        default_factory=lambda: _project_root() / "data" / "cache"
     )
     unresolved_matches_csv_path: Path = Field(
         default_factory=lambda: _project_root() / "data" / "unresolved_matches.csv"
@@ -122,6 +123,9 @@ class DataSourceConfig(BaseModel):
     )
     missing_team_mapping_csv_path: Path = Field(
         default_factory=lambda: _project_root() / "data" / "missing_team_mappings.csv"
+    )
+    missing_teams_csv_path: Path = Field(
+        default_factory=lambda: _project_root() / "data" / "missing_teams.csv"
     )
     kickoff_match_tolerance_minutes: int = Field(default=24 * 60, ge=0)
     xg_aggregate_tolerance: float = Field(default=0.15, ge=0.0)
@@ -262,4 +266,30 @@ class DataSourceConfig(BaseModel):
             os.environ.get("REST_CONGESTION_LOOKBACK_MATCHES", "20")
         ),
         ge=1,
+    )
+    residual_ml_enabled: bool = Field(
+        default_factory=lambda: os.environ.get("RESIDUAL_ML_ENABLED", "false").lower()
+        in {"1", "true", "yes"}
+    )
+    residual_ml_model_path: Path = Field(
+        default_factory=lambda: _project_root() / "models" / "residual_ml" / "v1" / "model.pkl"
+    )
+    residual_ml_market_weight: float = Field(
+        default_factory=lambda: float(
+            os.environ.get("RESIDUAL_ML_MARKET_WEIGHT", "0.7")
+        ),
+        ge=0.0,
+        le=1.0,
+    )
+    residual_ml_dc_weight: float = Field(
+        default_factory=lambda: float(os.environ.get("RESIDUAL_ML_DC_WEIGHT", "0.3")),
+        ge=0.0,
+        le=1.0,
+    )
+    residual_ml_final_shrink_to_market: float = Field(
+        default_factory=lambda: float(
+            os.environ.get("RESIDUAL_ML_FINAL_SHRINK_TO_MARKET", "0.0")
+        ),
+        ge=0.0,
+        le=1.0,
     )

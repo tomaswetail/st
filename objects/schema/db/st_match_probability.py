@@ -7,7 +7,6 @@ class STMatchProbabilityResult(BaseModel):
     """Calculated 1X2 probabilities for one Stryktipset coupon match."""
 
     draw_number: int
-    event_number: int
     match_id: int
     home_team: str
     away_team: str

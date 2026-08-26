@@ -250,17 +250,6 @@ def fixture_to_create(fixture: Fixture) -> FixtureCreate | None:
         score_penalty_away=fixture.score_penalty_away,
     )
 
-
-def league_info_to_create(league: LeagueInfo) -> LeagueCreate:
-    return LeagueCreate(
-        external_id=league.league_id,
-        league_name=league.league_name,
-        league_type=league.league_type,
-        country_name=league.country_name,
-        country_code=league.country_code,
-    )
-
-
 def get_all_leagues(
     client: APIFootballClient,
     *,
@@ -286,13 +275,14 @@ def get_team_names_by_league(
     client: APIFootballClient,
     league_id: int,
     season: str | int,
-) -> list[tuple[str, str]]:
+) -> list[dict]:
     """Return (team_id, name) for a league season via GET teams?league=&season=."""
+    params = season_to_api_year(season)
     data = client.get(
         "teams",
         {"league": league_id, "season": season_to_api_year(season)},
     )
-    teams: list[tuple[str, str]] = []
+    teams: list[dict] = []
     for item in data.get("response") or []:
         team = item.get("team") or {}
         name = team.get("name")
@@ -301,27 +291,8 @@ def get_team_names_by_league(
         team_name = str(name).strip()
         team_id = team.get("id")
         external_id = str(team_id) if team_id is not None else team_name
-        teams.append((external_id, team_name))
+        teams.append({'external_id': external_id, 'team_name': team_name})
     return teams
-
-
-def normalize_name(name: str) -> str:
-    replacements = {
-        "å": "a",
-        "ä": "a",
-        "ö": "o",
-        "Å": "A",
-        "Ä": "A",
-        "Ö": "O",
-    }
-    name = "".join(replacements.get(char, char) for char in name)
-    return (
-        name.lower()
-        .replace("-", " ")
-        .replace("_", " ")
-        .replace(".", " ")
-        .strip()
-    )
 
 
 def get_fixtures_by_league(
@@ -340,31 +311,3 @@ def get_fixtures_by_league(
     except RuntimeError:
         return []
     return [normalize_fixture(item) for item in data.get("response") or []]
-
-
-def get_fixtures_by_league_and_date(
-    client: APIFootballClient,
-    league_id: int,
-    season: int,
-    match_date: str,
-) -> list[Fixture]:
-    data = client.get(
-        "fixtures",
-        {
-            "league": league_id,
-            "season": season,
-            "date": match_date,
-        },
-    )
-    return [normalize_fixture(item) for item in data["response"]]
-
-
-def get_fixture_by_id(
-    client: APIFootballClient,
-    fixture_id: int,
-) -> Fixture | None:
-    data = client.get("fixtures", {"id": fixture_id})
-    response = data["response"]
-    if not response:
-        return None
-    return normalize_fixture(response[0])

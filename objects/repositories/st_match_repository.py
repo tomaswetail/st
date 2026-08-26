@@ -59,7 +59,7 @@ class STMatchRepository(BaseRepository[STMatchModel]):
         fulltime = result_by_type(results, RESULT_TYPE_FULLTIME)
         halftime = result_by_type(results, RESULT_TYPE_HALFTIME)
 
-        match.stryktipset_round_id = round_model.draw_number
+        match.stryktipset_round_id = round_model.id
         match.start_time = parse_datetime(match_data.get("matchStart"))
         match.status = match_data.get("status")
         match.status_id = match_data.get("statusId")

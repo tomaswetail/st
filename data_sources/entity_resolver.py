@@ -5,7 +5,7 @@ from __future__ import annotations
 import csv
 import logging
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from difflib import SequenceMatcher
 from pathlib import Path
 
@@ -14,15 +14,13 @@ from sqlalchemy.orm import Session
 from objects.models.fixture import FixtureModel
 from objects.models.league import LeagueModel
 from objects.models.team import TeamModel
-from objects.repositories.external_entity_mapping_repository import (
-    ExternalEntityMappingRepository,
-)
 from objects.repositories.fixture_repository import FixtureRepository
 from objects.repositories.league_repository import LeagueRepository
 from objects.repositories.team_repository import TeamRepository
 from objects.schema.data_classes.data_sources import DataSourceConfig
 from objects.schema.data_classes.provider_dtos import ProviderMatch
-from utils.common import FOTMOB_TO_API_FOOTBALL_TEAM_MAPPING
+from utils.common import NATIONAL_TEAMS_SE_TO_EN
+from utils.team_mappings import SVENSKA_SPEL_TO_API_FOOTBALL_TEAMS
 from utils.team_name_matcher import _load_aliases, normalize_team_name
 
 # Temporary alias for call sites / type hints still using the old name.
@@ -85,32 +83,11 @@ class EntityResolver:
         self.session = session
         self.config = config or DataSourceConfig()
         self.provider = provider
-        self.mapping_repo = ExternalEntityMappingRepository(session)
         self.team_repo = TeamRepository(session)
         self.league_repo = LeagueRepository(session)
         self.fixture_repo = FixtureRepository(session)
         self._aliases = _load_aliases()
         self._team_name_cache: list[str] | None = None
-
-    def resolve_provider_league_id(self, league_id: int) -> str | None:
-        """Look up the external league id for an internal league."""
-        mapping = self.mapping_repo.get_by_internal(
-            provider=self.provider,
-            entity_type="league",
-            internal_entity_id=league_id,
-        )
-        if mapping is not None:
-            return mapping.external_entity_id
-        logger.warning(
-            "No %s league mapping for internal league_id=%s",
-            self.provider,
-            league_id,
-        )
-        return None
-
-    def resolve_league(self, league_id: int) -> LeagueModel | None:
-        """Load an internal LeagueModel by id."""
-        return self.league_repo.get(league_id)
 
     def resolve_team(
         self,
@@ -118,7 +95,6 @@ class EntityResolver:
         provider_team_id: str,
         provider_team_name: str,
         league_id: int | None = None,
-        create_if_missing: bool = False,
     ) -> TeamResolution:
         """Resolve a provider team via mapping, exact name, alias, fuzzy, or Postgres duplicate lookup.
 
@@ -126,15 +102,31 @@ class EntityResolver:
         on miss and store an external mapping for reimports.
         """
 
-        mapping = self.mapping_repo.get_by_external(
-            provider=self.provider,
-            entity_type="team",
-            external_entity_id=str(provider_team_id),
-        )
-        if mapping is not None:
-            team = self.team_repo.get(mapping.internal_entity_id)
-            if team is not None:
-                return TeamResolution(team=team, confidence=1.0, method="mapping")
+        if self.provider == "svenska-spel":
+            try:
+                svenska_spel_team_id = int(provider_team_id)
+            except (TypeError, ValueError):
+                svenska_spel_team_id = None
+            if svenska_spel_team_id is not None:
+                api_football_team_id = SVENSKA_SPEL_TO_API_FOOTBALL_TEAMS.get(
+                    svenska_spel_team_id
+                )
+                if api_football_team_id is not None:
+                    team = self.team_repo.get_by_external_id(api_football_team_id)
+                    if team is not None:
+                        return TeamResolution(
+                            team=team,
+                            confidence=1.0,
+                            method="static_mapping",
+                        )
+
+        if provider_team_name in NATIONAL_TEAMS_SE_TO_EN.keys():
+            team = self._get_team_by_name(NATIONAL_TEAMS_SE_TO_EN[provider_team_name])
+            return TeamResolution(
+                team=team,
+                confidence=1.0,
+                method="exact",
+            )
 
         candidates = self._candidate_team_names()
         exact = self._find_by_normalized_name(provider_team_name, candidates)
@@ -145,31 +137,25 @@ class EntityResolver:
             if not spellings_differ or self._is_safe_team_match(
                 provider_team_name, exact
             ):
-                team = self._get_team_by_name(exact, league_id)
+                team = self._get_team_by_name(exact)
                 if team is not None:
-                    if create_if_missing:
-                        self._map_resolved_team(team, provider_team_id, provider_team_name)
                     return TeamResolution(team=team, confidence=1.0, method="exact_name")
 
         alias = self._aliases.get(provider_team_name)
         if alias:
-            team = self._get_team_by_name(alias, league_id)
+            team = self._get_team_by_name(alias)
             if team is not None and self._is_safe_team_match(
                 provider_team_name, team.name
             ):
-                if create_if_missing:
-                    self._map_resolved_team(team, provider_team_id, provider_team_name)
                 return TeamResolution(team=team, confidence=0.98, method="alias")
             aliased_exact = self._find_by_normalized_name(alias, candidates)
             if aliased_exact is not None and self._is_safe_team_match(
                 provider_team_name, aliased_exact
             ):
-                team = self._get_team_by_name(aliased_exact, league_id)
+                team = self._get_team_by_name(aliased_exact)
                 if team is not None and self._is_safe_team_match(
                     provider_team_name, team.name
                 ):
-                    if create_if_missing:
-                        self._map_resolved_team(team, provider_team_id, provider_team_name)
                     return TeamResolution(team=team, confidence=0.98, method="alias")
 
         threshold = self.config.fuzzy_match_threshold / 100
@@ -185,10 +171,8 @@ class EntityResolver:
                 best_name = candidate
         if best_name and best_score >= threshold:
             if self._is_safe_team_match(provider_team_name, best_name):
-                team = self._get_team_by_name(best_name, league_id)
+                team = self._get_team_by_name(best_name)
                 if team is not None:
-                    if create_if_missing:
-                        self._map_resolved_team(team, provider_team_id, provider_team_name)
                     return TeamResolution(
                         team=team,
                         confidence=best_score,
@@ -206,34 +190,9 @@ class EntityResolver:
             if team is not None:
                 if not self._is_safe_team_match(provider_team_name, team.name):
                     continue
-                if create_if_missing:
-                    self._map_resolved_team(team, provider_team_id, provider_team_name)
                 return TeamResolution(
                     team=team, confidence=confidence, method=method
                 )
-
-        if create_if_missing:
-            try:
-                external_id = int(provider_team_id)
-            except (TypeError, ValueError):
-                logger.warning(
-                    "Cannot create team without numeric external_id (got %r)",
-                    provider_team_id,
-                )
-                return TeamResolution(
-                    team=None,
-                    confidence=best_score,
-                    method="unresolved",
-                    unresolved_name=provider_team_name,
-                )
-            team = self.team_repo.create_from_provider_team(
-                external_id=external_id,
-                name=provider_team_name,
-            )
-            self.team_repo.flush()
-            self._team_name_cache = None
-            self._map_resolved_team(team, provider_team_id, provider_team_name)
-            return TeamResolution(team=team, confidence=1.0, method="created")
 
         logger.warning(
             "Unresolved team provider=%s id=%s name=%s best_score=%.3f",
@@ -267,6 +226,7 @@ class EntityResolver:
             ("inter", "inter turku"),
             ("lille", "lillestrom"),
             ("atalanta", "atlanta utd"),
+            ("atletico mineiro", "america mineiro"),
         }
         provider_norm = normalize_team_name(provider_team_name)
         candidate_norm = normalize_team_name(candidate_name)
@@ -275,19 +235,6 @@ class EntityResolver:
         return (
             (provider_norm, candidate_norm) not in blocked_pairs
             and (provider_raw, candidate_raw) not in blocked_pairs
-        )
-
-    def _map_resolved_team(
-        self,
-        team: TeamModel,
-        provider_team_id: str,
-        provider_team_name: str,
-    ) -> None:
-        self.ensure_mapping(
-            entity_type="team",
-            internal_entity_id=team.id,
-            external_entity_id=str(provider_team_id),
-            external_name=provider_team_name,
         )
 
     def resolve_match(
@@ -303,15 +250,6 @@ class EntityResolver:
 
         """Resolve a provider fixture to a historical match by mapping or date/teams."""
         warnings: list[str] = []
-        mapping = self.mapping_repo.get_by_external(
-            provider=self.provider,
-            entity_type="match",
-            external_entity_id=str(provider_match.provider_match_id),
-        )
-        if mapping is not None:
-            match = self.fixture_repo.get(mapping.internal_entity_id)
-            if match is not None:
-                return MatchResolution(match=match, method="mapping", warnings=warnings)
 
         home_team_ids = (
             [home_team.external_id] if home_team is not None else None
@@ -396,24 +334,25 @@ class EntityResolver:
                     method="season_teams_ambiguous",
                     warnings=warnings,
                 )
+        if provider_match.kickoff_at < datetime(2026,6,25, tzinfo=timezone.utc):
+            logger.warning(
+                "Unresolved match provider=%s id=%s %s vs %s league=%s at %s",
+                self.provider,
+                provider_match.provider_match_id,
+                provider_match.home_team_name,
+                provider_match.away_team_name,
+                provider_match.provider_league_id,
+                provider_match.kickoff_at,
+            )
 
-        logger.warning(
-            "Unresolved match provider=%s id=%s %s vs %s league=%s at %s",
-            self.provider,
-            provider_match.provider_match_id,
-            provider_match.home_team_name,
-            provider_match.away_team_name,
-            provider_match.provider_league_id,
-            provider_match.kickoff_at,
-        )
-        self._append_unresolved_match(
-            provider_match,
-            league_external_id=league_external_id,
-            league_id=league_id,
-            home_team=home_team,
-            away_team=away_team,
-            season=season,
-        )
+            self._append_unresolved_match(
+                provider_match,
+                league_external_id=league_external_id,
+                league_id=league_id,
+                home_team=home_team,
+                away_team=away_team,
+                season=season,
+            )
         return MatchResolution(match=None, method="unresolved", warnings=warnings)
 
     def _append_unresolved_match(
@@ -456,26 +395,6 @@ class EntityResolver:
                 writer.writeheader()
             writer.writerow(row)
 
-    def ensure_mapping(
-        self,
-        *,
-        entity_type: str,
-        internal_entity_id: int,
-        external_entity_id: str,
-        external_name: str | None = None,
-        dry_run: bool = False,
-    ) -> None:
-        """Upsert an external_entity_mapping row unless dry_run."""
-        if dry_run:
-            return
-        self.mapping_repo.upsert(
-            provider=self.provider,
-            entity_type=entity_type,
-            internal_entity_id=internal_entity_id,
-            external_entity_id=str(external_entity_id),
-            external_name=external_name,
-        )
-
     def _candidate_team_names(self) -> list[str]:
         """Cached union of team and historical match names."""
         if self._team_name_cache is None:
@@ -495,14 +414,10 @@ class EntityResolver:
         return lookup.get(normalize_team_name(name))
 
     def _get_team_by_name(
-        self, name: str, league_id: int | None
+        self, name: str
     ) -> TeamModel | None:
         """Load a team by name (league_id ignored; teams are global)."""
-        del league_id
         return self.team_repo.get_by_name(name)
-
-    def _get_team_by_name_fuzzy(self, name: str) -> TeamModel | None:
-        return self.team_repo.team_name_wide_search(name)
 
     def _names_for_team(
         self, team: TeamModel | None, provider_name: str, league_id: int | None

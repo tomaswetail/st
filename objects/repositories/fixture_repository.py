@@ -6,7 +6,7 @@ import logging
 from datetime import date, datetime
 from typing import Literal
 
-from sqlalchemy import cast, Date, func, or_, select
+from sqlalchemy import cast, Date, func, or_, outerjoin, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
@@ -14,6 +14,7 @@ from data_sources.api_football_leagues import (
     load_api_football_leagues,
 )
 from objects.models.fixture import FixtureModel
+from objects.models.match_advanced_stats import MatchAdvancedStatsModel
 from objects.models.team import TeamModel
 from objects.repositories.base import BaseRepository
 from objects.schema.db.fixture import Fixture, FixtureCreate
@@ -65,19 +66,6 @@ class FixtureRepository(BaseRepository[FixtureModel]):
             return None
         return league.external_id
 
-    def _codes_to_league_api_ids(self, codes: list[str]) -> list[int]:
-        league_map = load_api_football_leagues()
-        ids: list[int] = []
-        for code in codes:
-            entry = league_map.get(code)
-            if entry is not None:
-                ids.append(entry.league_id)
-                continue
-            if str(code).isdigit():
-                league = self.league_repo.get_by_external_id(int(code))
-                if league is not None:
-                    ids.append(league.external_id)
-        return ids
 
     @staticmethod
     def _to_league_season(season: str | int) -> int:
@@ -246,48 +234,6 @@ class FixtureRepository(BaseRepository[FixtureModel]):
         )
         return list(self.session.scalars(query).all())
 
-    def get_by_date_and_teams(
-        self,
-        match_date: date,
-        home_team: str,
-        away_team: str,
-    ) -> Fixture | None:
-        home_name = self.team_repo.to_football_data_name(home_team) or home_team
-        away_name = self.team_repo.to_football_data_name(away_team) or away_team
-        home_ids = self._team_external_ids_for_names([home_name, home_team])
-        away_ids = self._team_external_ids_for_names([away_name, away_team])
-
-        filters = [self._fixture_date_col() == match_date]
-        if home_ids:
-            filters.append(self.model.home_team_id.in_(home_ids))
-        else:
-            filters.append(
-                or_(
-                    self.model.home_team_name == home_name,
-                    self.model.home_team_name == home_team,
-                )
-            )
-        if away_ids:
-            filters.append(self.model.away_team_id.in_(away_ids))
-        else:
-            filters.append(
-                or_(
-                    self.model.away_team_name == away_name,
-                    self.model.away_team_name == away_team,
-                )
-            )
-
-        stmt = (
-            select(self.model)
-            .where(*filters)
-            .order_by(self.model.id.desc())
-            .limit(1)
-        )
-        model = self.session.scalar(stmt)
-        if model is None:
-            return None
-        return self.to_schema(model)
-
     def get_distinct_home_teams(self) -> list[str]:
         return list(
             self.session.scalars(
@@ -342,7 +288,10 @@ class FixtureRepository(BaseRepository[FixtureModel]):
                 compile_kwargs={"literal_binds": True},
             )
         )
-        return list(self.session.scalars(query).all())
+        ret = list(self.session.scalars(query).all())
+        if ret:
+            return ret
+        return []
 
     def find_by_season_and_teams(
         self,
@@ -378,19 +327,15 @@ class FixtureRepository(BaseRepository[FixtureModel]):
     def get_filtered(
         self,
         *,
-        leagues: list[str] | None = None,
+        external_league_ids: list[str] | None = None,
         seasons: list[str | int] | None = None,
         before_date: date | None = None,
         limit: int | None = None,
     ) -> list[FixtureModel]:
         """Return fixtures; ``leagues`` are internal codes, ``seasons`` YYXX or years."""
         query = select(self.model)
-        if leagues:
-            api_ids = self._codes_to_league_api_ids(leagues)
-            if api_ids:
-                query = query.where(self.model.league_id.in_(api_ids))
-            else:
-                return []
+        if external_league_ids:
+            query = query.where(self.model.league_id.in_(external_league_ids))
         if seasons:
             season_years = [self._to_league_season(s) for s in seasons]
             query = query.where(self.model.league_season.in_(season_years))
@@ -402,18 +347,44 @@ class FixtureRepository(BaseRepository[FixtureModel]):
             query = query.order_by(self.model.fixture_date.asc())
         return list(self.session.scalars(query).all())
 
-    def get_matches_by_team(self, team: TeamModel) -> list[Fixture]:
+    _FINISHED_STATUSES = {"FT", "AET", "PEN", "AWD", "WO"}
+
+    def find_missing_stats(
+        self,
+        provider: str,
+        *,
+        external_league_ids: list[int] | None = None,
+        seasons: list[str | int] | None = None,
+        before_date: date | None = None,
+        limit: int | None = None,
+    ) -> list[FixtureModel]:
+        """Finished fixtures that have no advanced stats row for *provider*."""
+        stats_alias = MatchAdvancedStatsModel.__table__.alias("mas")
         query = (
             select(self.model)
-            .where(
-                or_(
-                    self.model.home_team_id == team.external_id,
-                    self.model.away_team_id == team.external_id,
+            .select_from(
+                outerjoin(
+                    self.model.__table__,
+                    stats_alias,
+                    (stats_alias.c.match_id == self.model.id)
+                    & (stats_alias.c.provider == provider),
                 )
             )
-            .order_by(self.model.fixture_date.asc())
+            .where(stats_alias.c.id.is_(None))
+            .where(self.model.status_short.in_(self._FINISHED_STATUSES))
         )
-        return [self.to_schema(m) for m in self.session.scalars(query).all()]
+        if external_league_ids:
+            query = query.where(self.model.league_id.in_(external_league_ids))
+        if seasons:
+            season_years = [self._to_league_season(s) for s in seasons]
+            query = query.where(self.model.league_season.in_(season_years))
+        if before_date:
+            query = query.where(self._fixture_date_col() < before_date)
+        if limit is not None:
+            query = query.order_by(self.model.fixture_date.desc()).limit(limit)
+        else:
+            query = query.order_by(self.model.fixture_date.asc())
+        return list(self.session.scalars(query).all())
 
     def get_num_teams_by_league(self, league_id: int) -> int:
         """Count distinct API team ids appearing in fixtures for a league PK."""
