@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import json
+import time
 from datetime import date
 from pathlib import Path
 from typing import Any, Iterator
@@ -26,6 +27,8 @@ from objects.schema.data_classes.residual_ml_features import ResidualMLFeatures
 class ResidualMLDatasetBuilder:
     """Build labeled feature rows from finished Stryktipset matches."""
 
+    CACHE_FLUSH_EVERY = 500
+
     def __init__(
         self,
         session: Session,
@@ -41,9 +44,6 @@ class ResidualMLDatasetBuilder:
         min_draw_number: int | None = None,
         max_draw_number: int | None = None,
     ) -> Iterator[dict[str, Any]]:
-
-
-
         matches = self._finished_matches(
             min_draw_number=min_draw_number,
             max_draw_number=max_draw_number,
@@ -53,33 +53,48 @@ class ResidualMLDatasetBuilder:
             f"(draws {min_draw_number}–{max_draw_number})",
             flush=True,
         )
+        if self.config.residual_ml_home_advantage_mode == "fast":
+            print(
+                "Building with fast home advantage (league + competition only)",
+                flush=True,
+            )
         emitted = 0
-        for index, match in enumerate(matches):
+        batch_started = time.perf_counter()
+        for index, match in enumerate(matches, start=1):
+            if index % self.CACHE_FLUSH_EVERY == 0:
+                self.assembler.clear_caches()
+                self.session.expire_all()
+
+            draw_number = self._draw_number(match)
             label = match.stryktipset_result
             if label not in {"1", "X", "2"}:
                 continue
             if match.match_odds is None:
                 print(
-                    f"Skipping match_id={match.id} draw={match.stryktipset_round_id} (no odds)",
+                    f"Skipping match_id={match.id} draw={draw_number} (no odds)",
                     flush=True,
                 )
                 continue
-            home_name = match.home_team.name if match.home_team else "?"
-            away_name = match.away_team.name if match.away_team else "?"
-            print(
-                f"[{index + 1}/{len(matches)}] Assembling draw={match.stryktipset_round_id} "
-                f"match_id={match.id} {home_name} vs {away_name}",
-                flush=True,
-            )
+            if index == 1 or index % self.CACHE_FLUSH_EVERY == 0:
+                home_name = match.home_team.name if match.home_team else "?"
+                away_name = match.away_team.name if match.away_team else "?"
+                batch_seconds = time.perf_counter() - batch_started
+                print(
+                    f"[{index}/{len(matches)}] Assembling draw={draw_number} "
+                    f"match_id={match.id} {home_name} vs {away_name} "
+                    f"[{batch_seconds:.1f}s]",
+                    flush=True,
+                )
+                batch_started = time.perf_counter()
             try:
                 features = self.assembler.assemble(
                     match,
-                    draw_number=match.stryktipset_round_id,
-                    event_number=index + 1,
+                    draw_number=draw_number,
+                    event_number=index,
                 )
             except (ValueError, TypeError) as exc:
                 print(
-                    f"Skipping match_id={match.id} draw={match.stryktipset_round_id} ({exc})",
+                    f"Skipping match_id={match.id} draw={draw_number} ({exc})",
                     flush=True,
                 )
                 continue
@@ -103,7 +118,7 @@ class ResidualMLDatasetBuilder:
             )
             if blend is None:
                 print(
-                    f"Skipping match_id={match.id} draw={match.stryktipset_round_id} "
+                    f"Skipping match_id={match.id} draw={draw_number} "
                     "(no blend baseline)",
                     flush=True,
                 )
@@ -123,13 +138,13 @@ class ResidualMLDatasetBuilder:
                 row["p_draw_dc_norm"] = engine["X"]
                 row["p_away_dc_norm"] = engine["2"]
             emitted += 1
-            print(
-                f"Assembled row {emitted} draw={match.stryktipset_round_id} "
-                f"match_id={match.id} label={label}",
-                flush=True,
-            )
             yield row
-        print(f"Dataset build finished: {emitted} rows emitted", flush=True)
+        final_batch_seconds = time.perf_counter() - batch_started
+        print(
+            f"Dataset build finished: {emitted} rows emitted "
+            f"[{final_batch_seconds:.1f}s since last progress]",
+            flush=True,
+        )
 
     def build(
         self,
@@ -155,6 +170,26 @@ class ResidualMLDatasetBuilder:
             writer = csv.DictWriter(handle, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(rows)
+
+    def export_csv_from_iter(
+        self,
+        path: Path,
+        rows: Iterator[dict[str, Any]],
+    ) -> int:
+        """Stream rows to CSV; return number of rows written."""
+        path.parent.mkdir(parents=True, exist_ok=True)
+        written = 0
+        with path.open("w", encoding="utf-8", newline="") as handle:
+            writer: csv.DictWriter | None = None
+            for row in rows:
+                if writer is None:
+                    writer = csv.DictWriter(handle, fieldnames=list(row.keys()))
+                    writer.writeheader()
+                writer.writerow(row)
+                written += 1
+        if written == 0:
+            path.write_text("", encoding="utf-8")
+        return written
 
     def export_json(self, path: Path, rows: list[dict[str, Any]]) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -190,6 +225,7 @@ class ResidualMLDatasetBuilder:
                 selectinload(STMatchModel.home_team),
                 selectinload(STMatchModel.away_team),
                 selectinload(STMatchModel.match_odds),
+                selectinload(STMatchModel.event),
             )
             .where(STMatchModel.stryktipset_result.in_(("1", "X", "2")))
         )
@@ -199,6 +235,13 @@ class ResidualMLDatasetBuilder:
             query = query.where(STRoundModel.draw_number <= max_draw_number)
         query = query.order_by(STRoundModel.draw_number, STMatchModel.id)
         return list(self.session.scalars(query).all())
+
+    @staticmethod
+    def _draw_number(match: STMatchModel) -> int | None:
+        event = getattr(match, "event", None)
+        if event is not None:
+            return event.draw_number
+        return None
 
     @staticmethod
     def _features_to_row(features: ResidualMLFeatures) -> dict[str, Any]:

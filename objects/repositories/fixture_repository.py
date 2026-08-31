@@ -479,38 +479,38 @@ class FixtureRepository(BaseRepository[FixtureModel]):
     def get_home_goal_average_by_league_before_date(
         self, league_id: int, before_date: date
     ) -> float:
-        num_teams = self.get_num_teams_by_league(league_id)
-        if not num_teams:
-            return 0.0
+        """Mean home goals per match in the league before cutoff."""
         league_api_id = self._league_api_id(league_id)
         if league_api_id is None:
             return 0.0
-        total = self.session.scalar(
-            select(func.coalesce(func.sum(self.model.goals_home), 0)).where(
+        average = self.session.scalar(
+            select(func.avg(self.model.goals_home)).where(
                 self.model.league_id == league_api_id,
                 self._fixture_date_col() <= before_date,
+                self.model.goals_home.is_not(None),
             )
         )
-        return float(total or 0) / num_teams
+        return float(average) if average is not None else 0.0
 
     def get_away_goal_average_by_league(
         self, league_id: int, before_date: date | None = None
     ) -> float:
-        num_teams = self.get_num_teams_by_league(league_id)
-        if not num_teams:
-            return 0.0
+        """Mean away goals per match in the league (optionally before cutoff)."""
         league_api_id = self._league_api_id(league_id)
         if league_api_id is None:
             return 0.0
-        filters = [self.model.league_id == league_api_id]
+        filters = [
+            self.model.league_id == league_api_id,
+            self.model.goals_away.is_not(None),
+        ]
         if before_date is not None:
             filters.append(self._fixture_date_col() <= before_date)
         else:
             filters.append(self.model.league_season.in_(DEFAULT_LEAGUE_SEASONS))
-        total = self.session.scalar(
-            select(func.coalesce(func.sum(self.model.goals_away), 0)).where(*filters)
+        average = self.session.scalar(
+            select(func.avg(self.model.goals_away)).where(*filters)
         )
-        return float(total or 0) / num_teams
+        return float(average) if average is not None else 0.0
 
     def resolve_internal_league_id_for_team(
         self, team: TeamModel

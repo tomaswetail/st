@@ -142,6 +142,24 @@ def test_calculate_uses_strength_calculator_and_computes_core_features(
     assert features.favourite_strength == pytest.approx(0.46)
 
 
+def test_calculate_reuses_provided_strength_without_calling_calculator(
+    calculator,
+    strength_calculator,
+    strength_features,
+    target_match,
+):
+    features = calculator.calculate(
+        match=target_match,
+        fixtures=[],
+        market_probabilities={"1": 0.46, "X": 0.30, "2": 0.24},
+        strength=strength_features,
+    )
+
+    strength_calculator.get_fixture_features.assert_not_called()
+    assert features.attack_strength_difference == pytest.approx(0.30)
+    assert features.expected_goal_total == pytest.approx(2.40)
+
+
 def test_calculate_computes_all_recent_team_rates_and_combined_rates(
     calculator,
     target_match,

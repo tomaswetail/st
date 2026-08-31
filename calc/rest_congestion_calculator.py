@@ -30,6 +30,10 @@ class RestCongestionCalculator:
             tuple[str, date, int], list[FixtureModel]
         ] = {}
 
+    def clear_caches(self) -> None:
+        """Drop team history lookback cache."""
+        self._team_history_cache.clear()
+
     def calculate(self, match: STMatchModel) -> RestCongestionFeatures:
         """Compute rest and congestion features for one ST fixture."""
         if match.home_team is None or match.away_team is None:

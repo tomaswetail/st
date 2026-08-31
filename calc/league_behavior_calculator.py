@@ -58,6 +58,11 @@ class LeagueBehaviorCalculator:
         self._global_stats_cache: dict[date, _RawLeagueStats] = {}
         self.league_repo = LeagueRepository(session)
 
+    def clear_caches(self) -> None:
+        """Drop date-keyed league behaviour caches."""
+        self._features_cache.clear()
+        self._global_stats_cache.clear()
+
     def _resolve_league_id(self, match: STMatchModel) -> int | None:
         if match.league_name:
             league = self.league_repo.get_by_name(match.league_name)

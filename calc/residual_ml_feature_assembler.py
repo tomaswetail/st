@@ -54,6 +54,14 @@ class ResidualMLFeatureAssembler:
             tuple[str, date, int], list
         ] = {}
 
+    def clear_caches(self) -> None:
+        """Drop lookback caches across nested calculators."""
+        self._team_fixtures_cache.clear()
+        self.strength_calculator.clear_caches()
+        self.league_behavior_calculator.clear_caches()
+        self.rest_calculator.clear_caches()
+        self.home_advantage_calculator.clear_caches()
+
     def assemble(
         self,
         match: STMatchModel,
@@ -74,28 +82,30 @@ class ResidualMLFeatureAssembler:
         target_league_external_id = self._resolve_league_external_id(match)
 
         market_probs = self._market_probabilities(match)
+        home_advantage_log, home_advantage_coefficient = self._home_advantage(
+            match,
+            cutoff,
+            target_league_external_id=target_league_external_id,
+        )
         strength = self.strength_calculator.get_fixture_features(
             match.home_team_id,
             match.away_team_id,
             match.start_time,
             match_id=match.id,
             target_league_external_id=target_league_external_id,
+            home_advantage_coefficient=home_advantage_coefficient,
         )
         history_fixtures = self._load_balance_fixtures(match, cutoff)
         balance = self.balance_calculator.calculate(
             match,
             history_fixtures,
             market_probs,
+            strength=strength,
         )
         league_behavior = self.league_behavior_calculator.calculate(match)
         rest = self.rest_calculator.calculate(match)
 
         league_avg_npxg = self._league_avg_npxg(match, cutoff)
-        home_advantage_log, home_advantage_coefficient = self._home_advantage(
-            match,
-            cutoff,
-            target_league_external_id=target_league_external_id,
-        )
 
         upset_rate = (
             1.0 - league_behavior.league_favourite_win_rate

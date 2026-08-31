@@ -92,6 +92,26 @@ def blend_baselines(
     return normalize_probabilities(blended)
 
 
+def apply_market_only_baseline(rows: list[dict]) -> list[dict]:
+    """Set p_*_blend from p_*_market_norm so residuals train/predict vs market only."""
+    for row in rows:
+        home = row.get("p_home_market_norm")
+        draw = row.get("p_draw_market_norm")
+        away = row.get("p_away_market_norm")
+        if home is None or draw is None or away is None:
+            continue
+        if home == "" or draw == "" or away == "":
+            continue
+        row["p_home_blend"] = float(home)
+        row["p_draw_blend"] = float(draw)
+        row["p_away_blend"] = float(away)
+    return rows
+
+
+def is_market_only_weights(market_weight: float, dc_weight: float) -> bool:
+    return market_weight >= 1.0 - 1e-9 and dc_weight <= 1e-9
+
+
 def target_logit_deltas(
     label: Outcome,
     baseline: Mapping[str, float],
@@ -135,10 +155,11 @@ def shrink_toward_market(
     *,
     alpha: float,
 ) -> dict[str, float]:
+    """Mix ML toward market: final = (1 - alpha) * ml + alpha * market."""
     alpha = min(1.0, max(0.0, alpha))
     mixed = {
-        outcome: alpha * ml_probabilities[outcome]
-        + (1.0 - alpha) * market_probabilities[outcome]
+        outcome: (1.0 - alpha) * ml_probabilities[outcome]
+        + alpha * market_probabilities[outcome]
         for outcome in OUTCOMES
     }
     normalized = normalize_probabilities(mixed)

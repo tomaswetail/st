@@ -67,20 +67,26 @@ class ResidualMLTrainer:
         dc_weight: float = 0.3,
         random_state: int = 42,
         label_smoothing: float = 0.05,
+        max_depth: int = 6,
+        learning_rate: float = 0.05,
+        max_iter: int = 300,
     ) -> None:
         self.market_weight = market_weight
         self.dc_weight = dc_weight
         self.random_state = random_state
         self.label_smoothing = label_smoothing
+        self.max_depth = max_depth
+        self.learning_rate = learning_rate
+        self.max_iter = max_iter
         self.feature_names: list[str] = []
         self.global_medians: dict[str, float] = {}
         self.version = "v1"
         self.model = MultiOutputRegressor(
             HistGradientBoostingRegressor(
                 random_state=random_state,
-                max_depth=6,
-                learning_rate=0.05,
-                max_iter=300,
+                max_depth=max_depth,
+                learning_rate=learning_rate,
+                max_iter=max_iter,
             )
         )
 

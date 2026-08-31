@@ -293,3 +293,8 @@ class DataSourceConfig(BaseModel):
         ge=0.0,
         le=1.0,
     )
+    residual_ml_home_advantage_mode: Literal["full", "fast"] = Field(
+        default_factory=lambda: os.environ.get(
+            "RESIDUAL_ML_HOME_ADVANTAGE_MODE", "full"
+        ).lower(),
+    )

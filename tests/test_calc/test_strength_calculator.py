@@ -16,8 +16,8 @@ from calc.strength_calculator import (
 # ----------------------------------------------------------------------
 
 
-def make_config():
-    return SimpleNamespace(
+def make_config(**overrides):
+    config = SimpleNamespace(
         football_data_provider="test",
         team_strength_lookback_matches=20,
         team_strength_recency_decay=0.90,
@@ -27,13 +27,17 @@ def make_config():
         goalkeeper_prior_shots=100,
         dixon_coles_rho=-0.13,
         dixon_coles_max_goals=10,
+        football_data_opponent_adjustment="none",
     )
+    for key, value in overrides.items():
+        setattr(config, key, value)
+    return config
 
 
-def make_calculator():
+def make_calculator(**config_overrides):
     calculator = StrengthCalculator(
         session=MagicMock(),
-        config=make_config(),
+        config=make_config(**config_overrides),
         provider="test",
     )
 
@@ -496,6 +500,53 @@ def test_opponent_adjustment():
     assert buckets.opponent_adjusted_defence[0][0] == pytest.approx(
         1.2 / 1.8
     )
+
+
+def _match_metrics_for_gate():
+    return SimpleNamespace(
+        opponent_team_name="Chelsea",
+        match_date=date(2026, 7, 1),
+        non_penalty_xg_for=1.80,
+        non_penalty_xg_against=1.20,
+        set_piece_xg_for=None,
+        set_piece_xg_against=None,
+        attack_xg=None,
+        defence_xg=None,
+        shots_for=None,
+        shots_against=None,
+        played_at_home=True,
+        goalkeeper_xgot_faced=None,
+        goals_conceded=0.0,
+        shots_on_target_faced=None,
+    )
+
+
+def test_opponent_adjustment_skipped_when_config_none():
+    from calc.strength_calculator import _ObservationBuckets
+
+    calculator = make_calculator(football_data_opponent_adjustment="none")
+    calculator._get_opponent_strength_before = MagicMock(
+        return_value=(1.20, 0.80, 1.50)
+    )
+    buckets = _ObservationBuckets()
+    calculator._accumulate_match_metrics(buckets, _match_metrics_for_gate(), 1.0)
+    calculator._get_opponent_strength_before.assert_not_called()
+    assert buckets.opponent_adjusted_attack == []
+    assert buckets.opponent_adjusted_defence == []
+
+
+def test_opponent_adjustment_runs_when_config_simple():
+    from calc.strength_calculator import _ObservationBuckets
+
+    calculator = make_calculator(football_data_opponent_adjustment="simple")
+    calculator._get_opponent_strength_before = MagicMock(
+        return_value=(1.20, 0.80, 1.50)
+    )
+    buckets = _ObservationBuckets()
+    calculator._accumulate_match_metrics(buckets, _match_metrics_for_gate(), 1.0)
+    calculator._get_opponent_strength_before.assert_called()
+    assert buckets.opponent_adjusted_attack
+    assert buckets.opponent_adjusted_defence
 
 
 # ----------------------------------------------------------------------

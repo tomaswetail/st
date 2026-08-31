@@ -15,6 +15,7 @@ from objects.schema.data_classes.balance_and_environment_features import (
     BalanceAndEnvironmentFeatures,
 )
 from objects.schema.data_classes.data_sources import DataSourceConfig
+from objects.schema.data_classes.team_strength_features import MatchStrengthFeatures
 from objects.schema.db.fixture import Fixture
 from utils.common import ensure_unit_probabilities
 from utils.fixture_fields import (
@@ -48,6 +49,8 @@ class BalanceAndEnvironment:
         match: STMatchModel,
         fixtures: Sequence[Fixture | FixtureModel],
         market_probabilities: dict[str, float | None],
+        *,
+        strength: MatchStrengthFeatures | None = None,
     ) -> BalanceAndEnvironmentFeatures:
         """Compute balance/environment features for one ST fixture."""
         if match.home_team is None or match.away_team is None:
@@ -60,12 +63,13 @@ class BalanceAndEnvironment:
             if isinstance(match.start_time, datetime)
             else match.start_time
         )
-        strength = self.strength_calculator.get_fixture_features(
-            match.home_team_id,
-            match.away_team_id,
-            match.start_time,
-            match_id=match.id,
-        )
+        if strength is None:
+            strength = self.strength_calculator.get_fixture_features(
+                match.home_team_id,
+                match.away_team_id,
+                match.start_time,
+                match_id=match.id,
+            )
 
         home_attack_strength = strength.home_attack_strength
         away_attack_strength = strength.away_attack_strength

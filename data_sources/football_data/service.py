@@ -769,9 +769,6 @@ class ExtendedMatchDataService:
         if not _candidates:
             pass
 
-        if historical.away_team_name == 'Chicago Fire FC':
-            l=1
-
         home = self.team_resolver.resolve_team(
             historical.home_team_name, historical.home_team_id
         )
@@ -868,19 +865,6 @@ class ExtendedMatchDataService:
                 method="unresolved",
                 unresolved_name=provider_team_id,
             )
-
-    def _provider_match_id_for_internal(
-        self,
-        match_id: int,
-        provider: str | None = None,
-    ) -> str | None:
-        """Look up a stored provider match id for an internal match."""
-        mapping = self.resolver.mapping_repo.get_by_internal(
-            provider=provider or self.provider_name,
-            entity_type="match",
-            internal_entity_id=match_id,
-        )
-        return mapping.external_entity_id if mapping else None
 
     @staticmethod
     def _map_season_label(provider_season_name: str) -> str | None:

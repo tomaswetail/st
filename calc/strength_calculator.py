@@ -326,6 +326,16 @@ class StrengthCalculator:
         self._league_goal_rates_cache: dict[tuple[int, date], tuple[float, float]] = {}
         self._team_by_id_cache: dict[int, TeamModel | None] = {}
 
+    def clear_caches(self) -> None:
+        """Drop date-keyed feature caches (keep team id lookups)."""
+        self._team_features_cache.clear()
+        self._league_averages_cache.clear()
+        self._team_match_stats_cache.clear()
+        self._opponent_strength_cache.clear()
+        self._league_goal_rates_cache.clear()
+        if self._home_advantage_calculator is not None:
+            self._home_advantage_calculator.clear_caches()
+
     def close(self) -> None:
         """Close the session when this calculator created it."""
         if self._owns_session:
@@ -425,6 +435,7 @@ class StrengthCalculator:
         match_id: int | None = None,
         lookback_matches: int | None = None,
         target_league_external_id: int | None = None,
+        home_advantage_coefficient: float | None = None,
     ) -> MatchStrengthFeatures:
         """Combine home/away team features for a fixture without a historical match row."""
         home_team = self._get_team(home_team_id)
@@ -445,6 +456,7 @@ class StrengthCalculator:
             away_features=away_features,
             match_date=cutoff_date,
             target_league_external_id=target_league_external_id,
+            home_advantage_coefficient=home_advantage_coefficient,
         )
 
     def explain(
@@ -483,6 +495,7 @@ class StrengthCalculator:
         away_features: TeamStrengthFeatures | None,
         match_date: date,
         target_league_external_id: int | None = None,
+        home_advantage_coefficient: float | None = None,
     ) -> MatchStrengthFeatures:
         """Build MatchStrengthFeatures from side features and Dixon–Coles."""
         league_home, league_away = self._league_goal_rates(home_team, match_date)
@@ -498,11 +511,12 @@ class StrengthCalculator:
             league_goal_rate,
             league_npxg,
         )
-        home_advantage_coefficient = self._home_advantage_coefficient(
-            home_team,
-            match_date,
-            target_league_external_id=target_league_external_id,
-        )
+        if home_advantage_coefficient is None:
+            home_advantage_coefficient = self._home_advantage_coefficient(
+                home_team,
+                match_date,
+                target_league_external_id=target_league_external_id,
+            )
         if expected_home is not None:
             expected_home *= home_advantage_coefficient
         home_win, draw, away_win = self._dixon_coles_probs(expected_home, expected_away)
@@ -837,7 +851,8 @@ class StrengthCalculator:
         )
         self._accumulate_shot_quality(buckets, metrics, match_weight)
         self._accumulate_attack_defence(buckets, metrics, match_weight)
-        self._accumulate_opponent_adjustment(buckets, metrics, match_weight)
+        if self.config.football_data_opponent_adjustment == "simple":
+            self._accumulate_opponent_adjustment(buckets, metrics, match_weight)
         if (
             metrics.goalkeeper_xgot_faced is not None
             and metrics.shots_on_target_faced is not None

@@ -51,7 +51,7 @@ class STDrawManager:
 
     def import_all_draws_and_name_check(self):
         missed_teams = []#4760
-        for draw_number in range(4760, 4959):
+        for draw_number in range(4959, 4967):
             print(f"***************************************{draw_number}********************************")
             payload = self.client.fetch_draw(draw_number)
             draw = payload["draw"]
@@ -63,9 +63,6 @@ class STDrawManager:
                 participants = match_data.get("participants") or []
                 home_participant = _participant_by_type(participants, "home")
                 away_participant = _participant_by_type(participants, "away")
-
-                if away_participant['name'] != 'Skottland' and away_participant['name'] != 'Skottland':
-                    continue
 
                 home_resolved = self.entity_resolver.resolve_team(provider_team_id=home_participant['id'],
                                                                   provider_team_name=home_participant['name'])
@@ -92,7 +89,7 @@ class STDrawManager:
 
     def import_all_draws(self):
 
-        for draw_number in range(4760, 4959):
+        for draw_number in range(4959, 4967):
             self.import_draw(draw_number)
 
     def import_draw(self, draw_number: int) -> list[STRound]:

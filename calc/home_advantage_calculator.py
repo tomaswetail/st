@@ -88,6 +88,13 @@ class HomeAdvantageCalculator:
             tuple[int, date, int | None], HomeAdvantageResult
         ] = {}
 
+    def clear_caches(self) -> None:
+        """Drop date-keyed home-advantage caches."""
+        self._features_cache.clear()
+        self._league_baselines_cache.clear()
+        self._competition_beta_cache.clear()
+        self._process_cache.clear()
+
     def _team_league_id(self, team: Team | TeamModel) -> int | None:
         team_model = self.team_repo.get(team.id)
         if team_model is None and getattr(team, "external_id", None):
@@ -153,13 +160,16 @@ class HomeAdvantageCalculator:
             )
             league_ha = league_ha_result["league_season_home_advantage"]
 
-        team_result = self.calculate_team_home_advantage(
-            team=team,
-            league_id=league_id,
-            season=season or "",
-            target_date=current_date,
-            league_season_home_advantage=league_ha,
-        )
+        if self.config.residual_ml_home_advantage_mode == "fast":
+            team_result = self._empty_result(league_ha)
+        else:
+            team_result = self.calculate_team_home_advantage(
+                team=team,
+                league_id=league_id,
+                season=season or "",
+                target_date=current_date,
+                league_season_home_advantage=league_ha,
+            )
         result = HomeAdvantageResult(
             home_advantage=(
                 league_ha
@@ -446,8 +456,6 @@ class HomeAdvantageCalculator:
         league_season_home_advantage: float | None = None,
     ) -> HomeAdvantageResult:
         """Estimate additional team-specific HA from opponent-adjusted npxG residuals."""
-        self._features_cache.clear()
-        self._league_baselines_cache.clear()
         league_diagnostics = {
             "raw_league_season_home_advantage": 0.0,
             "league_home_advantage_shrinkage_weight": 0.0,
