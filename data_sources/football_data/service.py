@@ -117,6 +117,10 @@ class ExtendedMatchDataService:
         self._matches_by_date_cache: dict[date, list[ProviderMatch]] = {}
         self._alias_candidate = {}
 
+    @property
+    def alias_candidates(self) -> dict[str, str]:
+        return dict(self._alias_candidate)
+
     def close(self) -> None:
         """Close owned provider client and DB session."""
         close = getattr(self.provider, "close", None)
@@ -765,9 +769,14 @@ class ExtendedMatchDataService:
             if match_date is None:
                 return None
             candidates = self._provider_matches_for_date(match_date)
-        _candidates = [c for c in candidates if c.provider_league_id == str(API_FOOTBALL_TO_FOTMOB_LEAGUE_MAPPING[historical.league_id])]
-        if not _candidates:
-            pass
+        _candidates = [
+            candidate
+            for candidate in candidates
+            if candidate.provider_league_id
+            == str(API_FOOTBALL_TO_FOTMOB_LEAGUE_MAPPING[historical.league_id])
+        ]
+        if _candidates:
+            candidates = _candidates
 
         home = self.team_resolver.resolve_team(
             historical.home_team_name, historical.home_team_id

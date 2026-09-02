@@ -1,0 +1,8 @@
+{
+  "xi_values": [0.0018],
+  "lookback_values": [730],
+  "rho_values": [-0.13, -0.10],
+  "min_eval_matches_per_league": 15,
+  "min_training_matches": 50,
+  "min_team_matches": 5
+}

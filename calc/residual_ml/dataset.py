@@ -12,12 +12,12 @@ from typing import Any, Iterator
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from calc.residual_ml_baseline import (
+from calc.residual_ml.baseline import (
     blend_baselines,
     engine_baseline,
     market_baseline,
 )
-from calc.residual_ml_feature_assembler import ResidualMLFeatureAssembler
+from calc.residual_ml.feature_assembler import ResidualMLFeatureAssembler
 from objects.models.st_match import STMatchModel
 from objects.models.st_round import STRoundModel
 from objects.schema.data_classes.data_sources import DataSourceConfig
@@ -58,6 +58,10 @@ class ResidualMLDatasetBuilder:
                 "Building with fast home advantage (league + competition only)",
                 flush=True,
             )
+        print(
+            f"DC engine: {self.config.residual_ml_dc_engine}",
+            flush=True,
+        )
         emitted = 0
         batch_started = time.perf_counter()
         for index, match in enumerate(matches, start=1):
@@ -194,20 +198,6 @@ class ResidualMLDatasetBuilder:
     def export_json(self, path: Path, rows: list[dict[str, Any]]) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(rows, indent=2), encoding="utf-8")
-
-    @staticmethod
-    def time_split(
-        rows: list[dict[str, Any]],
-        *,
-        validation_fraction: float = 0.2,
-    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-        ordered = sorted(rows, key=lambda row: (row.get("match_date", ""), row.get("match_id", 0)))
-        if not ordered:
-            return [], []
-        split_index = max(1, int(len(ordered) * (1.0 - validation_fraction)))
-        if split_index >= len(ordered):
-            split_index = len(ordered) - 1
-        return ordered[:split_index], ordered[split_index:]
 
     def _finished_matches(
         self,

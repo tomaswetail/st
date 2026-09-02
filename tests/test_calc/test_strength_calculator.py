@@ -178,7 +178,7 @@ def make_match_team_features(
 
 
 def test_get_team_features_full_calculation():
-    calculator = make_calculator()
+    calculator = make_calculator(football_data_opponent_adjustment="simple")
 
     arsenal = make_team()
     calculator.team_repo.get.return_value = arsenal

@@ -13,7 +13,6 @@ from objects.schema.data_classes.provider_dtos import ProviderMatch
 def _resolver() -> EntityResolver:
     session = MagicMock()
     resolver = EntityResolver(session, provider="api-football")
-    resolver.mapping_repo.get_by_external = MagicMock(return_value=None)
     resolver._append_unresolved_match = MagicMock()
     return resolver
 
@@ -176,37 +175,6 @@ def test_resolve_match_unresolved_when_no_candidates():
     assert result.method == "unresolved"
 
 
-def test_resolve_team_create_if_missing_creates_and_maps():
-    resolver = _resolver()
-    created = SimpleNamespace(id=42, name="New FC", external_id=999)
-    resolver.team_repo.get = MagicMock(return_value=None)
-    resolver.team_repo.create_from_provider_team = MagicMock(return_value=created)
-    resolver.team_repo.flush = MagicMock()
-    resolver.team_repo.get_by_name_and_league = MagicMock(return_value=None)
-    resolver.team_repo.get_by_name = MagicMock(return_value=None)
-    resolver.team_repo.team_name_wide_search = MagicMock(return_value=None)
-    resolver._candidate_team_names = MagicMock(return_value=[])
-    resolver._aliases = {}
-    resolver.team_repo.find_exact_normalized = MagicMock(return_value=None)
-    resolver.team_repo.find_by_club_affix = MagicMock(return_value=None)
-    resolver.team_repo.find_fuzzy_duplicate = MagicMock(return_value=None)
-    resolver.team_repo.find_substring_duplicate = MagicMock(return_value=None)
-
-    result = resolver.resolve_team(
-        provider_team_id="999",
-        provider_team_name="New FC",
-        league_id=1,
-        create_if_missing=True,
-    )
-
-    assert result.method == "created"
-    assert result.team is created
-    resolver.team_repo.create_from_provider_team.assert_called_once_with(
-        external_id=999,
-        name="New FC",
-    )
-
-
 def test_resolve_team_reuses_normalized_duplicate_instead_of_creating():
     resolver = _resolver()
     existing = SimpleNamespace(id=7, name="Franke")
@@ -223,7 +191,6 @@ def test_resolve_team_reuses_normalized_duplicate_instead_of_creating():
         provider_team_id="IK Franke",
         provider_team_name="IK Franke",
         league_id=1,
-        create_if_missing=True,
     )
 
     assert result.method == "normalized"
@@ -248,12 +215,9 @@ def test_resolve_team_does_not_fuzzy_match_angers_to_rangers():
         provider_team_id="501",
         provider_team_name="Angers",
         league_id=1,
-        create_if_missing=True,
     )
 
-    assert result.method == "created"
-    assert result.team is created
-    resolver.team_repo.create_from_provider_team.assert_called_once()
+    assert result.method == "unresolved"
 
 
 def test_resolve_team_does_not_alias_manchester_city_to_man_united():
@@ -280,12 +244,9 @@ def test_resolve_team_does_not_alias_manchester_city_to_man_united():
         provider_team_id="502",
         provider_team_name="Manchester City",
         league_id=1,
-        create_if_missing=True,
     )
 
-    assert result.method == "created"
-    assert result.team is created
-    resolver.team_repo.create_from_provider_team.assert_called_once()
+    assert result.method == "unresolved"
 
 
 def test_resolve_team_still_aliases_manchester_city_to_man_city():
@@ -306,7 +267,6 @@ def test_resolve_team_still_aliases_manchester_city_to_man_city():
         provider_team_id="502",
         provider_team_name="Manchester City",
         league_id=1,
-        create_if_missing=True,
     )
 
     assert result.method == "alias"
@@ -332,12 +292,9 @@ def test_resolve_team_does_not_match_villarreal_to_villarreal_b_duplicate():
         provider_team_id="503",
         provider_team_name="Villarreal",
         league_id=1,
-        create_if_missing=True,
     )
 
-    assert result.method == "created"
-    assert result.team is created
-    resolver.team_repo.create_from_provider_team.assert_called_once()
+    assert result.method == "unresolved"
 
 
 def test_resolve_team_does_not_exact_match_oxford_city_to_oxford():
@@ -360,19 +317,15 @@ def test_resolve_team_does_not_exact_match_oxford_city_to_oxford():
         provider_team_id="504",
         provider_team_name="Oxford City",
         league_id=1,
-        create_if_missing=True,
     )
 
-    assert result.method == "created"
-    assert result.team is created
-    resolver.team_repo.create_from_provider_team.assert_called_once()
+    assert result.method == "unresolved"
 
 
 def test_resolve_match_appends_unresolved_row_to_csv(tmp_path):
     csv_path = tmp_path / "unresolved_matches.csv"
     resolver = EntityResolver(MagicMock(), provider="api-football")
     resolver.config.unresolved_matches_csv_path = csv_path
-    resolver.mapping_repo.get_by_external = MagicMock(return_value=None)
     home = SimpleNamespace(id=1, name="Chelsea", external_id=101, code=None, country=None)
     away = SimpleNamespace(id=2, name="Liverpool", external_id=102, code=None, country=None)
     resolver._names_for_team = MagicMock(side_effect=[["Chelsea"], ["Liverpool"]])

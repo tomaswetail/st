@@ -24,6 +24,7 @@ from data_sources.football_data.providers.sofascore import (
 )
 from data_sources.football_data.results import MatchImportResult
 from data_sources.football_data.service import ExtendedMatchDataService
+from objects.repositories.external_entity_mapping_repository import ExternalEntityMappingRepository
 from objects.schema.data_classes.data_sources import DataSourceConfig
 from objects.schema.data_classes.provider_dtos import (
     ProviderMatch,
@@ -65,24 +66,20 @@ def test_sofascore_season_matches_parsing():
 def test_team_resolution_order_mapping_then_exact():
     session = MagicMock()
     resolver = EntityResolver(session, provider="sofascore")
-    mapped_team = SimpleNamespace(id=10, name="Man City", external_id=10, code=None, country=None)
-    resolver.mapping_repo.get_by_external = MagicMock(
-        return_value=SimpleNamespace(internal_entity_id=10)
+    man_city = SimpleNamespace(id=10, name="Man City", external_id=10, code=None, country=None)
+    arsenal = SimpleNamespace(id=11, name="Arsenal", external_id=11, code=None, country=None)
+    resolver.team_repo.get_by_name = MagicMock(
+        side_effect=lambda name: man_city if name == "Man City" else arsenal if name == "Arsenal" else None
     )
-    resolver.team_repo.get = MagicMock(return_value=mapped_team)
     result = resolver.resolve_team(
         provider_team_id="8456",
         provider_team_name="Manchester City",
     )
-    assert result.method == "mapping"
+    assert result.method == "alias"
     assert result.team.id == 10
 
-    resolver.mapping_repo.get_by_external = MagicMock(return_value=None)
     resolver._team_name_cache = ["Manchester City", "Arsenal"]
     resolver._aliases = {}
-    resolver.team_repo.get_by_name = MagicMock(
-        return_value=SimpleNamespace(id=11, name="Arsenal")
-    )
     resolver.team_repo.get_by_name_and_league = MagicMock(return_value=None)
     result = resolver.resolve_team(
         provider_team_id="999",
@@ -96,7 +93,6 @@ def test_team_resolution_unresolved_low_confidence(caplog):
     session = MagicMock()
     config = DataSourceConfig(fuzzy_match_threshold=95)
     resolver = EntityResolver(session, config=config, provider="sofascore")
-    resolver.mapping_repo.get_by_external = MagicMock(return_value=None)
     resolver._team_name_cache = ["Arsenal"]
     resolver._aliases = {}
     resolver.team_repo.get_by_name = MagicMock(return_value=None)
@@ -119,36 +115,11 @@ def test_team_resolution_unresolved_low_confidence(caplog):
 # ---------------------------------------------------------------------------
 
 
-def test_match_resolution_by_mapping():
-    session = MagicMock()
-    resolver = EntityResolver(session, provider="sofascore")
-    historical = SimpleNamespace(id=55)
-    resolver.mapping_repo.get_by_external = MagicMock(
-        return_value=SimpleNamespace(internal_entity_id=55)
-    )
-    resolver.fixture_repo.get = MagicMock(return_value=historical)
-    provider_match = ProviderMatch(
-        provider_match_id="4000001",
-        provider_league_id="47",
-        provider_season_id="2025",
-        home_team_id="1",
-        away_team_id="2",
-        home_team_name="A",
-        away_team_name="B",
-        kickoff_at=datetime(2025, 8, 15, 18, 0, tzinfo=timezone.utc),
-        status="finished",
-    )
-    result = resolver.resolve_match(
-        provider_match, league_external_id=39, home_team=None, away_team=None, league_id=47
-    )
-    assert result.method == "mapping"
-    assert result.match.id == 55
 
 
 def test_postponed_fixture_matching_via_season():
     session = MagicMock()
     resolver = EntityResolver(session, provider="sofascore")
-    resolver.mapping_repo.get_by_external = MagicMock(return_value=None)
 
     postponed = SimpleNamespace(
         id=77,
@@ -193,9 +164,6 @@ def test_postponed_fixture_matching_via_season():
 
 def test_provider_id_mapping_upsert_unique_keys():
     session = MagicMock()
-    from objects.repositories.external_entity_mapping_repository import (
-        ExternalEntityMappingRepository,
-    )
 
     repo = ExternalEntityMappingRepository(session)
     fake_row = SimpleNamespace(id=1, external_entity_id="47")
@@ -221,9 +189,6 @@ def test_provider_id_mapping_upsert_unique_keys():
 
 def test_provider_id_mapping_upsert_keeps_existing_internal_link():
     session = MagicMock()
-    from objects.repositories.external_entity_mapping_repository import (
-        ExternalEntityMappingRepository,
-    )
 
     repo = ExternalEntityMappingRepository(session)
     existing = SimpleNamespace(
@@ -257,9 +222,6 @@ def test_provider_id_mapping_upsert_does_not_steal_internal_slot():
 
     session = MagicMock()
     session.no_autoflush = nullcontext()
-    from objects.repositories.external_entity_mapping_repository import (
-        ExternalEntityMappingRepository,
-    )
 
     repo = ExternalEntityMappingRepository(session)
     existing_external = SimpleNamespace(
@@ -541,14 +503,23 @@ def test_fetch_match_details_resolves_by_date_and_team_names():
     details = SimpleNamespace(match=listed, shots=[], statistics={}, raw_payload={})
     provider.fetch_match_details.return_value = details
 
-    service = ExtendedMatchDataService(
-        provider=provider, session=session, dry_run=True
-    )
     historical = SimpleNamespace(
         id=5,
         home_team_name="Arsenal",
         away_team_name="Chelsea",
+        home_team_id=42,
+        away_team_id=43,
+        league_id=39,
         fixture_date=datetime(2024, 8, 17, 15, 0, tzinfo=timezone.utc),
+    )
+
+    team_resolver = MagicMock()
+    team_resolver.resolve_team.side_effect = [8456, 10260]
+    service = ExtendedMatchDataService(
+        provider=provider,
+        session=session,
+        team_resolver=team_resolver,
+        dry_run=True,
     )
 
     fetched, used = service._fetch_match_details(historical)
@@ -598,6 +569,7 @@ def test_resolve_provider_match_matches_int_team_ids():
         away_team_name="Chelsea",
         home_team_id=42,
         away_team_id=43,
+        league_id=39,
         fixture_date=datetime(2024, 8, 17, 15, 0, tzinfo=timezone.utc),
     )
 
@@ -630,14 +602,23 @@ def test_fetch_and_store_matches_fetches_listings_by_date():
     details = SimpleNamespace(match=listed, shots=[], statistics={}, raw_payload={})
     provider.fetch_match_details.return_value = details
 
+    team_resolver = MagicMock()
+    team_resolver.resolve_team.side_effect = [8456, 10260, 8456, 10260]
+
     fixture = SimpleNamespace(
         id=10,
         home_team_name="Arsenal",
         away_team_name="Chelsea",
+        home_team_id=42,
+        away_team_id=43,
+        league_id=39,
         fixture_date=datetime(2024, 8, 17, 15, 0, tzinfo=timezone.utc),
     )
     service = ExtendedMatchDataService(
-        provider=provider, session=session, dry_run=True
+        provider=provider,
+        session=session,
+        team_resolver=team_resolver,
+        dry_run=True,
     )
     service.fixture_repo.get = MagicMock(return_value=fixture)
     service.stats_repo.get_by_match_and_provider = MagicMock(return_value=None)

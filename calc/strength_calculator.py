@@ -533,6 +533,10 @@ class StrengthCalculator:
             away_win_probability=away_win,
         )
 
+    def home_advantage_calculator(self) -> HomeAdvantageCalculator:
+        """Return the shared HomeAdvantageCalculator for this strength calculator."""
+        return self._home_advantage_calculator_instance()
+
     def _home_advantage_calculator_instance(self) -> HomeAdvantageCalculator:
         """Lazy HomeAdvantageCalculator sharing this StrengthCalculator instance."""
         if self._home_advantage_calculator is None:

@@ -5,16 +5,15 @@ from __future__ import annotations
 import math
 from typing import Mapping
 
-from utils.common import Outcome, ensure_unit_probabilities
+from utils.common import OUTCOMES, Outcome, ensure_unit_probabilities
+from calc.probability_metrics import PROB_EPSILON
 
-OUTCOMES: tuple[Outcome, ...] = ("1", "X", "2")
 
-
-def _clip_prob(probability: float, *, epsilon: float = 1e-6) -> float:
+def _clip_prob(probability: float, *, epsilon: float = PROB_EPSILON) -> float:
     return min(1.0 - epsilon, max(epsilon, probability))
 
 
-def logit(probability: float, *, epsilon: float = 1e-6) -> float:
+def logit(probability: float, *, epsilon: float = PROB_EPSILON) -> float:
     clipped = _clip_prob(probability, epsilon=epsilon)
     return math.log(clipped / (1.0 - clipped))
 

@@ -8,6 +8,8 @@ from math import exp
 from sqlalchemy.orm import Session
 
 from calc.balance_and_environment import BalanceAndEnvironment
+from calc.dixon_coles.model import DixonColesModel, DixonColesPrediction
+from calc.dixon_coles.service import DixonColesService
 from calc.league_behavior_calculator import LeagueBehaviorCalculator
 from calc.market_probabilities import MarketProbabilities
 from calc.rest_congestion_calculator import RestCongestionCalculator
@@ -17,6 +19,7 @@ from objects.repositories.fixture_repository import FixtureRepository
 from objects.repositories.league_repository import LeagueRepository
 from objects.schema.data_classes.data_sources import DataSourceConfig
 from objects.schema.data_classes.residual_ml_features import ResidualMLFeatures
+from objects.schema.data_classes.team_strength_features import MatchStrengthFeatures
 from objects.schema.db.st_match_odds import STMatchOdds
 from objects.schema.db.team import Team
 from utils.common import ensure_unit_probabilities
@@ -46,17 +49,24 @@ class ResidualMLFeatureAssembler:
         self.rest_calculator = RestCongestionCalculator(session, config=self.config)
         # Reuse the strength calculator's HA instance so process() cache is shared.
         self.home_advantage_calculator = (
-            self.strength_calculator._home_advantage_calculator_instance()
+            self.strength_calculator.home_advantage_calculator()
         )
+        self.dixon_coles_service = DixonColesService(session, config=self.config)
         self._league_external_id_cache: dict[str, int | None] = {}
         self._team_league_id_cache: dict[int, int | None] = {}
         self._team_fixtures_cache: dict[
             tuple[str, date, int], list
         ] = {}
+        self._classic_dc_fit_cache: dict[
+            tuple[int, date], DixonColesModel | None
+        ] = {}
+        self._classic_dc_fallback_logged: set[tuple[int, date]] = set()
 
     def clear_caches(self) -> None:
         """Drop lookback caches across nested calculators."""
         self._team_fixtures_cache.clear()
+        self._classic_dc_fit_cache.clear()
+        self._classic_dc_fallback_logged.clear()
         self.strength_calculator.clear_caches()
         self.league_behavior_calculator.clear_caches()
         self.rest_calculator.clear_caches()
@@ -116,9 +126,9 @@ class ResidualMLFeatureAssembler:
         if rest.home_congestion is not None and rest.away_congestion is not None:
             congestion_difference = rest.home_congestion - rest.away_congestion
 
-        p_home_dc = strength.dixon_coles_home_probability
-        p_draw_dc = strength.dixon_coles_draw_probability
-        p_away_dc = strength.dixon_coles_away_probability
+        expected_home_goals, expected_away_goals, p_home_dc, p_draw_dc, p_away_dc = (
+            self._engine_probabilities(match, cutoff, target_league_external_id, strength)
+        )
         market_vs_dc_home = self._market_vs_dc(
             market_probs.get("1"), p_home_dc
         )
@@ -154,8 +164,8 @@ class ResidualMLFeatureAssembler:
             away_set_piece_defence=strength.away_set_piece_defence,
             home_goalkeeper_prevention=strength.home_goalkeeper_prevention,
             away_goalkeeper_prevention=strength.away_goalkeeper_prevention,
-            expected_home_goals=strength.expected_home_goals,
-            expected_away_goals=strength.expected_away_goals,
+            expected_home_goals=expected_home_goals,
+            expected_away_goals=expected_away_goals,
             p_home_dc=p_home_dc,
             p_draw_dc=p_draw_dc,
             p_away_dc=p_away_dc,
@@ -200,6 +210,80 @@ class ResidualMLFeatureAssembler:
             home_advantage_coefficient=home_advantage_coefficient,
             travel_distance_km=None,
         )
+
+    def _engine_probabilities(
+        self,
+        match: STMatchModel,
+        cutoff: date,
+        league_external_id: int | None,
+        strength: MatchStrengthFeatures,
+    ) -> tuple[float | None, float | None, float | None, float | None, float | None]:
+        """Return expected goals + 1X2 DC probs from classic or strength engine."""
+        strength_tuple = (
+            strength.expected_home_goals,
+            strength.expected_away_goals,
+            strength.dixon_coles_home_probability,
+            strength.dixon_coles_draw_probability,
+            strength.dixon_coles_away_probability,
+        )
+        if self.config.residual_ml_dc_engine != "classic":
+            return strength_tuple
+
+        classic = self._classic_dc_prediction(match, cutoff, league_external_id)
+        if classic is None:
+            return strength_tuple
+        return (
+            classic.lambda_home,
+            classic.lambda_away,
+            classic.p_home,
+            classic.p_draw,
+            classic.p_away,
+        )
+
+    def _classic_dc_prediction(
+        self,
+        match: STMatchModel,
+        cutoff: date,
+        league_external_id: int | None,
+    ) -> DixonColesPrediction | None:
+        if league_external_id is None:
+            return None
+        home_external_id = getattr(match.home_team, "external_id", None)
+        away_external_id = getattr(match.away_team, "external_id", None)
+        if home_external_id is None or away_external_id is None:
+            return None
+
+        cache_key = (league_external_id, cutoff)
+        if cache_key not in self._classic_dc_fit_cache:
+            try:
+                model = self.dixon_coles_service.fit_league(
+                    league_external_id, cutoff
+                )
+            except (ValueError, RuntimeError) as exc:
+                if cache_key not in self._classic_dc_fallback_logged:
+                    print(
+                        f"Classic DC fit failed league={league_external_id} "
+                        f"as_of={cutoff} ({exc}); falling back to strength DC",
+                        flush=True,
+                    )
+                    self._classic_dc_fallback_logged.add(cache_key)
+                model = None
+            self._classic_dc_fit_cache[cache_key] = model
+
+        model = self._classic_dc_fit_cache[cache_key]
+        if model is None:
+            return None
+        try:
+            return model.predict(int(home_external_id), int(away_external_id))
+        except Exception as exc:
+            if cache_key not in self._classic_dc_fallback_logged:
+                print(
+                    f"Classic DC predict failed league={league_external_id} "
+                    f"as_of={cutoff} ({exc}); falling back to strength DC",
+                    flush=True,
+                )
+                self._classic_dc_fallback_logged.add(cache_key)
+            return None
 
     @staticmethod
     def _market_vs_dc(

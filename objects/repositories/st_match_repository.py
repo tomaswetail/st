@@ -1,6 +1,8 @@
 from typing import Any
+from datetime import date
 
-from sqlalchemy import select
+from sqlalchemy import Date, cast, select
+from sqlalchemy.orm import selectinload
 
 from objects.models.st_match import STMatchModel
 from objects.models.st_round import STRoundModel
@@ -36,6 +38,41 @@ class STMatchRepository(BaseRepository[STMatchModel]):
                 )
             ).all()
         )
+
+    def find_finished_with_odds(
+        self,
+        *,
+        date_from: date,
+        date_to: date,
+        min_draw_number: int | None = None,
+        max_draw_number: int | None = None,
+    ) -> list[STMatchModel]:
+        """Finished ST matches with odds and result in an inclusive date range."""
+        start_date = cast(self.model.start_time, Date)
+        query = (
+            select(self.model)
+            .join(
+                STRoundModel,
+                self.model.stryktipset_round_id == STRoundModel.id,
+            )
+            .options(
+                selectinload(self.model.home_team),
+                selectinload(self.model.away_team),
+                selectinload(self.model.match_odds),
+                selectinload(self.model.event),
+            )
+            .where(self.model.stryktipset_result.in_(("1", "X", "2")))
+            .where(self.model.match_odds.has())
+            .where(self.model.start_time.is_not(None))
+            .where(start_date >= date_from)
+            .where(start_date <= date_to)
+        )
+        if min_draw_number is not None:
+            query = query.where(STRoundModel.draw_number >= min_draw_number)
+        if max_draw_number is not None:
+            query = query.where(STRoundModel.draw_number <= max_draw_number)
+        query = query.order_by(self.model.start_time.asc())
+        return list(self.session.scalars(query).all())
 
     def upsert_from_draw(
         self,

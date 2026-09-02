@@ -228,19 +228,6 @@ def ensure_unit_probabilities(
         }
     raise ValueError("Mixed 0–1 and percentage market probability scales")
 
-def probabilities_to_result(
-    win_home: float,
-    draw: float,
-    win_away: float,
-) -> dict[Outcome, float]:
-    _all = [win_home, draw, win_away]
-    if max(_all) == win_home:
-        return '1'
-    elif max(_all) == draw:
-        return 'X'
-    elif max(_all) == win_away:
-        return '2'
-
 def get_season_rev(season: str):
     seasons = {
         '2018': '2018/2019',

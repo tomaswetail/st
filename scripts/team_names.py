@@ -7,7 +7,9 @@ from data_sources.football_data.providers.fotmob import FotMobProvider
 from data_sources.svenskaspel_api_client import SvenskaSpelClient
 from database import init_db, SessionLocal
 from objects.repositories.team_repository import TeamRepository
+from config.stryktipset import STRYKETIPSET_DRAW_MAX, STRYKETIPSET_DRAW_MIN
 from utils.common import LEAGUES_EXTERNAL_IDS, API_FOOTBALL_TO_FOTMOB_LEAGUE_MAPPING, FOTMOBLEAGUE_EXTERNAL_ID_TO_CCODE
+from utils.repo_paths import resolve_repo_path
 
 EXTRA = {
     8814: "BRA",
@@ -18,9 +20,6 @@ EXTRA = {
     10176: "ENG",
     9084: "ENG",
 }
-
-def _project_root() -> Path:
-    return Path(__file__).resolve().parent.parent
 
 def _participant_by_type(
     participants: list[dict[str, Any]], role: str
@@ -55,7 +54,7 @@ def get_ss_teams():
     client = SvenskaSpelClient()
     _teams = []
 
-    for draw_number in range(4760, 4959):
+    for draw_number in range(STRYKETIPSET_DRAW_MIN, STRYKETIPSET_DRAW_MAX + 1):
         payload = client.fetch_draw(draw_number)
         draw = payload["draw"]
 
@@ -122,7 +121,7 @@ def _unique_teams(teams: list[dict]):
     return ret
 
 def write_csv(filename: str, data: list[dict]):
-    csv_path = Path(_project_root() / "data" / f"{filename}.csv")
+    csv_path = resolve_repo_path(f"data/{filename}.csv")
     csv_path.parent.mkdir(parents=True, exist_ok=True)
 
     with open(csv_path, "w", newline="", encoding="utf-8") as f:

@@ -6,7 +6,7 @@ import logging
 
 from sqlalchemy import select
 
-from calc.probality_manager import ProbabilityManager
+from calc.probability_manager import ProbabilityManager
 from data_sources.api_football_client import APIFootballClient, get_all_leagues
 from data_sources.data_collector import DataCollector
 from data_sources.football_data import ExtendedMatchDataService

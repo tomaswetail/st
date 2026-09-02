@@ -246,6 +246,7 @@ def test_strength_calculator_with_mocked_database_data():
     config.football_data_feature_shrinkage_prior_matches = 8
     config.team_strength_min_venue_matches = 3
     config.goalkeeper_prior_shots = 100
+    config.football_data_opponent_adjustment = "simple"
 
     calculator = StrengthCalculator(
         session=MagicMock(),

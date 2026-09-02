@@ -3,23 +3,20 @@
 from __future__ import annotations
 
 import json
-import math
 import pickle
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import numpy as np
-from sklearn.ensemble import HistGradientBoostingRegressor
-from sklearn.metrics import log_loss
-from sklearn.multioutput import MultiOutputRegressor
 
-from calc.residual_ml_baseline import (
+from calc.probability_metrics import multiclass_log_loss
+from calc.residual_ml.baseline import (
     OUTCOMES,
     apply_residual_deltas,
     target_logit_deltas,
 )
-from objects.schema.data_classes.residual_ml_features import ResidualMLFeatures
+from calc.residual_ml.vectorize import vectorize_row_values
 
 MODEL_TYPE = "residual_logit_v1"
 
@@ -81,14 +78,7 @@ class ResidualMLTrainer:
         self.feature_names: list[str] = []
         self.global_medians: dict[str, float] = {}
         self.version = "v1"
-        self.model = MultiOutputRegressor(
-            HistGradientBoostingRegressor(
-                random_state=random_state,
-                max_depth=max_depth,
-                learning_rate=learning_rate,
-                max_iter=max_iter,
-            )
-        )
+        self.model: Any = None
 
     @classmethod
     def feature_names_from_rows(cls, rows: list[dict[str, Any]]) -> list[str]:
@@ -103,6 +93,9 @@ class ResidualMLTrainer:
         train_rows: list[dict[str, Any]],
         validation_rows: list[dict[str, Any]],
     ) -> ResidualMLTrainingResult:
+        from sklearn.ensemble import HistGradientBoostingRegressor
+        from sklearn.multioutput import MultiOutputRegressor
+
         if not train_rows:
             raise ValueError("Training dataset is empty")
 
@@ -116,6 +109,14 @@ class ResidualMLTrainer:
         x_valid = np.vstack([self._vectorize_row(row) for row in validation_rows])
         y_valid_labels = [row["label"] for row in validation_rows]
 
+        self.model = MultiOutputRegressor(
+            HistGradientBoostingRegressor(
+                random_state=self.random_state,
+                max_depth=self.max_depth,
+                learning_rate=self.learning_rate,
+                max_iter=self.max_iter,
+            )
+        )
         self.model.fit(x_train, y_train)
 
         train_loss = self._log_loss_from_rows(train_rows)
@@ -229,14 +230,11 @@ class ResidualMLTrainer:
         return apply_residual_deltas(blend, deltas)
 
     def _vectorize_row(self, row: dict[str, Any]) -> np.ndarray:
-        values: list[float] = []
-        for name in self.feature_names:
-            raw = row.get(name)
-            if raw is None or (isinstance(raw, float) and math.isnan(raw)):
-                values.append(float(self.global_medians.get(name, 0.0)))
-            else:
-                values.append(float(raw))
-        return np.asarray(values, dtype=float)
+        return vectorize_row_values(
+            row,
+            feature_names=self.feature_names,
+            global_medians=self.global_medians,
+        )
 
     def _target_deltas(self, row: dict[str, Any]) -> np.ndarray:
         blend = blend_from_row(row)
@@ -269,7 +267,7 @@ class ResidualMLTrainer:
             y_prob.append([probs[outcome] for outcome in OUTCOMES])
         if not y_true:
             return 0.0
-        return float(log_loss(y_true, y_prob))
+        return multiclass_log_loss(y_true, y_prob)
 
     @staticmethod
     def _compute_medians(rows: list[dict[str, Any]]) -> dict[str, float]:
@@ -308,7 +306,7 @@ class ResidualMLTrainer:
             y_prob.append([float(row[key]) for key in prob_keys])
         if not y_true:
             return None
-        return float(log_loss(y_true, y_prob))
+        return multiclass_log_loss(y_true, y_prob)
 
 
 def blend_from_row(row: dict[str, Any]) -> dict[str, float] | None:
@@ -323,25 +321,9 @@ def blend_from_row(row: dict[str, Any]) -> dict[str, float] | None:
 
 
 def _is_nan(value: Any) -> bool:
+    import math
+
     try:
         return math.isnan(float(value))
     except (TypeError, ValueError):
         return False
-
-
-def vectorize_features(
-    features: ResidualMLFeatures,
-    *,
-    feature_names: list[str],
-    global_medians: dict[str, float],
-) -> np.ndarray:
-    from datetime import date
-
-    row = features.to_dict()
-    for key, value in row.items():
-        if isinstance(value, date):
-            row[key] = value.isoformat()
-    trainer = ResidualMLTrainer()
-    trainer.feature_names = feature_names
-    trainer.global_medians = global_medians
-    return trainer._vectorize_row(row)

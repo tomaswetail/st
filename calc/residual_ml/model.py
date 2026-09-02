@@ -3,17 +3,21 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from calc.residual_ml_baseline import (
+from calc.residual_ml.baseline import (
     apply_residual_deltas,
     blend_baselines,
     engine_baseline,
     market_baseline,
     shrink_toward_market,
 )
-from calc.residual_ml_trainer import ResidualMLTrainer, vectorize_features
+from calc.residual_ml.vectorize import vectorize_features
 from objects.schema.data_classes.data_sources import DataSourceConfig
 from objects.schema.data_classes.residual_ml_features import ResidualMLFeatures
+
+if TYPE_CHECKING:
+    from calc.residual_ml.trainer import ResidualMLTrainer
 
 
 class ResidualMLModel:
@@ -42,6 +46,8 @@ class ResidualMLModel:
     ) -> ResidualMLModel | None:
         if not model_path.exists():
             return None
+        from calc.residual_ml.trainer import ResidualMLTrainer
+
         cfg = config or DataSourceConfig()
         trainer = ResidualMLTrainer.load(model_path)
         return cls(

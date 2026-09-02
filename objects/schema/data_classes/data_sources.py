@@ -8,10 +8,16 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from utils.repo_paths import repo_root
 
-def _project_root() -> Path:
-    """Repository root (…/st), not objects/."""
-    return Path(__file__).resolve().parents[3]
+
+def _classic_dc_league_params_path() -> Path:
+    env_path = os.environ.get("CLASSIC_DC_LEAGUE_PARAMS_PATH")
+    if env_path:
+        return Path(env_path)
+    from data_sources.classic_dc_config import default_league_params_path
+
+    return default_league_params_path()
 
 
 DISK_CACHE_TTL_ONE_YEAR = 365 * 24 * 3600
@@ -21,12 +27,10 @@ class DataSourceConfig(BaseModel):
     """Paths and parameters for data ingestion and features."""
 
     team_aliases_path: Path = Field(
-        default_factory=lambda: Path(__file__).resolve().parents[3] / "config" / "team_aliases.json"
+        default_factory=lambda: repo_root() / "config" / "team_aliases.json"
     )
     api_football_leagues_path: Path = Field(
-        default_factory=lambda: Path(__file__).resolve().parents[3]
-        / "config"
-        / "api_football_leagues.json"
+        default_factory=lambda: repo_root() / "config" / "api_football_leagues.json"
     )
     api_football_key: str = Field(default="6de75a404b5c1c996418d07d6ac70144")
     default_leagues: list[str] = Field(default_factory=lambda: ["E0", "E1", "SP1"])
@@ -37,10 +41,10 @@ class DataSourceConfig(BaseModel):
     form_matches: int = Field(default=5, ge=1)
     fuzzy_match_threshold: int = Field(default=85, ge=0, le=100)
     current_coupon_path: Path = Field(
-        default_factory=lambda: _project_root() / "data" / "current_coupon.json"
+        default_factory=lambda: repo_root() / "data" / "current_coupon.json"
     )
     current_odds_path: Path = Field(
-        default_factory=lambda: _project_root() / "data" / "current_odds.json"
+        default_factory=lambda: repo_root() / "data" / "current_odds.json"
     )
     xg_provider: Literal["understat"] = Field(default="understat")
     understat_leagues: list[str] = Field(
@@ -113,19 +117,19 @@ class DataSourceConfig(BaseModel):
         default="st-football-data/1.0 (+historical-ingestion)"
     )
     football_data_cache_dir: Path = Field(
-        default_factory=lambda: _project_root() / "data" / "cache"
+        default_factory=lambda: repo_root() / "data" / "cache"
     )
     unresolved_matches_csv_path: Path = Field(
-        default_factory=lambda: _project_root() / "data" / "unresolved_matches.csv"
+        default_factory=lambda: repo_root() / "data" / "unresolved_matches.csv"
     )
     conflicting_matches_csv_path: Path = Field(
-        default_factory=lambda: _project_root() / "data" / "conflicting_matches.csv"
+        default_factory=lambda: repo_root() / "data" / "conflicting_matches.csv"
     )
     missing_team_mapping_csv_path: Path = Field(
-        default_factory=lambda: _project_root() / "data" / "missing_team_mappings.csv"
+        default_factory=lambda: repo_root() / "data" / "missing_team_mappings.csv"
     )
     missing_teams_csv_path: Path = Field(
-        default_factory=lambda: _project_root() / "data" / "missing_teams.csv"
+        default_factory=lambda: repo_root() / "data" / "missing_teams.csv"
     )
     kickoff_match_tolerance_minutes: int = Field(default=24 * 60, ge=0)
     xg_aggregate_tolerance: float = Field(default=0.15, ge=0.0)
@@ -161,6 +165,25 @@ class DataSourceConfig(BaseModel):
     )
     dixon_coles_rho: float = Field(
         default_factory=lambda: float(os.environ.get("DIXON_COLES_RHO", "-0.13")),
+    )
+    classic_dc_xi: float = Field(
+        default_factory=lambda: float(os.environ.get("CLASSIC_DC_XI", "0.0018")),
+        ge=0.0,
+    )
+    classic_dc_lookback_days: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("CLASSIC_DC_LOOKBACK_DAYS", "730")
+        ),
+        ge=1,
+    )
+    classic_dc_min_team_matches: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("CLASSIC_DC_MIN_TEAM_MATCHES", "5")
+        ),
+        ge=1,
+    )
+    classic_dc_league_params_path: Path = Field(
+        default_factory=lambda: _classic_dc_league_params_path(),
     )
     home_advantage_shrinkage_matches: int = Field(
         default_factory=lambda: int(
@@ -272,7 +295,7 @@ class DataSourceConfig(BaseModel):
         in {"1", "true", "yes"}
     )
     residual_ml_model_path: Path = Field(
-        default_factory=lambda: _project_root() / "models" / "residual_ml" / "v1" / "model.pkl"
+        default_factory=lambda: repo_root() / "models" / "residual_ml" / "v1" / "model.pkl"
     )
     residual_ml_market_weight: float = Field(
         default_factory=lambda: float(
@@ -296,5 +319,10 @@ class DataSourceConfig(BaseModel):
     residual_ml_home_advantage_mode: Literal["full", "fast"] = Field(
         default_factory=lambda: os.environ.get(
             "RESIDUAL_ML_HOME_ADVANTAGE_MODE", "full"
+        ).lower(),
+    )
+    residual_ml_dc_engine: Literal["classic", "strength"] = Field(
+        default_factory=lambda: os.environ.get(
+            "RESIDUAL_ML_DC_ENGINE", "classic"
         ).lower(),
     )

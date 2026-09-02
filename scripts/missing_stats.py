@@ -47,7 +47,7 @@ def fetch_missing_stats(
             force_refresh=force_refresh,
         )
     finally:
-        print(service._alias_candidate)
+        print(service.alias_candidates)
         service.close()
         session.close()
 

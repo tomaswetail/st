@@ -349,6 +349,32 @@ class FixtureRepository(BaseRepository[FixtureModel]):
 
     _FINISHED_STATUSES = {"FT", "AET", "PEN", "AWD", "WO"}
 
+    def find_finished_goals_before_date(
+        self,
+        *,
+        before_date: date,
+        league_id: int | None = None,
+        after_date: date | None = None,
+    ) -> list[FixtureModel]:
+        """Finished fixtures with goals, strictly before ``before_date``.
+
+        ``league_id`` is the API-Football / fixture ``league_id`` (external).
+        Optional ``after_date`` keeps ``fixture_date >= after_date``.
+        """
+        query = (
+            select(self.model)
+            .where(self.model.status_short.in_(self._FINISHED_STATUSES))
+            .where(self.model.goals_home.is_not(None))
+            .where(self.model.goals_away.is_not(None))
+            .where(self._fixture_date_col() < before_date)
+        )
+        if after_date is not None:
+            query = query.where(self._fixture_date_col() >= after_date)
+        if league_id is not None:
+            query = query.where(self.model.league_id == league_id)
+        query = query.order_by(self.model.fixture_date.asc())
+        return list(self.session.scalars(query).all())
+
     def find_missing_stats(
         self,
         provider: str,

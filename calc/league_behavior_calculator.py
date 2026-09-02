@@ -85,7 +85,10 @@ class LeagueBehaviorCalculator:
         )
         league_id = self._resolve_league_id(match)
         if league_id is None:
-            raise ValueError(f"Missing league for home_team on match id={match.id}")
+            if match.league_country_name == 'Internationell':
+                league_id = 1
+            else:
+                raise ValueError(f"Missing league for home_team on match id={match.id} home_team={match.home_team.name}")
         cache_key = (league_id, cutoff)
         cached = self._features_cache.get(cache_key)
         if cached is not None:

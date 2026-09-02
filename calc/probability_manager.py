@@ -3,13 +3,12 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from calc.market_probabilities import MarketProbabilities
-from calc.residual_ml_baseline import (
+from calc.residual_ml import ResidualMLFeatureAssembler, ResidualMLModel
+from calc.residual_ml.baseline import (
     blend_baselines,
     engine_baseline,
     market_baseline,
 )
-from calc.residual_ml_feature_assembler import ResidualMLFeatureAssembler
-from calc.residual_ml_model import ResidualMLModel
 from objects.repositories.st_match_repository import STMatchRepository
 from objects.repositories.st_round_repository import STRoundRepository
 from objects.schema.data_classes.data_sources import DataSourceConfig
