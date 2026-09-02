@@ -65,7 +65,9 @@ python -m data_sources.api_football_leagues
 | `FOOTBALL_DATA_MAX_RETRIES` | `3` | Retries for 429/5xx/transport |
 | `FOOTBALL_DATA_CACHE_TTL_SECONDS` | `31536000` (1 year) | Disk cache TTL |
 
-Other config: `kickoff_match_tolerance_minutes`, `xg_aggregate_tolerance`, `create_missing_historical_matches` (default `False`), `fuzzy_match_threshold`.
+Other config: `kickoff_match_tolerance_minutes`, `xg_aggregate_tolerance`, `fuzzy_match_threshold`.
+
+> **Note:** Older versions of this doc mention `create_missing_historical_matches`; that field is **not present** in current `DataSourceConfig`. xG import attaches to existing fixtures and logs unresolved rows.
 
 ## External-ID mapping
 
