@@ -1,0 +1,886 @@
+"""Public historical football data ingestion service."""
+
+from __future__ import annotations
+
+import csv
+import logging
+from datetime import date, datetime, timezone
+from pathlib import Path
+from typing import Literal
+
+from sqlalchemy.orm import Session
+
+from data_sources.entity_resolver import EntityResolver, TeamResolution
+from data_sources.football_data.fotmob_entity_resolver import FotMobEntityResolver
+from data_sources.football_data.http_client import (
+    FootballDataHttpError,
+    NotFoundError,
+)
+from data_sources.football_data.metrics import (
+    calculate_derived_metrics,
+    shot_fingerprint,
+)
+from data_sources.football_data.protocol import FootballDataProvider
+from data_sources.football_data.providers.sofascore import SofaScoreProvider
+from data_sources.football_data.providers.fotmob import FotMobProvider
+from data_sources.football_data.results import BatchImportResult, MatchImportResult
+from database import SessionLocal
+from objects.models.fixture import FixtureModel
+from objects.repositories.fixture_repository import FixtureRepository
+from objects.repositories.league_repository import LeagueRepository
+from objects.repositories.match_advanced_stats_repository import (
+    MatchAdvancedStatsRepository,
+)
+from objects.repositories.match_shot_repository import MatchShotRepository
+from objects.repositories.team_repository import TeamRepository
+from objects.schema.data_classes.data_sources import DataSourceConfig
+from objects.schema.data_classes.provider_dtos import (
+    ProviderMatch,
+    ProviderMatchDetails,
+)
+from utils.common import (
+    API_FOOTBALL_TO_FOTMOB_LEAGUE_MAPPING,
+    FOTMOBLEAGUE_EXTERNAL_ID_TO_CCODE,
+)
+from utils.team_mappings import FOTMOB_TO_API_FOOTBALL_TEAMS
+from utils.seasons import last_n_season_codes
+from utils.team_name_matcher import normalize_team_name
+
+logger = logging.getLogger(__name__)
+
+ProviderName = Literal["sofascore"]
+
+# SofaScore season labels used when none is passed explicitly.
+FIXED_IMPORT_SEASONS = ["2022", "2023"]
+
+
+def _api_football_league_id_for_fotmob_league(fotmob_league_id: str) -> int | None:
+    """Map a FotMob league id to the first matching API-Football league id."""
+    try:
+        fotmob_id = int(fotmob_league_id)
+    except (TypeError, ValueError):
+        return None
+    for api_league_id, mapped_fotmob_id in API_FOOTBALL_TO_FOTMOB_LEAGUE_MAPPING.items():
+        if mapped_fotmob_id == fotmob_id:
+            return api_league_id
+    return None
+
+
+def build_provider(
+    name: ProviderName,
+    *,
+    config: DataSourceConfig,
+    client=None,
+) -> FootballDataProvider:
+    """Construct a SofaScore provider adapter."""
+    if name == "sofascore":
+        return SofaScoreProvider(client=client, config=config)
+    if name == "fotmob":
+        return FotMobProvider(client=client, config=config)
+    raise ValueError(f"Unsupported provider: {name}")
+
+
+class ExtendedMatchDataService:
+    """Fetch and persist historical xG / shot data for existing historical matches."""
+
+    def __init__(
+        self,
+        provider: ProviderName | FootballDataProvider = "sofascore",
+        session: Session | None = None,
+        team_resolver: FotMobEntityResolver | None = None,
+        *,
+        config: DataSourceConfig | None = None,
+        dry_run: bool = False,
+    ) -> None:
+        """Wire provider, resolver, and repositories."""
+        self.config = config or DataSourceConfig()
+        self.dry_run = dry_run
+        self._owns_session = session is None
+        self.session = session or SessionLocal()
+
+        if isinstance(provider, str):
+            self.provider_name: str = provider
+            self.provider = build_provider(provider, config=self.config)
+        else:
+            self.provider = provider
+            self.provider_name = provider.name
+
+        self.resolver = EntityResolver(
+            self.session, config=self.config, provider=self.provider_name
+        )
+        self.fixture_repo = FixtureRepository(self.session)
+        self.leagues_repo = LeagueRepository(self.session)
+        self.teams_repo = TeamRepository(self.session)
+        self.stats_repo = MatchAdvancedStatsRepository(self.session)
+        self.shot_repo = MatchShotRepository(self.session)
+        self.team_resolver = team_resolver
+        self._matches_by_date_cache: dict[date, list[ProviderMatch]] = {}
+        self._alias_candidate = {}
+
+    @property
+    def alias_candidates(self) -> dict[str, str]:
+        return dict(self._alias_candidate)
+
+    def close(self) -> None:
+        """Close owned provider client and DB session."""
+        close = getattr(self.provider, "close", None)
+        if callable(close):
+            close()
+        if self._owns_session:
+            self.session.close()
+
+    def fetch_and_store_match(
+        self,
+        match_id: int,
+        force_refresh: bool = False,
+    ) -> MatchImportResult:
+        """Import xG/shots for one historical match by id."""
+        historical = self.fixture_repo.get(match_id)
+        if historical is None:
+            return MatchImportResult(
+                internal_match_id=match_id,
+                provider_match_id=None,
+                status="failed",
+                error=f"historical match {match_id} not found",
+            )
+
+        if not force_refresh:
+            existing = self.stats_repo.get_by_match_and_provider(
+                match_id, self.provider_name
+            )
+            if existing is not None:
+                return MatchImportResult(
+                    internal_match_id=match_id,
+                    provider_match_id=None,
+                    status="skipped",
+                    warnings=["Advanced stats already present; use force_refresh"],
+                )
+
+        match_date = self._fixture_calendar_date(historical)
+        date_matches = (
+            self._matches_by_date_cache.get(match_date)
+            if match_date is not None
+            else None
+        )
+        try:
+            details, used_provider = self._fetch_match_details(
+                historical,
+                date_matches=date_matches,
+            )
+        except Exception as exc:  # noqa: BLE001 — per-match isolation
+            logger.exception("Failed fetching match %s", match_id)
+            return MatchImportResult(
+                internal_match_id=match_id,
+                provider_match_id=None,
+                status="failed",
+                error=str(exc),
+            )
+
+        if details is None:
+            return MatchImportResult(
+                internal_match_id=match_id,
+                provider_match_id=None,
+                status="unresolved",
+                error="No provider match details available",
+            )
+
+        return self._persist_match_details(
+            historical=historical,
+            details=details,
+            provider_name=used_provider,
+            force_refresh=force_refresh,
+        )
+
+    def fetch_and_store_matches(
+        self,
+        match_ids: list[int],
+        force_refresh: bool = False,
+    ) -> BatchImportResult:
+        """Import xG/shots for many historical match ids."""
+        fixtures: list[FixtureModel] = []
+        for match_id in match_ids:
+            fixture = self.fixture_repo.get(match_id)
+            if fixture is not None:
+                fixtures.append(fixture)
+        self._prefetch_matches_by_date(fixtures)
+
+        batch = BatchImportResult(requested=len(match_ids))
+        for match_id in match_ids:
+            try:
+                with self.session.begin_nested():
+                    result = self.fetch_and_store_match(
+                        match_id, force_refresh=force_refresh
+                    )
+                if not self.dry_run:
+                    self.session.commit()
+                batch.add(result)
+            except Exception as exc:  # noqa: BLE001
+                self.session.rollback()
+                batch.add(
+                    MatchImportResult(
+                        internal_match_id=match_id,
+                        provider_match_id=None,
+                        status="failed",
+                        error=str(exc),
+                    )
+                )
+        return batch
+
+    def _prefetch_matches_by_date(self, fixtures: list[FixtureModel]) -> None:
+        """Load provider match listings once per unique fixture date."""
+        fetch_matches_by_date = getattr(self.provider, "fetch_matches_by_date", None)
+        if not callable(fetch_matches_by_date):
+            return
+        dates = {
+            self._fixture_calendar_date(fixture)
+            for fixture in fixtures
+        }
+        for match_date in sorted(d for d in dates if d is not None):
+            if match_date in self._matches_by_date_cache:
+                continue
+            matches = fetch_matches_by_date(match_date)
+            self._matches_by_date_cache[match_date] = (
+                matches if isinstance(matches, list) else []
+            )
+
+    def fetch_and_store_league_history(
+        self,
+        external_league_id: int,
+        provider_league_id: int,
+        season: str | None = None,
+        force_refresh: bool = False,
+        limit: int | None = None,
+        min_season_year: int | None = None,
+    ) -> BatchImportResult:
+        """Import fixtures for fixed seasons of a mapped league."""
+        league = self.leagues_repo.get_by_external_id(external_league_id)
+        if league is None:
+            return BatchImportResult(requested=0)
+
+        country_code = FOTMOBLEAGUE_EXTERNAL_ID_TO_CCODE.get(external_league_id)
+        seasons = [season] if season else list(FIXED_IMPORT_SEASONS)
+        logger.info(
+            "league_id=%s provider=%s seasons=%s",
+            provider_league_id,
+            self.provider_name,
+            seasons,
+        )
+        batch = BatchImportResult(requested=0)
+        imported_count = 0
+        min_kickoff = (
+            datetime(min_season_year, 1, 1, tzinfo=timezone.utc)
+            if min_season_year is not None
+            else None
+        )
+
+        for season_id in seasons:
+            try:
+                fixtures = self.provider.fetch_season_matches(
+                    provider_league_id,
+                    season_id,
+                    country_code=country_code,
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.exception(
+                    "Failed fetching season %s for league %s: %s",
+                    season_id,
+                    provider_league_id,
+                    exc,
+                )
+                continue
+
+            for fixture in fixtures:
+                if min_kickoff is not None and fixture.kickoff_at < min_kickoff:
+                    continue
+                if limit is not None and imported_count >= limit:
+                    return batch
+                batch.requested += 1
+                try:
+                    with self.session.begin_nested():
+                        result = self._import_provider_fixture(
+                            fixture=fixture,
+                            league_id=league.id,
+                            league_external_id=external_league_id,
+                            season=season or self._map_season_label(season_id),
+                            force_refresh=force_refresh,
+                        )
+                    if not self.dry_run:
+                        self.session.commit()
+                    batch.add(result)
+                    if result.status in {"imported", "updated"}:
+                        imported_count += 1
+                except Exception as exc:  # noqa: BLE001
+                    import traceback
+                    s = trace = traceback.format_exc()
+                    logger.exception(
+                        "Failed fetching season %s for league %s: %s",
+                        season_id,
+                        provider_league_id,
+                        exc,
+                    )
+                    self.session.rollback()
+                    batch.add(
+                        MatchImportResult(
+                            internal_match_id=0,
+                            provider_match_id=fixture.provider_match_id,
+                            status="failed",
+                            error=str(exc),
+                        )
+                    )
+        return batch
+
+    def fetch_and_store_all_fixtures(
+        self,
+        *,
+        external_league_ids: list[int] | None = None,
+        seasons: list[str | int] | None = None,
+        before_date: date | None = None,
+        limit: int | None = None,
+        force_refresh: bool = False,
+    ) -> BatchImportResult:
+        """Import FotMob xG/shots for all finished fixtures lacking stats."""
+        if force_refresh:
+            fixtures = self.fixture_repo.get_filtered(
+                external_league_ids=external_league_ids,
+                seasons=seasons,
+                before_date=before_date,
+                limit=limit,
+            )
+        else:
+            fixtures = self.fixture_repo.find_missing_stats(
+                self.provider_name,
+                external_league_ids=external_league_ids,
+                seasons=seasons,
+                before_date=before_date,
+                limit=limit,
+            )
+        match_ids = [f.id for f in fixtures]
+        return self.fetch_and_store_matches(match_ids, force_refresh=force_refresh)
+
+    def fetch_and_store_matches_for_date(
+        self,
+        match_date: date,
+        force_refresh: bool = False,
+    ) -> BatchImportResult:
+        """Import all provider fixtures for one calendar date."""
+        fetch_matches_by_date = getattr(self.provider, "fetch_matches_by_date", None)
+        if not callable(fetch_matches_by_date):
+            raise ValueError(
+                f"Provider {self.provider_name!r} does not support date-based match fetch"
+            )
+
+        fixtures = fetch_matches_by_date(match_date)
+        batch = BatchImportResult(requested=len(fixtures))
+        for fixture in fixtures:
+            api_football_league_id = _api_football_league_id_for_fotmob_league(
+                fixture.provider_league_id
+            )
+            if api_football_league_id is None:
+                batch.add(
+                    MatchImportResult(
+                        internal_match_id=0,
+                        provider_match_id=fixture.provider_match_id,
+                        status="unresolved",
+                        error=(
+                            "No API-Football league mapping for FotMob league "
+                            f"{fixture.provider_league_id}"
+                        ),
+                    )
+                )
+                continue
+
+            league = self.leagues_repo.get_by_external_id(api_football_league_id)
+            if league is None:
+                batch.add(
+                    MatchImportResult(
+                        internal_match_id=0,
+                        provider_match_id=fixture.provider_match_id,
+                        status="unresolved",
+                        error=(
+                            "No internal league for API-Football league "
+                            f"{api_football_league_id}"
+                        ),
+                    )
+                )
+                continue
+
+            try:
+                with self.session.begin_nested():
+                    result = self._import_provider_fixture(
+                        fixture=fixture,
+                        league_id=league.id,
+                        league_external_id=league.external_id,
+                        season=self._map_season_label(
+                            fixture.provider_season_id or str(match_date.year)
+                        ),
+                        force_refresh=force_refresh,
+                    )
+                if not self.dry_run:
+                    self.session.commit()
+                batch.add(result)
+            except Exception as exc:  # noqa: BLE001
+                self.session.rollback()
+                batch.add(
+                    MatchImportResult(
+                        internal_match_id=0,
+                        provider_match_id=fixture.provider_match_id,
+                        status="failed",
+                        error=str(exc),
+                    )
+                )
+        return batch
+
+    def _append_missing_team(
+        self,
+        team_name: str,
+    ) -> None:
+        """Append an unresolved fixture to CSV, creating the file with a header if needed."""
+        csv_path = Path(self.config.missing_teams_csv_path)
+        csv_path.parent.mkdir(parents=True, exist_ok=True)
+        write_header = not csv_path.exists() or csv_path.stat().st_size == 0
+        row = {
+            "team_name": team_name
+        }
+        with csv_path.open("a", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=('key', 'team_name'))
+            if write_header:
+                writer.writeheader()
+            writer.writerow(row)
+
+    def _append_missing_mapping_key(
+        self,
+        key: str,
+        team_name: str,
+    ) -> None:
+        """Append an unresolved fixture to CSV, creating the file with a header if needed."""
+        csv_path = Path(self.config.missing_team_mapping_csv_path)
+        csv_path.parent.mkdir(parents=True, exist_ok=True)
+        write_header = not csv_path.exists() or csv_path.stat().st_size == 0
+        row = {
+            "key": key,
+            "team_name": team_name
+
+        }
+        with csv_path.open("a", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=('key', 'team_name'))
+            if write_header:
+                writer.writeheader()
+            writer.writerow(row)
+
+    def _resolve_fixture_teams(
+        self,
+        fixture: ProviderMatch,
+        league_id: int,
+    ) -> tuple[TeamResolution | None, TeamResolution | None]:
+        home: TeamResolution | None = None
+        away: TeamResolution | None = None
+        if self.provider.name == "fotmob":
+            try:
+                home_external_id = FOTMOB_TO_API_FOOTBALL_TEAMS[int(fixture.home_team_id)]
+                home_team = self.teams_repo.get_by_external_id(home_external_id)
+                home = TeamResolution(team=home_team, confidence=1.0, method="exact_name")
+            except KeyError:
+                self._append_missing_mapping_key(str(fixture.home_team_id), fixture.home_team_name)
+
+            try:
+                away_external_id = FOTMOB_TO_API_FOOTBALL_TEAMS[int(fixture.away_team_id)]
+                away_team = self.teams_repo.get_by_external_id(away_external_id)
+                away = TeamResolution(team=away_team, confidence=1.0, method="exact_name")
+            except KeyError:
+                self._append_missing_mapping_key(str(fixture.away_team_id), fixture.away_team_name)
+
+        if not home:
+            home = self.resolver.resolve_team(
+                provider_team_id=fixture.home_team_id,
+                provider_team_name=fixture.home_team_name,
+                league_id=league_id,
+            )
+        if not away:
+            away = self.resolver.resolve_team(
+                provider_team_id=fixture.away_team_id,
+                provider_team_name=fixture.away_team_name,
+                league_id=league_id,
+            )
+        return home, away
+
+    def _import_provider_fixture(
+        self,
+        *,
+        fixture: ProviderMatch,
+        league_id: int,
+        league_external_id: int | None,
+        season: str | None,
+        force_refresh: bool,
+    ) -> MatchImportResult:
+        home, away = self._resolve_fixture_teams(fixture, league_id)
+        warnings: list[str] = []
+        if home is None or home.team is None:
+            created_home = self._create_team_from_provider(fixture.home_team_id, league_id)
+            if created_home is not None:
+                home = created_home
+        if home is None or home.team is None:
+            self._append_missing_team(fixture.home_team_name)
+            return MatchImportResult(
+                internal_match_id=0,
+                provider_match_id=fixture.provider_match_id,
+                status="unresolved",
+                warnings=warnings,
+                error="Provider details unavailable",
+            )
+
+        if away is None or away.team is None:
+            created_away = self._create_team_from_provider(fixture.away_team_id, league_id)
+            if created_away is not None:
+                away = created_away
+        if away is None or away.team is None:
+            self._append_missing_team(fixture.away_team_name)
+            return MatchImportResult(
+                internal_match_id=0,
+                provider_match_id=fixture.provider_match_id,
+                status="unresolved",
+                warnings=warnings,
+                error="Provider details unavailable",
+            )
+
+        match_resolution = self.resolver.resolve_match(
+            fixture,
+            league_external_id=league_external_id,
+            league_id=league_id,
+            home_team=home.team,
+            away_team=away.team,
+            season=season,
+        )
+        warnings.extend(match_resolution.warnings)
+
+        if match_resolution.match is None:
+            if self.dry_run:
+                # Intentionally disabled by default; reserved for future use.
+                pass
+            return MatchImportResult(
+                internal_match_id=0,
+                provider_match_id=fixture.provider_match_id,
+                status="unresolved",
+                warnings=warnings,
+                error="No matching historical match",
+            )
+
+        historical = match_resolution.match
+
+
+        try:
+            details, used_provider = self._fetch_match_details(
+                historical,
+                provider_match_id=fixture.provider_match_id,
+                seed_match=fixture,
+            )
+        except Exception as exc:  # noqa: BLE001
+            return MatchImportResult(
+                internal_match_id=historical.id,
+                provider_match_id=fixture.provider_match_id,
+                status="failed",
+                warnings=warnings,
+                error=str(exc),
+            )
+
+        if details is None:
+            return MatchImportResult(
+                internal_match_id=historical.id,
+                provider_match_id=fixture.provider_match_id,
+                status="unresolved",
+                warnings=warnings,
+                error="Provider details unavailable",
+            )
+
+        result = self._persist_match_details(
+            historical=historical,
+            details=details,
+            provider_name=used_provider,
+            force_refresh=force_refresh,
+            home_team_id=home.team.id if home.team else None,
+            away_team_id=away.team.id if away.team else None,
+        )
+        result.warnings = warnings + result.warnings
+        return result
+
+    def _persist_match_details(
+        self,
+        *,
+        historical: FixtureModel,
+        details: ProviderMatchDetails,
+        provider_name: str,
+        force_refresh: bool,
+        home_team_id: int | None = None,
+        away_team_id: int | None = None,
+    ) -> MatchImportResult:
+        """Upsert advanced stats and shots for a historical match."""
+        warnings: list[str] = []
+        existing = self.stats_repo.get_by_match_and_provider(
+            historical.id, provider_name
+        )
+        if existing is not None and not force_refresh:
+            return MatchImportResult(
+                internal_match_id=historical.id,
+                provider_match_id=details.match.provider_match_id,
+                status="skipped",
+                warnings=["Stats already present"],
+            )
+
+        metrics = calculate_derived_metrics(
+            details,
+            home_team_external_id=details.match.home_team_id,
+            away_team_external_id=details.match.away_team_id,
+            xg_aggregate_tolerance=self.config.xg_aggregate_tolerance,
+        )
+        warnings.extend(metrics.warnings)
+
+        if self.dry_run:
+            return MatchImportResult(
+                internal_match_id=historical.id,
+                provider_match_id=details.match.provider_match_id,
+                status="imported" if existing is None else "updated",
+                shots_imported=len(details.shots),
+                warnings=warnings + ["dry_run"],
+            )
+
+        self.resolver.provider = provider_name
+
+        team_id_by_external = {
+            details.match.home_team_id: home_team_id,
+            details.match.away_team_id: away_team_id,
+        }
+        shot_rows = []
+        for shot in details.shots:
+            team_internal = team_id_by_external.get(shot.team_id)
+            fingerprint = shot_fingerprint(
+                match_id=historical.id,
+                provider=provider_name,
+                shot=shot,
+                team_internal_id=team_internal,
+            )
+            shot_rows.append(
+                {
+                    "provider_shot_id": shot.provider_shot_id,
+                    "shot_fingerprint": fingerprint,
+                    "team_id": team_internal,
+                    "player_external_id": shot.player_id,
+                    "minute": shot.minute,
+                    "second": shot.second,
+                    "xg": shot.xg,
+                    "xgot": shot.xgot,
+                    "outcome": shot.outcome,
+                    "situation": shot.situation,
+                    "body_part": shot.body_part,
+                    "shot_type": shot.shot_type,
+                    "is_penalty": shot.is_penalty,
+                    "is_own_goal": shot.is_own_goal,
+                    "coordinates": shot.coordinates,
+                }
+            )
+
+        self.stats_repo.upsert(
+            match_id=historical.id,
+            provider=provider_name,
+            fields={
+                "home_xg": metrics.home_xg,
+                "away_xg": metrics.away_xg,
+                "home_non_penalty_xg": metrics.home_non_penalty_xg,
+                "away_non_penalty_xg": metrics.away_non_penalty_xg,
+                "home_xgot": metrics.home_xgot,
+                "away_xgot": metrics.away_xgot,
+                "home_shots": metrics.home_shots,
+                "away_shots": metrics.away_shots,
+                "home_shots_on_target": metrics.home_shots_on_target,
+                "away_shots_on_target": metrics.away_shots_on_target,
+                "home_set_piece_xg": metrics.home_set_piece_xg,
+                "away_set_piece_xg": metrics.away_set_piece_xg,
+                "home_open_play_xg": metrics.home_open_play_xg,
+                "away_open_play_xg": metrics.away_open_play_xg,
+                "home_xg_from_shots": metrics.home_xg_from_shots,
+                "away_xg_from_shots": metrics.away_xg_from_shots,
+                "average_home_shot_xg": metrics.average_home_shot_xg,
+                "average_away_shot_xg": metrics.average_away_shot_xg,
+                "fetched_at": datetime.now(tz=timezone.utc),
+                "raw_payload_hash": metrics.raw_payload_hash,
+            },
+        )
+        shots_imported = self.shot_repo.upsert_many(
+            match_id=historical.id,
+            provider=provider_name,
+            shots=shot_rows,
+        )
+        return MatchImportResult(
+            internal_match_id=historical.id,
+            provider_match_id=details.match.provider_match_id,
+            status="updated" if existing is not None else "imported",
+            shots_imported=shots_imported,
+            warnings=warnings,
+        )
+
+    def _fetch_match_details(
+        self,
+        historical: FixtureModel,
+        *,
+        provider_match_id: str | None = None,
+        seed_match: ProviderMatch | None = None,
+        date_matches: list[ProviderMatch] | None = None,
+    ) -> tuple[ProviderMatchDetails | None, str]:
+        """Resolve a fixture against a date listing by team names, then fetch details."""
+        details: ProviderMatchDetails | None = None
+        used = self.provider_name
+
+        if not provider_match_id:
+            resolved = self._resolve_provider_match_by_team_names(
+                historical, date_matches
+            )
+            provider_match_id = (
+                resolved.provider_match_id if resolved is not None else None
+            )
+
+        if provider_match_id:
+            try:
+                details = self.provider.fetch_match_details(provider_match_id)
+            except NotFoundError:
+                details = None
+            except FootballDataHttpError as exc:
+                if not exc.retryable:
+                    raise
+                details = None
+
+        if details is None and seed_match is not None:
+            details = ProviderMatchDetails(
+                match=seed_match,
+                shots=[],
+                statistics={},
+                raw_payload=seed_match.raw_payload,
+            )
+        return details, used
+
+    def _resolve_provider_match_by_team_names(
+        self,
+        historical: FixtureModel,
+        date_matches: list[ProviderMatch] | None = None,
+    ) -> ProviderMatch | None:
+        """Pick the date listing whose home/away names match the DB fixture."""
+        candidates = date_matches
+        if candidates is None:
+            match_date = self._fixture_calendar_date(historical)
+            if match_date is None:
+                return None
+            candidates = self._provider_matches_for_date(match_date)
+        _candidates = [
+            candidate
+            for candidate in candidates
+            if candidate.provider_league_id
+            == str(API_FOOTBALL_TO_FOTMOB_LEAGUE_MAPPING[historical.league_id])
+        ]
+        if _candidates:
+            candidates = _candidates
+
+        home = self.team_resolver.resolve_team(
+            historical.home_team_name, historical.home_team_id
+        )
+        away = self.team_resolver.resolve_team(
+            historical.away_team_name, historical.away_team_id
+        )
+
+
+
+        for candidate in candidates:
+            home_match = self._side_matches(
+                home, candidate.home_team_id, candidate.home_team_name
+            )
+            away_match = self._side_matches(
+                away, candidate.away_team_id, candidate.away_team_name
+            )
+            if home_match and away_match:
+                return candidate
+            elif home_match:
+                self._alias_candidate[candidate.away_team_name] = historical.away_team_name
+            elif away_match:
+                self._alias_candidate[candidate.home_team_name] = historical.home_team_name
+
+        return None
+
+
+    @staticmethod
+    def _side_matches(
+        resolved: str | int | None,
+        candidate_team_id: str,
+        candidate_team_name: str,
+    ) -> bool:
+        if resolved is None:
+            return False
+        if isinstance(resolved, int):
+            return str(resolved) == str(candidate_team_id)
+        return normalize_team_name(resolved) == normalize_team_name(
+            candidate_team_name
+        )
+
+    def _provider_matches_for_date(self, match_date: date) -> list[ProviderMatch]:
+        cached = self._matches_by_date_cache.get(match_date)
+        if cached is not None:
+            return cached
+        fetch_matches_by_date = getattr(self.provider, "fetch_matches_by_date", None)
+        if not callable(fetch_matches_by_date):
+            self._matches_by_date_cache[match_date] = []
+            return []
+        matches = fetch_matches_by_date(match_date)
+        if not isinstance(matches, list):
+            matches = []
+        self._matches_by_date_cache[match_date] = matches
+        return matches
+
+    @staticmethod
+    def _fixture_calendar_date(historical: FixtureModel) -> date | None:
+        kickoff = getattr(historical, "fixture_date", None)
+        if isinstance(kickoff, datetime):
+            return kickoff.date()
+        if isinstance(kickoff, date):
+            return kickoff
+        return None
+
+    def _create_team_from_provider(
+        self,
+        provider_team_id: str,
+        league_id: int,
+    ) -> TeamResolution | None:
+        """Fetch provider team profile and create an internal team row."""
+        if self.dry_run:
+            return None
+        fetch_team = getattr(self.provider, "fetch_team", None)
+        if not callable(fetch_team):
+            return None
+        try:
+            provider_team = fetch_team(provider_team_id)
+            team = self.resolver.team_repo.create_from_provider_team(
+                external_id=int(provider_team_id),
+                name=provider_team.name,
+                code=provider_team.country_code or provider_team.short_name,
+                country=provider_team.country_name,
+            )
+            return TeamResolution(team=team, confidence=1.0, method="created")
+        except Exception as exc:  # noqa: BLE001 — keep fixture import going
+            logger.warning(
+                "Failed creating team from %s id=%s: %s",
+                self.provider_name,
+                provider_team_id,
+                exc,
+            )
+            return TeamResolution(
+                team=None,
+                confidence=0.0,
+                method="unresolved",
+                unresolved_name=provider_team_id,
+            )
+
+    @staticmethod
+    def _map_season_label(provider_season_name: str) -> str | None:
+        """Normalize a provider season label to an internal season code."""
+        text = provider_season_name.strip()
+        if len(text) == 4 and text.isdigit():
+            return text
+        digits = "".join(ch for ch in text if ch.isdigit())
+        if len(digits) >= 4:
+            return digits[:4]
+        codes = last_n_season_codes(1)
+        return codes[0] if codes else None

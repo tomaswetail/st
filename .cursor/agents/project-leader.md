@@ -217,6 +217,13 @@ Report:
 
 Do not endlessly rewrite code.
 
+# REPORT
+
+When a task is done whether APPROVED  or not create a task report in /docs/reports
+The title of the report should contain the date in YYYY-MM-DD format
+
+In docs/project_status.md add a condensed version of what was done and what the outcome was. In entry heading add datetime
+
 # DEFINITION OF DONE
 
 A task may only be APPROVED when:

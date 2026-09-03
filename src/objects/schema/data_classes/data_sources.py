@@ -1,0 +1,336 @@
+"""Configuration for external data sources and storage."""
+
+from __future__ import annotations
+
+import os
+from pathlib import Path
+from typing import Literal
+
+from pydantic import BaseModel, Field
+
+from utils.repo_paths import repo_root
+
+
+def _classic_dc_league_params_path() -> Path:
+    env_path = os.environ.get("CLASSIC_DC_LEAGUE_PARAMS_PATH")
+    if env_path:
+        return Path(env_path)
+    from data_sources.classic_dc_config import default_league_params_path
+
+    return default_league_params_path()
+
+
+DISK_CACHE_TTL_ONE_YEAR = 365 * 24 * 3600
+
+
+class DataSourceConfig(BaseModel):
+    """Paths and parameters for data ingestion and features."""
+
+    team_aliases_path: Path = Field(
+        default_factory=lambda: repo_root() / "config" / "team_aliases.json"
+    )
+    api_football_leagues_path: Path = Field(
+        default_factory=lambda: repo_root() / "config" / "api_football_leagues.json"
+    )
+    api_football_key: str = Field(default="6de75a404b5c1c996418d07d6ac70144")
+    default_leagues: list[str] = Field(default_factory=lambda: ["E0", "E1", "SP1"])
+    default_seasons: list[str] = Field(default_factory=lambda: ["2324", "2425"])
+    elo_start: float = Field(default=1500.0)
+    elo_k: float = Field(default=20.0)
+    elo_home_advantage: float = Field(default=60.0)
+    form_matches: int = Field(default=5, ge=1)
+    fuzzy_match_threshold: int = Field(default=85, ge=0, le=100)
+    current_coupon_path: Path = Field(
+        default_factory=lambda: repo_root() / "data" / "current_coupon.json"
+    )
+    current_odds_path: Path = Field(
+        default_factory=lambda: repo_root() / "data" / "current_odds.json"
+    )
+    xg_provider: Literal["understat"] = Field(default="understat")
+    understat_leagues: list[str] = Field(
+        default_factory=lambda: [
+            x.strip()
+            for x in os.environ.get(
+                "UNDERSTAT_LEAGUES", "EPL,La_liga,Bundesliga,Serie_A,Ligue_1"
+            ).split(",")
+            if x.strip()
+        ]
+    )
+    understat_request_delay_sec: float = Field(
+        default_factory=lambda: float(os.environ.get("UNDERSTAT_REQUEST_DELAY_SEC", "1.0")),
+        ge=0.0,
+    )
+    footystats_api_key: str | None = Field(
+        default_factory=lambda: os.environ.get("FOOTYSTATS_API_KEY")
+    )
+    thestatsapi_key: str | None = Field(
+        default_factory=lambda: os.environ.get("THESTATSAPI_KEY")
+    )
+    svenskaspel_base_url: str = Field(default="https://api.spela.svenskaspel.se")
+    svenskaspel_access_key: str | None = Field(
+        default_factory=lambda: os.environ.get("SVENSKASPEL_ACCESS_KEY")
+    )
+    svenskaspel_draw_seed: int = Field(default=4950, ge=1)
+    coupon_source: Literal["manual", "svenskaspel"] = Field(default="manual")
+    odds_provider: Literal["svenskaspel", "the-odds-api", "manual"] = Field(default="svenskaspel")
+    odds_aggregation_method: str = Field(default="average_probability")
+
+    # Historical FotMob / SofaScore ingestion
+    football_data_provider: Literal["fotmob", "sofascore"] = Field(
+        default_factory=lambda: (
+            "sofascore"
+            if os.environ.get("FOOTBALL_DATA_PROVIDER", "fotmob").lower()
+            == "sofascore"
+            else "fotmob"
+        )
+    )
+    fotmob_base_url: str = Field(
+        default_factory=lambda: os.environ.get(
+            "FOTMOB_BASE_URL", "https://www.fotmob.com/api/data"
+        )
+    )
+    sofascore_base_url: str = Field(
+        default_factory=lambda: os.environ.get(
+            "SOFASCORE_BASE_URL", "https://api.sofascore.com/api/v1"
+        )
+    )
+    football_data_request_delay_ms: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("FOOTBALL_DATA_REQUEST_DELAY_MS", "500")
+        ),
+        ge=0,
+    )
+    football_data_max_retries: int = Field(
+        default_factory=lambda: int(os.environ.get("FOOTBALL_DATA_MAX_RETRIES", "3")),
+        ge=0,
+    )
+    football_data_cache_ttl_seconds: int = Field(
+        default_factory=lambda: int(
+            os.environ.get(
+                "FOOTBALL_DATA_CACHE_TTL_SECONDS", str(DISK_CACHE_TTL_ONE_YEAR)
+            )
+        ),
+        ge=0,
+    )
+    football_data_http_timeout_sec: float = Field(default=20.0, ge=1.0)
+    football_data_user_agent: str = Field(
+        default="st-football-data/1.0 (+historical-ingestion)"
+    )
+    football_data_cache_dir: Path = Field(
+        default_factory=lambda: repo_root() / "data" / "cache"
+    )
+    unresolved_matches_csv_path: Path = Field(
+        default_factory=lambda: repo_root() / "data" / "unresolved_matches.csv"
+    )
+    conflicting_matches_csv_path: Path = Field(
+        default_factory=lambda: repo_root() / "data" / "conflicting_matches.csv"
+    )
+    missing_team_mapping_csv_path: Path = Field(
+        default_factory=lambda: repo_root() / "data" / "missing_team_mappings.csv"
+    )
+    missing_teams_csv_path: Path = Field(
+        default_factory=lambda: repo_root() / "data" / "missing_teams.csv"
+    )
+    kickoff_match_tolerance_minutes: int = Field(default=24 * 60, ge=0)
+    xg_aggregate_tolerance: float = Field(default=0.15, ge=0.0)
+    football_data_feature_shrinkage_prior_matches: int = Field(default=10, ge=0)
+    football_data_opponent_adjustment: Literal["none", "simple"] = Field(default="none")
+    team_strength_lookback_matches: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("TEAM_STRENGTH_LOOKBACK_MATCHES", "20")
+        ),
+        ge=1,
+    )
+    team_strength_recency_decay: float = Field(
+        default_factory=lambda: float(
+            os.environ.get("TEAM_STRENGTH_RECENCY_DECAY", "0.90")
+        ),
+        gt=0.0,
+        le=1.0,
+    )
+    team_strength_prior_matches: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("TEAM_STRENGTH_PRIOR_MATCHES", "8")
+        ),
+        ge=0,
+    )
+    team_strength_min_venue_matches: int = Field(default=5, ge=0)
+    goalkeeper_prior_shots: int = Field(
+        default_factory=lambda: int(os.environ.get("GOALKEEPER_PRIOR_SHOTS", "100")),
+        ge=0,
+    )
+    dixon_coles_max_goals: int = Field(
+        default_factory=lambda: int(os.environ.get("DIXON_COLES_MAX_GOALS", "10")),
+        ge=1,
+    )
+    dixon_coles_rho: float = Field(
+        default_factory=lambda: float(os.environ.get("DIXON_COLES_RHO", "-0.13")),
+    )
+    classic_dc_xi: float = Field(
+        default_factory=lambda: float(os.environ.get("CLASSIC_DC_XI", "0.0018")),
+        ge=0.0,
+    )
+    classic_dc_lookback_days: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("CLASSIC_DC_LOOKBACK_DAYS", "730")
+        ),
+        ge=1,
+    )
+    classic_dc_min_team_matches: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("CLASSIC_DC_MIN_TEAM_MATCHES", "5")
+        ),
+        ge=1,
+    )
+    classic_dc_league_params_path: Path = Field(
+        default_factory=lambda: _classic_dc_league_params_path(),
+    )
+    home_advantage_shrinkage_matches: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("HOME_ADVANTAGE_SHRINKAGE_MATCHES", "30")
+        ),
+        ge=0,
+    )
+    max_team_home_advantage: float = Field(
+        default_factory=lambda: float(
+            os.environ.get("MAX_TEAM_HOME_ADVANTAGE", "0.30")
+        ),
+        gt=0.0,
+    )
+    home_advantage_epsilon: float = Field(
+        default_factory=lambda: float(
+            os.environ.get("HOME_ADVANTAGE_EPSILON", "0.05")
+        ),
+        gt=0.0,
+    )
+    home_advantage_recency_decay_rate: float = Field(
+        default_factory=lambda: float(
+            os.environ.get("HOME_ADVANTAGE_RECENCY_DECAY_RATE", "0.01")
+        ),
+        ge=0.0,
+    )
+    league_home_advantage_shrinkage_matches: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("LEAGUE_HOME_ADVANTAGE_SHRINKAGE_MATCHES", "30")
+        ),
+        ge=0,
+    )
+    league_home_advantage_global_prior: float = Field(
+        default_factory=lambda: float(
+            os.environ.get("LEAGUE_HOME_ADVANTAGE_GLOBAL_PRIOR", "0.20")
+        ),
+    )
+    competition_ha_shrinkage_matches: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("COMPETITION_HA_SHRINKAGE_MATCHES", "30")
+        ),
+        ge=0,
+    )
+    max_competition_home_advantage: float = Field(
+        default_factory=lambda: float(
+            os.environ.get("MAX_COMPETITION_HOME_ADVANTAGE", "0.30")
+        ),
+        gt=0.0,
+    )
+    balance_recent_matches: int = Field(
+        default_factory=lambda: int(os.environ.get("BALANCE_RECENT_MATCHES", "10")),
+        ge=1,
+    )
+    balance_low_scoring_goal_threshold: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("BALANCE_LOW_SCORING_GOAL_THRESHOLD", "2")
+        ),
+        ge=0,
+    )
+    league_behavior_lookback_matches: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("LEAGUE_BEHAVIOR_LOOKBACK_MATCHES", "500")
+        ),
+        ge=1,
+    )
+    league_behavior_shrinkage_matches: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("LEAGUE_BEHAVIOR_SHRINKAGE_MATCHES", "50")
+        ),
+        ge=0,
+    )
+    league_behavior_min_team_matches_for_balance: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("LEAGUE_BEHAVIOR_MIN_TEAM_MATCHES_FOR_BALANCE", "3")
+        ),
+        ge=1,
+    )
+    league_behavior_quality_reference_matches: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("LEAGUE_BEHAVIOR_QUALITY_REFERENCE_MATCHES", "100")
+        ),
+        ge=1,
+    )
+    rest_congestion_window_days: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("REST_CONGESTION_WINDOW_DAYS", "14")
+        ),
+        ge=1,
+    )
+    rest_short_rest_threshold_days: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("REST_SHORT_REST_THRESHOLD_DAYS", "4")
+        ),
+        ge=0,
+    )
+    rest_congestion_match_threshold: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("REST_CONGESTION_MATCH_THRESHOLD", "3")
+        ),
+        ge=0,
+    )
+    rest_congestion_lookback_matches: int = Field(
+        default_factory=lambda: int(
+            os.environ.get("REST_CONGESTION_LOOKBACK_MATCHES", "20")
+        ),
+        ge=1,
+    )
+    residual_ml_enabled: bool = Field(
+        default_factory=lambda: os.environ.get("RESIDUAL_ML_ENABLED", "false").lower()
+        in {"1", "true", "yes"}
+    )
+    residual_ml_model_path: Path = Field(
+        default_factory=lambda: repo_root() / "models" / "residual_ml" / "v1" / "model.pkl"
+    )
+    residual_ml_market_weight: float = Field(
+        default_factory=lambda: float(
+            os.environ.get("RESIDUAL_ML_MARKET_WEIGHT", "0.7")
+        ),
+        ge=0.0,
+        le=1.0,
+    )
+    residual_ml_dc_weight: float = Field(
+        default_factory=lambda: float(os.environ.get("RESIDUAL_ML_DC_WEIGHT", "0.3")),
+        ge=0.0,
+        le=1.0,
+    )
+    residual_ml_blend_weights_path: Path = Field(
+        default_factory=lambda: Path(
+            os.environ.get(
+                "RESIDUAL_ML_BLEND_WEIGHTS_PATH",
+                str(repo_root() / "config" / "blend_weights.json"),
+            )
+        )
+    )
+    residual_ml_final_shrink_to_market: float = Field(
+        default_factory=lambda: float(
+            os.environ.get("RESIDUAL_ML_FINAL_SHRINK_TO_MARKET", "0.5")
+        ),
+        ge=0.0,
+        le=1.0,
+    )
+    residual_ml_home_advantage_mode: Literal["full", "fast"] = Field(
+        default_factory=lambda: os.environ.get(
+            "RESIDUAL_ML_HOME_ADVANTAGE_MODE", "full"
+        ).lower(),
+    )
+    residual_ml_dc_engine: Literal["classic", "strength"] = Field(
+        default_factory=lambda: os.environ.get(
+            "RESIDUAL_ML_DC_ENGINE", "classic"
+        ).lower(),
+    )

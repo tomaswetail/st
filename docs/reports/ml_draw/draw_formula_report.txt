@@ -1,0 +1,234 @@
+================================================================================
+HOW THE DRAW (X) FORMULA IS CONCLUDED
+Stryktipset project - plain-language report
+================================================================================
+
+This document explains how we arrive at the explicit draw-adjustment formula
+(not the full 1X2 pipeline). The formula only adjusts P(draw) after market
+and Dixon-Coles have already been blended.
+
+Config file: config/draw_adjustment.json
+Code:         calc/draw_adjustment.py
+
+
+--------------------------------------------------------------------------------
+1. THE FORMULA (what runs in production)
+--------------------------------------------------------------------------------
+
+Given blended probabilities (home / draw / away) that sum to 1:
+
+  Step A - compute a logit shift (delta):
+
+    delta = beta0 + (beta1 * feature1) + (beta2 * feature2) + ...
+
+  Step B - move draw probability in logit space:
+
+    logit(p_draw_new) = logit(p_draw_blend) + delta
+
+    where logit(p) = ln( p / (1 - p) )
+         inv_logit(x) = 1 / (1 + exp(-x))
+
+  Step C - renormalize so 1 + X + 2 still sum to 1:
+
+    Keep p_home and p_away at their blend values.
+    Set p_draw = p_draw_new.
+    Divide all three by (p_home + p_draw_new + p_away).
+
+If "enabled" is false in config/draw_adjustment.json, delta is skipped and
+p_draw_blend is used unchanged.
+
+Missing feature values count as 0.0 (see missing_feature_default in config).
+
+
+--------------------------------------------------------------------------------
+2. HOW THE FORMULA IS CONCLUDED (two steps)
+--------------------------------------------------------------------------------
+
+The coefficients beta0, beta1, ... are NOT hand-picked. They come from a
+fixed two-step research process:
+
+
+STEP 1 - DISCOVERY (Phase 3.1)
+--------------------------------
+Script: scripts/analyze_draw_drivers.py
+Module: calc/draw_driver_analysis.py
+
+Question: "Which match features change draw rate beyond what the blend
+           already predicts?"
+
+Method:
+  - Load historical rows from data/residual_ml/dataset.csv
+  - Target: is_draw = 1 if result was X, else 0
+  - Always include p_draw_blend as a baseline feature (so we find incremental
+    signal, not what odds already say)
+  - Time split: last 20% by match_date = validation; rest = train
+  - Exclude holdout draws >= 4951 from discovery
+  - Fit sparse L1 logistic regression (and elastic net / draw-error Ridge for
+    cross-check)
+
+"Stable driver" gate (must pass to be a candidate):
+  - Same sign on train AND validation coefficients
+  - Non-zero on both splits
+  - Not the baseline p_draw_blend itself
+  - Need at least 3 stable drivers to consider the discovery useful
+
+Important: the full L1 model from discovery often does NOT beat blend-only on
+validation draw log loss. Discovery is for *naming* drivers, not for shipping
+30 coefficients.
+
+
+STEP 2 - SPARSE REFIT + OOS GATE (Phase 3.2)
+---------------------------------------------
+Script: scripts/eval_draw_adjustment_oos.py
+
+Question: "Can a *small* formula using discovery drivers actually improve
+           out-of-sample draw prediction?"
+
+Method:
+  - Start from the stable driver list from Step 1
+  - Try subsets (e.g. top 5 by |train coefficient|)
+  - On TRAIN only: fit beta0 and betas by maximum likelihood:
+
+      logit(p_draw) = logit(p_draw_blend) + beta0 + sum(beta_i * x_i)
+
+  - On VALIDATION (same time split, holdout still excluded): compare
+      - draw Brier score (blend vs adjusted)
+      - draw log loss (blend vs adjusted)
+
+  - Pick the candidate that improves validation draw Brier OR draw log loss
+  - Write winning beta0 + betas to config/draw_adjustment.json
+  - Set "enabled": true only if OOS improves; otherwise leave disabled
+
+This refit uses different betas than raw L1 discovery coefficients. Discovery
+gives direction and feature choice; the OOS script gives the shipped numbers.
+
+
+--------------------------------------------------------------------------------
+3. CURRENT SHIPPED COEFFICIENTS (config/draw_adjustment.json)
+--------------------------------------------------------------------------------
+
+At time of writing, enabled = false (you can turn the layer on by setting true).
+
+  beta0 (intercept): 0.10637
+
+  Features and betas:
+    away_npxg_for              -0.31654
+    away_short_rest             0.20430
+    away_npxg_against           0.17440
+    combined_low_scoring_rate   0.04328
+    congestion_difference       0.16740
+
+OOS gate when these were fit (refit_offset_top5 on dataset at that time):
+  Validation draw Brier: 0.1792 -> 0.1778  (improved)
+  Validation draw LL:    0.5436 -> 0.5399  (improved)
+
+Note: if you rebuild dataset.csv or re-run discovery, you should re-run
+eval_draw_adjustment_oos.py before trusting these numbers.
+
+
+--------------------------------------------------------------------------------
+4. SIMPLE NUMERIC EXAMPLE (applying the formula)
+--------------------------------------------------------------------------------
+
+Example match after market/DC blend (before draw formula):
+
+  p_home_blend  = 0.486
+  p_draw_blend  = 0.276
+  p_away_blend  = 0.238   (sums to 1.0)
+
+Feature values for this match (others = 0):
+
+  away_short_rest = 1   (away team on short rest)
+  all other terms = 0
+
+Using shipped betas (only away_short_rest non-zero besides intercept):
+
+  delta = 0.10637 + 0.20430 * 1 = 0.31067
+
+  logit(0.276) = ln(0.276 / 0.724) = -0.962
+
+  logit_new = -0.962 + 0.31067 = -0.651
+
+  p_draw_new = inv_logit(-0.651) = 0.343
+
+Renormalize (home and away unchanged before scaling):
+
+  raw sum = 0.486 + 0.343 + 0.238 = 1.067
+
+  p_home  = 0.486 / 1.067 = 0.456
+  p_draw  = 0.343 / 1.067 = 0.321   <-- draw up ~4.5 percentage points
+  p_away  = 0.238 / 1.067 = 0.223
+
+Interpretation: short rest for the away team pushes the model toward a draw,
+at the expense of home and away probability mass.
+
+
+--------------------------------------------------------------------------------
+5. SECOND MINIMAL EXAMPLE (negative term)
+--------------------------------------------------------------------------------
+
+Same blend p_draw_blend = 0.276, but now:
+
+  away_npxg_for = 1.5   (away creates more expected goals)
+  other features = 0
+
+  delta = 0.10637 + (-0.31654) * 1.5 = 0.10637 - 0.47481 = -0.36844
+
+  logit(0.276) = -0.962
+  logit_new = -0.962 - 0.368 = -1.330
+  p_draw_new = inv_logit(-1.330) = 0.208
+
+After renormalize with home=0.486, away=0.238:
+
+  sum = 0.486 + 0.208 + 0.238 = 0.932
+  p_draw = 0.208 / 0.932 = 0.223  (draw down vs 0.276 blend)
+
+Higher away attacking xG -> formula lowers draw probability.
+
+
+--------------------------------------------------------------------------------
+6. WHAT THIS FORMULA IS NOT
+--------------------------------------------------------------------------------
+
+  - Not the HistGradientBoosting (HGB) model. HGB is a separate step that
+    adjusts all three outcomes after this draw layer.
+
+  - Not the L1 discovery model run live. Discovery runs offline; only the
+    small JSON rule is deployed.
+
+  - Not a guarantee of better overall 1X2 log loss. It is tuned for draw
+    Brier / draw log loss vs blend on validation.
+
+  - Not applied if enabled=false. Then p_draw_blend is the draw probability
+    going into HGB (if ML is on).
+
+
+--------------------------------------------------------------------------------
+7. COMMANDS TO RE-DERIVE OR CHECK THE FORMULA
+--------------------------------------------------------------------------------
+
+  # Step 1: discover stable drivers (updates docs/reports/ml_draw/draw_driver_analysis.md)
+  PYTHONPATH=src python src/scripts/analyze_draw_drivers.py \
+    --dataset data/residual_ml/dataset.csv \
+    --write-doc docs/reports/ml_draw/draw_driver_analysis.md
+
+  # Step 2: refit betas and optionally update config if OOS improves
+  PYTHONPATH=src python src/scripts/eval_draw_adjustment_oos.py --write-config
+
+  # After changing config: rebuild dataset so p_draw_blend columns match
+  PYTHONPATH=src python -u scripts/build_residual_ml_dataset.py
+
+
+--------------------------------------------------------------------------------
+8. SUMMARY IN ONE SENTENCE
+--------------------------------------------------------------------------------
+
+We conclude the draw formula by (1) discovering a short list of stable
+features with sparse ML on history, then (2) re-fitting beta0 and betas on
+train and keeping the rule only if validation draw error beats blend-only;
+production applies that rule as a logit nudge to p_draw_blend, then
+renormalizes 1/X/2.
+
+================================================================================
+End of report
+================================================================================

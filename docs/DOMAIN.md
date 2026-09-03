@@ -8,6 +8,8 @@ This system models **Swedish pool betting (Stryktipset)** on top of **European f
 
 Agents must not conflate provider-specific IDs with internal database IDs.
 
+For **eval & modeling jargon** (slice, HGB residual, logit, shrink, blend, Brier), see [`wiki.md`](wiki.md).
+
 ---
 
 # Glossary
@@ -100,7 +102,7 @@ Agents must not conflate provider-specific IDs with internal database IDs.
 
 **Definition:** Weighted combination of market and engine baselines (default 0.7/0.3). Input to residual ML when enabled.
 
-**Evidence:** `calc/residual_ml/baseline.py` (`blend_baselines`)
+**Evidence:** `calc/residual_ml/baseline.py` (`blend_baselines`); eval & modeling jargon → [`wiki.md`](wiki.md) (Blend, Shrink)
 
 ---
 
@@ -108,7 +110,7 @@ Agents must not conflate provider-specific IDs with internal database IDs.
 
 **Definition:** Gradient-boosting model predicting **residual adjustments** to the blend baseline in logit space, outputting final 1X2 probabilities.
 
-**Evidence:** `calc/residual_ml/model.py`, `calc/residual_ml/trainer.py`
+**Evidence:** `calc/residual_ml/model.py`, `calc/residual_ml/trainer.py`; eval & modeling jargon → [`wiki.md`](wiki.md) (HGB residual, Logit, Shrink)
 
 ---
 

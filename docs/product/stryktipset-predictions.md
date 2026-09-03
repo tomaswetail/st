@@ -7,7 +7,9 @@ Compute **1 / X / 2 probabilities** for each match on a Stryktipset coupon by co
 - **Market baseline** — implied probs from Svenska Spel odds
 - **Engine baseline** — DC/strength model probs (`p_home_dc`, etc.)
 - **Blend baseline** — weighted mix (default 70/30)
-- **Final probabilities** — ML output when enabled, else blend/engine/market fallback chain
+- **Final probabilities** — ML output when enabled, else **blend** (then engine, then market)
+
+Formulas and worked examples: [`docs/probability_calculations.md`](probability_calculations.md).
 
 # Entities
 
@@ -30,12 +32,13 @@ ProbabilityManager(session).process(draw_number)
 
 Steps per match (`calc/probability_manager.py`):
 1. Validate teams and `start_time` present
-2. `ResidualMLFeatureAssembler.assemble(match)`
-3. `market_baseline` ← ST odds in features
+2. `ResidualMLFeatureAssembler.assemble(match)` (includes cutoff-safe injuries when snapshots exist)
+3. `market_baseline` ← ST odds stored on match (often start odds — see `docs/production_cutoff_alignment.md`)
 4. `engine_baseline` ← DC probs in features
-5. `blend_baselines(market, engine)`
+5. Conditional `blend_baselines` → draw adjust
 6. If `residual_ml_enabled` and model loaded: `predict_proba(features, baseline=blend)`
-7. Return `STMatchProbabilityResult`
+7. If `RESIDUAL_ML_FINAL_SHRINK_TO_MARKET` > 0: `shrink_toward_market` on final probs
+8. Return `STMatchProbabilityResult`
 
 ## Research / backtest
 
@@ -88,6 +91,7 @@ None (batch CLI).
 
 # Important Tests
 
+- `tests/test_calc/test_probability_calculations.py` (worked examples vs docs)
 - `tests/test_calc/test_probability_manager.py` (import smoke)
 - `tests/test_calc/test_residual_ml_feature_assembler.py`
 - `tests/test_calc/test_backtest_residual_ml.py`
@@ -106,6 +110,8 @@ None (batch CLI).
 - No persistence of results
 - Minimal unit tests on `ProbabilityManager` itself (mostly integration via backtest)
 - Feature assembly is expensive (many DB reads per match)
+- Market odds are whatever is stored on `STMatchOdds` (often early/start odds), not necessarily closing
+- See `docs/production_cutoff_alignment.md` for injury vs market timing
 
 # Unknowns
 

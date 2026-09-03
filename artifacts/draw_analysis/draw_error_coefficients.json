@@ -1,149 +1,149 @@
 [
   {
     "feature": "favourite_strength",
-    "train_coef": 0.15311904762176917,
-    "validation_coef": -0.0557546606337043,
-    "stable": false,
-    "same_sign": false
+    "train_coef": 0.18020752934475487,
+    "validation_coef": 0.0646172251879416,
+    "stable": true,
+    "same_sign": true
   },
   {
     "feature": "market_balance",
-    "train_coef": -0.15034940742345446,
-    "validation_coef": 0.03461563821419288,
+    "train_coef": -0.1773376488038903,
+    "validation_coef": -0.06385544146319945,
+    "stable": true,
+    "same_sign": true
+  },
+  {
+    "feature": "away_npxg_for",
+    "train_coef": -0.02512128810253681,
+    "validation_coef": 0.010149098052771538,
     "stable": false,
     "same_sign": false
   },
   {
     "feature": "market_vs_dc_draw",
-    "train_coef": 0.022103781391737385,
-    "validation_coef": -0.029905928140529222,
+    "train_coef": 0.017711713977310334,
+    "validation_coef": -0.0019551149088663003,
     "stable": false,
     "same_sign": false
   },
   {
-    "feature": "away_npxg_for",
-    "train_coef": -0.019558731346186208,
-    "validation_coef": -0.02849142750581738,
+    "feature": "home_advantage_log",
+    "train_coef": -0.015130520757685806,
+    "validation_coef": 0.01676325258402193,
+    "stable": false,
+    "same_sign": false
+  },
+  {
+    "feature": "away_short_rest",
+    "train_coef": 0.013666047015597387,
+    "validation_coef": 0.014525466906702462,
     "stable": true,
     "same_sign": true
   },
   {
     "feature": "rest_day_difference",
-    "train_coef": -0.015473108068518543,
-    "validation_coef": -0.007713194591196424,
+    "train_coef": -0.012184681695704847,
+    "validation_coef": -0.017979558708764352,
     "stable": true,
     "same_sign": true
   },
   {
-    "feature": "away_short_rest",
-    "train_coef": 0.010381609925622598,
-    "validation_coef": 0.03393989035620627,
+    "feature": "home_npxg_against",
+    "train_coef": -0.010556110148618125,
+    "validation_coef": -0.016410072221014434,
     "stable": true,
     "same_sign": true
   },
   {
     "feature": "home_short_rest",
-    "train_coef": 0.010332381141130472,
-    "validation_coef": -0.019573003686847574,
-    "stable": false,
-    "same_sign": false
-  },
-  {
-    "feature": "home_npxg_against",
-    "train_coef": -0.009835050858263984,
-    "validation_coef": -0.007012457557732051,
-    "stable": true,
-    "same_sign": true
-  },
-  {
-    "feature": "away_npxg_against",
-    "train_coef": 0.009441924429036897,
-    "validation_coef": 0.014701278533721572,
-    "stable": true,
-    "same_sign": true
-  },
-  {
-    "feature": "home_advantage_log",
-    "train_coef": -0.009282241615954923,
-    "validation_coef": -0.016349973195217957,
+    "train_coef": 0.01001419770748837,
+    "validation_coef": 0.0007573183422529074,
     "stable": true,
     "same_sign": true
   },
   {
     "feature": "home_npxg_for",
-    "train_coef": -0.007784025169327532,
-    "validation_coef": -0.005886465113959425,
+    "train_coef": -0.009935113405376707,
+    "validation_coef": -0.0008675040762449656,
     "stable": true,
     "same_sign": true
+  },
+  {
+    "feature": "expected_goal_total",
+    "train_coef": -0.008633917055616874,
+    "validation_coef": 0.03276825555005389,
+    "stable": false,
+    "same_sign": false
   },
   {
     "feature": "combined_low_scoring_rate",
-    "train_coef": -0.006992408021807099,
-    "validation_coef": -0.007923297381007076,
+    "train_coef": -0.00863092362534987,
+    "validation_coef": -0.011087962936200102,
     "stable": true,
     "same_sign": true
   },
   {
-    "feature": "league_competitive_balance",
-    "train_coef": -0.006446684482454972,
-    "validation_coef": 0.03568189122408601,
+    "feature": "away_npxg_against",
+    "train_coef": 0.007631317640354594,
+    "validation_coef": -0.0013582842830960177,
     "stable": false,
     "same_sign": false
   },
   {
     "feature": "league_draw_rate",
-    "train_coef": -0.005818966163715183,
-    "validation_coef": 0.0045675305934555765,
-    "stable": false,
-    "same_sign": false
-  },
-  {
-    "feature": "expected_goal_total",
-    "train_coef": -0.004396124997984471,
-    "validation_coef": 0.04869213188496242,
-    "stable": false,
-    "same_sign": false
+    "train_coef": -0.007128607837758286,
+    "validation_coef": -0.0193239667918564,
+    "stable": true,
+    "same_sign": true
   },
   {
     "feature": "combined_one_goal_match_rate",
-    "train_coef": 0.003728213377385125,
-    "validation_coef": -8.06251522084433e-05,
+    "train_coef": 0.0048653165078204235,
+    "validation_coef": -0.005669757102107163,
+    "stable": false,
+    "same_sign": false
+  },
+  {
+    "feature": "congestion_difference",
+    "train_coef": 0.004437510867161251,
+    "validation_coef": -0.08509207634517094,
     "stable": false,
     "same_sign": false
   },
   {
     "feature": "combined_close_match_rate",
-    "train_coef": 0.0035524482256554866,
-    "validation_coef": 0.0006052447278870252,
-    "stable": true,
-    "same_sign": true
-  },
-  {
-    "feature": "congestion_difference",
-    "train_coef": 0.0028532889681752195,
-    "validation_coef": 0.012462322222742498,
-    "stable": true,
-    "same_sign": true
-  },
-  {
-    "feature": "league_avg_goals",
-    "train_coef": 0.0026962581747386476,
-    "validation_coef": 0.009918544401043446,
-    "stable": true,
-    "same_sign": true
+    "train_coef": 0.0037215389998868664,
+    "validation_coef": -0.012223599122178819,
+    "stable": false,
+    "same_sign": false
   },
   {
     "feature": "expected_goal_difference",
-    "train_coef": -0.002523704505364092,
-    "validation_coef": 0.01639284085349813,
+    "train_coef": 0.0030245285544338147,
+    "validation_coef": -0.037953590996693085,
     "stable": false,
     "same_sign": false
   },
   {
-    "feature": "combined_draw_rate",
-    "train_coef": -0.0001830782210756326,
-    "validation_coef": 0.000794481431983594,
+    "feature": "league_avg_goals",
+    "train_coef": 0.0029553458269582313,
+    "validation_coef": -0.006878034569679867,
     "stable": false,
     "same_sign": false
+  },
+  {
+    "feature": "league_competitive_balance",
+    "train_coef": -0.0019826565038234484,
+    "validation_coef": -0.020162335209595757,
+    "stable": true,
+    "same_sign": true
+  },
+  {
+    "feature": "combined_draw_rate",
+    "train_coef": -0.0012629698696815267,
+    "validation_coef": -0.007484275075494556,
+    "stable": true,
+    "same_sign": true
   }
 ]

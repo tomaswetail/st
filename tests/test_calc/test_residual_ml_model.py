@@ -72,6 +72,23 @@ def _synthetic_rows(count: int = 120) -> list[dict]:
     return rows
 
 
+def test_trainer_exclude_injury_features_omits_columns():
+    rows = _synthetic_rows(10)
+    for row in rows:
+        row["has_availability"] = 1
+        row["home_unavailable_count"] = 2
+        row["missing_value_difference"] = 0.01
+    all_names = ResidualMLTrainer.feature_names_from_rows(rows)
+    without_injury = ResidualMLTrainer.feature_names_from_rows(
+        rows,
+        exclude_injury_features=True,
+    )
+    assert "has_availability" in all_names
+    assert "has_availability" not in without_injury
+    assert "home_unavailable_count" not in without_injury
+    assert "attack_strength_difference" in without_injury
+
+
 def test_trainer_fit_and_save_round_trip(tmp_path: Path):
     rows = _synthetic_rows()
     train_rows = rows[:100]
@@ -110,6 +127,7 @@ def test_model_predict_proba(tmp_path: Path):
         match_id=1,
         draw_number=4750,
         feature_cutoff_date=__import__("datetime").date(2024, 6, 1),
+        league_external_id=39,
         p_home_market=0.48,
         p_draw_market=0.27,
         p_away_market=0.25,

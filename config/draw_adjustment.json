@@ -1,0 +1,30 @@
+{
+  "enabled": false,
+  "intercept": 0.1063696738772306,
+  "beta0": 0.1063696738772306,
+  "features": [
+    {
+      "name": "away_npxg_for",
+      "beta": -0.31653871693952507
+    },
+    {
+      "name": "away_short_rest",
+      "beta": 0.20430165082921664
+    },
+    {
+      "name": "away_npxg_against",
+      "beta": 0.17439973031599385
+    },
+    {
+      "name": "combined_low_scoring_rate",
+      "beta": 0.043276111033897856
+    },
+    {
+      "name": "congestion_difference",
+      "beta": 0.1673998738760768
+    }
+  ],
+  "missing_feature_default": 0.0,
+  "notes": "Phase 3.2 OOS gate PASS (refit_offset_top5, train MLE on raw features). Val draw Brier 0.179217→0.177849 (Δ=-0.001368); Val draw LL 0.543622→0.539894 (Δ=-0.003728). Phase 3.1 discovery full-L1 OOS remains FAIL. Full dataset rebuild + HGB retrain deferred (~20h)."
+}
+

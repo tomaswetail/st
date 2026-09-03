@@ -9,6 +9,16 @@
 
 There is **no HTTP API layer**, **no authentication**, and **no job queue** in-repo.
 
+Application packages live under **`src/`**. Import names stay the same (`from calc...`); run with **`PYTHONPATH=src`**. Repo-root holds `tests/`, `config/`, `docs/`, `data/`, `models/`, `artifacts/`.
+
+### Documentation layout
+
+| Location | Contents |
+|----------|----------|
+| `docs/` root | Core / ops knowledge: BUSINESS, DOMAIN, ARCHITECTURE, DECISIONS, `production_profile.md`, [`wiki.md`](wiki.md) (modeling/eval jargon), ingestion guides, `product/` |
+| [`docs/project_status.md`](project_status.md) | Living ship status and pointers into experiment reports |
+| [`docs/reports/`](reports/) | Experiment / phase write-ups (`injury/`, `ml_draw/`, `ml_residual/`) — not product correctness sources |
+
 ---
 
 # Technology Stack
@@ -16,14 +26,14 @@ There is **no HTTP API layer**, **no authentication**, and **no job queue** in-r
 | Layer | Technology | Evidence |
 |-------|------------|----------|
 | Language | Python 3.10+ | Type syntax, `.idea` config |
-| Database | PostgreSQL | `database.py` |
-| ORM | SQLAlchemy 2.x | `database.py`, repositories |
-| Validation/DTOs | Pydantic | `objects/schema/` |
-| Numerics | NumPy, SciPy | `calc/dixon_coles/` |
-| ML | scikit-learn (lazy import) | `calc/residual_ml/trainer.py` |
-| HTTP clients | httpx, requests | `data_sources/football_data/http_client.py`, `api_football_client.py` |
+| Database | PostgreSQL | `src/database.py` |
+| ORM | SQLAlchemy 2.x | `src/database.py`, repositories |
+| Validation/DTOs | Pydantic | `src/objects/schema/` |
+| Numerics | NumPy, SciPy | `src/calc/dixon_coles/` |
+| ML | scikit-learn (lazy import) | `src/calc/residual_ml/trainer.py` |
+| HTTP clients | httpx, requests | `src/data_sources/football_data/http_client.py`, `api_football_client.py` |
 | Testing | pytest | `tests/` |
-| Migrations | None (SQLAlchemy `create_all`) | `database/init_db()` |
+| Migrations | None (SQLAlchemy `create_all`) | `database.init_db()` |
 
 **Not present:** Docker, CI workflows, requirements.txt/pyproject.toml (dependencies implicit).
 
@@ -31,12 +41,14 @@ There is **no HTTP API layer**, **no authentication**, and **no job queue** in-r
 
 # Major Components
 
-## `database/`
+Application code is under `src/`. Package import names omit the `src.` prefix.
+
+## `src/database.py`
 
 - SQLAlchemy engine, `SessionLocal`, `init_db()` (`create_all` + optional `pg_trgm`/`unaccent`)
 - Env: `DATABASE_URL` or `POSTGRES_*`
 
-## `objects/`
+## `src/objects/`
 
 Domain persistence layer.
 
@@ -47,7 +59,7 @@ Domain persistence layer.
 | `schema/db/` | Pydantic create/read DTOs |
 | `schema/data_classes/` | Feature vectors, config, provider DTOs |
 
-## `data_sources/`
+## `src/data_sources/`
 
 External API clients and ingestion orchestration.
 
@@ -57,11 +69,12 @@ External API clients and ingestion orchestration.
 | `api_football_client.py` | Fixtures, teams, leagues |
 | `data_collector.py` | Bulk fixture import |
 | `entity_resolver.py` | Cross-provider entity linking |
+| `draw_manager.py` | Stryktipset import orchestration |
 | `football_data/service.py` | xG/shots enrichment |
 | `football_data/providers/` | SofaScore, FotMob adapters |
 | `classic_dc_config.py` | DC grid/params JSON loading |
 
-## `calc/`
+## `src/calc/`
 
 Business logic for features and probabilities (no DB writes in most modules).
 
@@ -78,24 +91,17 @@ Business logic for features and probabilities (no DB writes in most modules).
 | `market_probabilities.py` | Odds → probs wrapper |
 | `probability_metrics.py` | Log-loss, RPS |
 
-## `services/`
+## `src/scripts/`
 
-Thin orchestration over repositories + clients.
+CLI entry points for batch jobs (DC optimize, ML train/backtest, missing stats). Historical phase docs may still say `scripts/`; prefer `src/scripts/` and `PYTHONPATH=src`.
 
-- `draw_manager.py` — Stryktipset import
-- `bet_distribution.py` — coupon double-coverage heuristics
-
-## `scripts/`
-
-CLI entry points for batch jobs (DC optimize, ML train/backtest, missing stats).
-
-## `config/`
+## `config/` (repo root)
 
 JSON league maps, team aliases, DC params/grids; `stryktipset.py` draw window constants.
 
-## `utils/`
+## `src/utils/`
 
-Shared helpers: seasons, team matching, repo paths, time splits, common constants.
+Shared helpers: seasons, team matching, repo paths, time splits, common constants. `repo_root()` resolves to the git/repo root (parent of `src/`).
 
 ---
 
@@ -104,8 +110,8 @@ Shared helpers: seasons, team matching, repo paths, time splits, common constant
 This system has no HTTP request flow. Typical **batch flow**:
 
 ```
-CLI / main.py
-  → Service or Manager (e.g. STDrawManager, ProbabilityManager, ExtendedMatchDataService)
+CLI / src/main.py
+  → Manager / service helper (e.g. STDrawManager, ProbabilityManager, ExtendedMatchDataService)
     → Repository (SQLAlchemy queries/upserts)
       → PostgreSQL
     → External API client (optional)
@@ -118,12 +124,14 @@ CLI / main.py
 ProbabilityManager.process_match
   → ResidualMLFeatureAssembler.assemble(STMatchModel)
       → StrengthCalculator, HomeAdvantageCalculator, DixonColesService, etc.
-  → market_baseline + engine_baseline → blend_baselines
-  → ResidualMLModel.predict_proba (if enabled)
+  → market_baseline + engine_baseline → blend_baselines → draw adjust
+  → ResidualMLModel.predict_proba (if enabled) → optional shrink_toward_market
   → STMatchProbabilityResult
 ```
 
-Evidence: `calc/probability_manager.py`, `calc/residual_ml/feature_assembler.py`
+Formulas and worked examples: [`docs/probability_calculations.md`](product/probability_calculations.md).
+
+Evidence: `src/calc/probability_manager.py`, `src/calc/residual_ml/feature_assembler.py`
 
 ---
 
@@ -131,11 +139,11 @@ Evidence: `calc/probability_manager.py`, `calc/residual_ml/feature_assembler.py`
 
 | Concern | Location | Do not put here |
 |---------|----------|-----------------|
-| SQL / persistence | `objects/repositories/` | Probability math |
-| Provider HTTP | `data_sources/` | Feature formulas |
-| Feature engineering | `calc/` | Raw SQL in calculators |
-| Config defaults | `objects/schema/data_classes/data_sources.py` | Hardcoded magic in scripts |
-| Orchestration | `services/`, `scripts/`, `main.py` | Complex feature math |
+| SQL / persistence | `src/objects/repositories/` | Probability math |
+| Provider HTTP | `src/data_sources/` | Feature formulas |
+| Feature engineering | `src/calc/` | Raw SQL in calculators |
+| Config defaults | `src/objects/schema/data_classes/data_sources.py` | Hardcoded magic in scripts |
+| Orchestration | `src/scripts/`, `src/main.py` | Complex feature math |
 
 ---
 
@@ -187,7 +195,7 @@ Repositories use SQLAlchemy session; callers commit/close sessions. `session_sco
 ## Svenska Spel
 
 - **Purpose:** Stryktipset draw JSON (matches, odds, bet %)
-- **Code:** `data_sources/svenskaspel_api_client.py`
+- **Code:** `src/data_sources/svenskaspel_api_client.py`
 - **Config:** `SvenskaSpelConfig`, `SVENSKASPEL_ACCESS_KEY`
 - **Failure handling:** Disk cache with TTL by draw state; `DrawNotFoundError`
 - **Evidence:** `tests/data_sources/test_svenskaspel_api_client.py`
@@ -195,30 +203,30 @@ Repositories use SQLAlchemy session; callers commit/close sessions. `session_sco
 ## API-Football
 
 - **Purpose:** Leagues, teams, fixtures (results source of truth per docs)
-- **Code:** `data_sources/api_football_client.py`, `data_collector.py`
+- **Code:** `src/data_sources/api_football_client.py`, `data_collector.py`
 - **Cache:** Disk cache under `data/cache/api-football/`
 - **Evidence:** `docs/football_data_ingestion.md`
 
 ## SofaScore (preferred xG per docs)
 
 - **Purpose:** Advanced stats + shots
-- **Code:** `data_sources/football_data/providers/sofascore.py`
+- **Code:** `src/data_sources/football_data/providers/sofascore.py`
 - **Default when** `FOOTBALL_DATA_PROVIDER=sofascore`
 
 ## FotMob (alternate xG)
 
 - **Purpose:** Same as SofaScore; still referenced in `main.py`
-- **Code:** `data_sources/football_data/providers/fotmob.py`
+- **Code:** `src/data_sources/football_data/providers/fotmob.py`
 
 ## Throttling / retries
 
-`ThrottledHttpClient` in `data_sources/football_data/http_client.py` — delay, retry 429/5xx, disk cache.
+`ThrottledHttpClient` in `src/data_sources/football_data/http_client.py` — delay, retry 429/5xx, disk cache.
 
 ---
 
 # Background Processing
 
-**No queue/worker system.** Long jobs run as CLI processes (DC optimization, ML training). Shell pipeline: `scripts/run_classic_dc_ml_pipeline.sh`.
+**No queue/worker system.** Long jobs run as CLI processes (DC optimization, ML training). Shell pipeline: `src/scripts/run_classic_dc_ml_pipeline.sh`.
 
 ---
 
@@ -254,9 +262,9 @@ Repositories use SQLAlchemy session; callers commit/close sessions. `session_sco
 ## Running tests
 
 ```bash
-PYTHONPATH=. python -m pytest tests/
-PYTHONPATH=. python -m pytest tests/test_calc/ -q
-PYTHONPATH=. python -m pytest tests/football_data/test_ingestion.py -q
+PYTHONPATH=src python -m pytest tests/
+PYTHONPATH=src python -m pytest tests/test_calc/ -q
+PYTHONPATH=src python -m pytest tests/football_data/test_ingestion.py -q
 ```
 
 Use `python -m pytest` (not bare `pytest`) for reliable imports of `scripts.*`.
@@ -273,7 +281,7 @@ No formal factory library; tests use `SimpleNamespace`, `MagicMock`, local helpe
 
 Repositories perform queries/upserts; probability and feature math belongs in `calc/`.
 
-Evidence: separation across `objects/repositories/` vs `calc/`
+Evidence: separation across `src/objects/repositories/` vs `src/calc/`
 
 Confidence: **HIGH**
 
@@ -281,7 +289,7 @@ Confidence: **HIGH**
 
 Feature tuning, paths, provider URLs, ML weights flow through Pydantic config.
 
-Evidence: `objects/schema/data_classes/data_sources.py`
+Evidence: `src/objects/schema/data_classes/data_sources.py`
 
 Confidence: **HIGH**
 
@@ -289,7 +297,7 @@ Confidence: **HIGH**
 
 `FootballDataProvider` protocol; `ExtendedMatchDataService` selects SofaScore or FotMob.
 
-Evidence: `data_sources/football_data/protocol.py`, `service.py`
+Evidence: `src/data_sources/football_data/protocol.py`, `service.py`
 
 Confidence: **HIGH**
 
@@ -297,7 +305,7 @@ Confidence: **HIGH**
 
 Do not assume provider team IDs match internal `teams.id`.
 
-Evidence: `data_sources/entity_resolver.py`, ingestion tests
+Evidence: `src/data_sources/entity_resolver.py`, ingestion tests
 
 Confidence: **HIGH**
 
@@ -305,15 +313,15 @@ Confidence: **HIGH**
 
 Any new feature calculator must filter history with `before` / `before_date` cutoff.
 
-Evidence: `calc/strength_calculator.py` docstring + tests
+Evidence: `src/calc/strength_calculator.py` docstring + tests
 
 Confidence: **HIGH**
 
 ## ARCH-006 — Residual ML package is the canonical ML location
 
-Flat `calc/residual_ml_*.py` files were consolidated into `calc/residual_ml/`.
+Flat `calc/residual_ml_*.py` files were consolidated into `calc/residual_ml/` (`src/calc/residual_ml/`).
 
-Evidence: package structure, imports in `calc/probability_manager.py`
+Evidence: package structure, imports in `src/calc/probability_manager.py`
 
 Confidence: **HIGH**
 
@@ -324,9 +332,9 @@ Confidence: **HIGH**
 | Area | Risk |
 |------|------|
 | `EntityResolver.resolve_team` / match linking | Wrong team → wrong features for entire coupon |
-| `calc/strength_calculator.py` cutoff logic | Leakage breaks backtest validity |
-| `objects/repositories/fixture_repository.py` upsert | Data loss on bad reimport |
+| `src/calc/strength_calculator.py` cutoff logic | Leakage breaks backtest validity |
+| `src/objects/repositories/fixture_repository.py` upsert | Data loss on bad reimport |
 | `ProbabilityManager` blend/ML fallback | Silent probability changes |
 | `config/classic_dc_league_params.json` | Wrong DC params → systematic bias |
-| `utils/team_mappings.py` | Large static maps; stale mappings cause unresolved teams |
+| `src/utils/team_mappings.py` | Large static maps; stale mappings cause unresolved teams |
 | `init_db()` / TRUNCATE workflows | Destructive full reimports |

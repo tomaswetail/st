@@ -4,7 +4,7 @@ Git commit at snapshot: `e49d05900a8258ab787e22103a9592eb94cbe7e1`
 
 Dataset rows: 2589 (expect ~2589)
 
-Full ablation and production recommendation: [`docs/baseline_after_dc_tune.md`](../docs/baseline_after_dc_tune.md)
+Full ablation and production recommendation: [`docs/reports/ml_residual/baseline_after_dc_tune.md`](../../docs/reports/ml_residual/baseline_after_dc_tune.md)
 
 ## Copied sweep metrics (`sweep_best/sweep_results.json` best trial)
 
