@@ -17,7 +17,7 @@ Before implementing features, read the knowledge layer under `docs/`.
 7. Skim [`docs/project_status.md`](docs/project_status.md) for current ship state and experiment context (gate status, what is off).
 8. Inspect existing implementation **and tests** before assuming behavior.
 
-Also useful: [`README.md`](README.md), [`docs/football_data_ingestion.md`](docs/product/football_data_ingestion.md) (operational ingestion guide — verify against code), [`docs/production_profile.md`](docs/production_profile.md) (live scoring profile), [`docs/wiki.md`](docs/wiki.md) (modeling jargon). Experiment / phase write-ups live under [`docs/reports/`](docs/reports/) (`injury/`, `ml_draw/`, `ml_residual/`) — not product correctness docs.
+Also useful: [`docs/football_data_ingestion.md`](docs/product/football_data_ingestion.md) (operational ingestion guide — verify against code), [`docs/production_profile.md`](docs/production_profile.md) (live scoring profile), [`docs/wiki.md`](docs/wiki.md) (modeling jargon). Experiment / phase write-ups live under [`docs/reports/`](docs/reports/) (`injury/`, `ml_draw/`, `ml_residual/`) — not product correctness docs.
 
 ## Product correctness
 
