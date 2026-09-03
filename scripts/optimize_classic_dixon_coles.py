@@ -10,6 +10,7 @@ from pathlib import Path
 from calc.dixon_coles.optimizer import DixonColesOptimizer, group_eval_matches_by_league
 from calc.dixon_coles.service import DixonColesService
 from calc.dixon_coles.walk_forward import EvalMatch
+from config.eval_protocol import TUNING_DRAW_MAX
 from config.stryktipset import STRYKETIPSET_DRAW_MAX, STRYKETIPSET_DRAW_MIN
 from data_sources.classic_dc_config import (
     ClassicDcLeagueParams,
@@ -23,7 +24,7 @@ from utils.repo_paths import resolve_repo_path
 from utils.time_split import DEFAULT_VALIDATION_FRACTION, time_split_rows
 
 DEFAULT_DRAW_MIN = STRYKETIPSET_DRAW_MIN
-DEFAULT_DRAW_MAX = STRYKETIPSET_DRAW_MAX
+DEFAULT_DRAW_MAX = TUNING_DRAW_MAX
 
 
 def time_split_eval_matches(
@@ -54,7 +55,15 @@ def filter_eval_matches_by_date(
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--draw-min", type=int, default=DEFAULT_DRAW_MIN)
-    parser.add_argument("--draw-max", type=int, default=DEFAULT_DRAW_MAX)
+    parser.add_argument(
+        "--draw-max",
+        type=int,
+        default=DEFAULT_DRAW_MAX,
+        help=(
+            f"Maximum draw number (default {DEFAULT_DRAW_MAX}=TUNING_DRAW_MAX; "
+            f"use {STRYKETIPSET_DRAW_MAX} with --include-holdout for Phase 5)"
+        ),
+    )
     parser.add_argument(
         "--validation-fraction",
         type=float,

@@ -1,52 +1,42 @@
 {
   "39": {
-    "xi": 0.0005,
+    "xi": 0.002,
     "lookback": 1460,
-    "rho": -0.15,
-    "log_loss": 0.9532559418279953,
-    "rps": 0.19331025229757712,
-    "n_evaluated": 134,
-    "validation_start": "2025-10-04",
+    "rho": -0.2,
+    "log_loss": 0.9760764259969623,
+    "rps": 0.1927468705632847,
+    "n_evaluated": 98,
+    "validation_start": "2025-12-06",
     "validation_end": "2026-07-05"
   },
   "41": {
-    "xi": 0.005,
-    "lookback": 365,
-    "rho": -0.2,
-    "log_loss": 1.0402048013255782,
-    "rps": 0.2047713359604702,
-    "n_evaluated": 67,
-    "validation_start": "2025-10-04",
-    "validation_end": "2026-07-05"
-  },
-  "42": {
     "xi": 0.0001,
-    "lookback": 1095,
-    "rho": 0.05,
-    "log_loss": 1.097679750394077,
-    "rps": 0.23292370178337185,
-    "n_evaluated": 22,
-    "validation_start": "2025-10-04",
+    "lookback": 1460,
+    "rho": -0.15,
+    "log_loss": 1.0268805419700926,
+    "rps": 0.20541181897730143,
+    "n_evaluated": 50,
+    "validation_start": "2025-12-06",
     "validation_end": "2026-07-05"
   },
   "45": {
     "xi": 0.005,
     "lookback": 730,
     "rho": 0.0,
-    "log_loss": 0.9193110802377519,
-    "rps": 0.20862105360716152,
+    "log_loss": 0.9116430389288122,
+    "rps": 0.2059414148656254,
     "n_evaluated": 19,
-    "validation_start": "2025-10-04",
+    "validation_start": "2025-12-06",
     "validation_end": "2026-07-05"
   },
   "180": {
     "xi": 0.0001,
-    "lookback": 1460,
+    "lookback": 365,
     "rho": 0.05,
-    "log_loss": 1.0612612110527802,
-    "rps": 0.23602324027665156,
-    "n_evaluated": 154,
-    "validation_start": "2025-10-04",
+    "log_loss": 1.0806827302878053,
+    "rps": 0.2375081635772579,
+    "n_evaluated": 104,
+    "validation_start": "2025-12-06",
     "validation_end": "2026-07-05"
   }
 }

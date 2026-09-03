@@ -1,0 +1,27 @@
+Validation slice: 456 matches, 17 leagues (fraction=0.2, draws 4760–4960)
+Params file: /home/tomas/wetail/git/st/config/classic_dc_league_params.json (5 tuned leagues)
+
+Eligible leagues (>= min_eval_matches):
+  league=39 matches=134 status=tuned
+  league=41 matches=67 status=tuned
+  league=42 matches=22 status=tuned
+  league=45 matches=19 status=tuned
+  league=180 matches=154 status=tuned
+
+Skipped leagues:
+  league=61 matches=4 reason=< 15 validation matches
+  league=71 matches=8 reason=< 15 validation matches
+  league=78 matches=1 reason=< 15 validation matches
+  league=88 matches=1 reason=< 15 validation matches
+  league=103 matches=1 reason=< 15 validation matches
+  league=113 matches=5 reason=< 15 validation matches
+  league=114 matches=10 reason=< 15 validation matches
+  league=140 matches=11 reason=< 15 validation matches
+  league=179 matches=4 reason=< 15 validation matches
+  league=244 matches=11 reason=< 15 validation matches
+  league=311 matches=2 reason=< 15 validation matches
+  league=591 matches=2 reason=< 15 validation matches
+
+Summary: eligible=5 tuned=5 missing=0 skipped=12
+
+All eligible leagues have tuned params.

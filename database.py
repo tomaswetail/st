@@ -5,9 +5,7 @@ import os
 from contextlib import contextmanager
 from typing import Any, Generator
 
-from sqlalchemy.orm import Session, sessionmaker
-
-from database.models import Base
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +18,10 @@ __all__ = [
 
 _engine = None
 _session_factory: sessionmaker | None = None
+
+
+class Base(DeclarativeBase):
+    pass
 
 
 def _database_url() -> str:

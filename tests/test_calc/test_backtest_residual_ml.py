@@ -64,3 +64,21 @@ def test_select_backtest_rows_all_rows_keeps_full_set():
 def test_select_backtest_rows_rejects_invalid_fraction():
     with pytest.raises(ValueError, match="validation_fraction"):
         select_backtest_rows([_row(1, "2024-01-01", 1)], validation_fraction=1.0)
+
+
+def test_select_backtest_rows_max_draw_excludes_holdout():
+    rows = [_row(index, f"2024-01-{index:02d}", draw_number) for index, draw_number in [
+        (1, 4948),
+        (2, 4949),
+        (3, 4950),
+        (4, 4951),
+        (5, 4960),
+    ]]
+    selected, description = select_backtest_rows(
+        rows,
+        all_rows=True,
+        max_draw=4950,
+    )
+    assert [row["draw_number"] for row in selected] == [4948, 4949, 4950]
+    assert "4951" not in description
+    assert "4960" not in description

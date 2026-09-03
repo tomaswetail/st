@@ -128,21 +128,23 @@ Agents must not conflate provider-specific IDs with internal database IDs.
 
 ---
 
-## External Entity Mapping
+## Entity Resolution
 
-**Definition:** Maps `(provider, entity_type, external_entity_id)` ↔ `internal_entity_id` for teams, leagues, fixtures across providers.
+**Definition:** Process of mapping provider-specific team, league, and match identifiers to internal database entities via `EntityResolver`.
+
+**How identity works:** Teams and leagues store an API-Football `external_id` column. `EntityResolver` looks up by that id (when a static provider→API-Football map exists), then falls back to aliases, exact/fuzzy name matching, and Postgres duplicate helpers. There is no live cross-provider mapping table.
 
 **Providers in use:** `api-football`, `sofascore`, `fotmob`, `svenska-spel` (inferred from resolver/service code).
 
-**Evidence:** `objects/models/external_entity_mapping.py`, `data_sources/entity_resolver.py`
+**Evidence:** `data_sources/entity_resolver.py`, `objects/models/team.py`, `objects/models/league.py`
 
 ---
 
 ## Provider
 
-**Definition:** External data source identifier string used in mappings and stats rows (e.g. `"fotmob"`, `"sofascore"`, `"svenska-spel"`).
+**Definition:** External data source identifier string used in resolution and stats rows (e.g. `"fotmob"`, `"sofascore"`, `"svenska-spel"`).
 
-**Not the same as:** Internal league code (E0, SP1) or API-Football numeric league id without mapping context.
+**Not the same as:** Internal league code (E0, SP1) or API-Football numeric league id without resolution context.
 
 ---
 
@@ -150,9 +152,9 @@ Agents must not conflate provider-specific IDs with internal database IDs.
 
 | Term | Meaning |
 |------|---------|
-| **API-Football league id** | External id in `fixtures.league_id`, `LEAGUES_EXTERNAL_IDS` |
+| **API-Football league id** | External id in `fixtures.league_id`, `leagues.external_id`, `LEAGUES_EXTERNAL_IDS` |
 | **Internal league id** | `leagues.id` primary key |
-| **SofaScore/FotMob league id** | Provider-specific; stored in `external_entity_mapping` |
+| **SofaScore/FotMob league id** | Provider-specific; resolved via `EntityResolver` / league config, not a mapping table |
 
 Always specify which ID space when writing code or docs.
 
@@ -169,19 +171,16 @@ STRoundModel (stryktipset_rounds)
     └── match_bet → STMatchBetModel [0..1]
 
 TeamModel (teams)
+├── external_id (API-Football team id)
 ├── referenced by ST matches
-├── referenced by fixtures (via team names/ids)
-└── external_entity_mapping [many providers]
+└── referenced by fixtures (via team names/ids)
 
 LeagueModel (leagues)
-└── external_entity_mapping
+└── external_id (API-Football league id)
 
 FixtureModel (fixtures)
 ├── match_advanced_stats [by match_id + provider]
 └── match_shots [by match_id + provider]
-
-ExternalEntityMappingModel
-└── links provider entities → internal Team/League/Fixture ids
 ```
 
 **Cross-domain link:** ST matches → modeling features via `ResidualMLFeatureAssembler`, which resolves teams and loads historical fixtures/stats before kickoff.
@@ -223,7 +222,7 @@ Evidence: `STMatchRepository.upsert_from_draw`
 
 # Domain Invariants
 
-1. **Internal IDs ≠ provider IDs** — always resolve through `EntityResolver` or mapping tables.
+1. **Internal IDs ≠ provider IDs** — always resolve through `EntityResolver` (and team/league `external_id` where applicable).
 2. **Feature cutoff < match kickoff** — modeling features for a coupon match use data strictly before that match's start.
 3. **Three-outcome probability space** — all probability outputs must cover exactly `{1, X, 2}` and sum to ~1 after normalization.
 4. **Coupon match external_id is Svenska Spel matchId** — not API-Football fixture id.

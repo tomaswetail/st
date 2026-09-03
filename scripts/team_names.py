@@ -1,5 +1,4 @@
 import csv
-from pathlib import Path
 from typing import Any
 
 from data_sources.api_football_client import get_all_leagues, APIFootballClient, get_team_names_by_league
@@ -156,7 +155,7 @@ def _get_fotmob_teams(league_id, country_code):
 
 
 def st_teams():
-    from services.draw_manager import STDrawManager
+    from data_sources.draw_manager import STDrawManager
     init_db()
     session = SessionLocal()
     d = STDrawManager(session)

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any
 
 
 @dataclass
@@ -14,25 +14,6 @@ class ProviderLeague:
     country: str | None = None
     country_code: str | None = None
     raw_payload: dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass
-class LeagueMappingSuggestion:
-    internal_league_id: int
-    internal_name: str
-    candidate: ProviderLeague | None
-    confidence: float
-    method: str  # exact | alias | fuzzy | unresolved
-
-
-@dataclass
-class LeagueMappingResult:
-    internal_league_id: int
-    provider: str
-    external_entity_id: str | None
-    status: Literal["mapped", "already_mapped", "unresolved", "failed"]
-    candidates: list[ProviderLeague] = field(default_factory=list)
-    error: str | None = None
 
 
 @dataclass

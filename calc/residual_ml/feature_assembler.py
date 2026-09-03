@@ -12,6 +12,7 @@ from calc.dixon_coles.model import DixonColesModel, DixonColesPrediction
 from calc.dixon_coles.service import DixonColesService
 from calc.league_behavior_calculator import LeagueBehaviorCalculator
 from calc.market_probabilities import MarketProbabilities
+from calc.player_availability_calculator import PlayerAvailabilityCalculator
 from calc.rest_congestion_calculator import RestCongestionCalculator
 from calc.strength_calculator import StrengthCalculator
 from objects.models.st_match import STMatchModel
@@ -47,6 +48,9 @@ class ResidualMLFeatureAssembler:
             session, config=self.config
         )
         self.rest_calculator = RestCongestionCalculator(session, config=self.config)
+        self.availability_calculator = PlayerAvailabilityCalculator(
+            session, config=self.config
+        )
         # Reuse the strength calculator's HA instance so process() cache is shared.
         self.home_advantage_calculator = (
             self.strength_calculator.home_advantage_calculator()
@@ -70,6 +74,7 @@ class ResidualMLFeatureAssembler:
         self.strength_calculator.clear_caches()
         self.league_behavior_calculator.clear_caches()
         self.rest_calculator.clear_caches()
+        self.availability_calculator.clear_caches()
         self.home_advantage_calculator.clear_caches()
 
     def assemble(
@@ -113,7 +118,17 @@ class ResidualMLFeatureAssembler:
             strength=strength,
         )
         league_behavior = self.league_behavior_calculator.calculate(match)
-        rest = self.rest_calculator.calculate(match)
+        home_previous, away_previous = self.rest_calculator.previous_fixtures(match)
+        rest_seed = self.rest_calculator.calculate(match)
+        availability = self.availability_calculator.calculate(
+            match,
+            favourite_strength=balance.favourite_strength,
+            home_short_rest=rest_seed.home_short_rest,
+            away_short_rest=rest_seed.away_short_rest,
+            home_previous_fixture=home_previous,
+            away_previous_fixture=away_previous,
+        )
+        rest = self.rest_calculator.calculate(match, availability=availability)
 
         league_avg_npxg = self._league_avg_npxg(match, cutoff)
 
@@ -209,6 +224,18 @@ class ResidualMLFeatureAssembler:
             home_advantage_log=home_advantage_log,
             home_advantage_coefficient=home_advantage_coefficient,
             travel_distance_km=None,
+            home_missing_player_value=availability.home_missing_player_value,
+            away_missing_player_value=availability.away_missing_player_value,
+            missing_value_difference=availability.missing_value_difference,
+            home_unavailable_count=availability.home_unavailable_count,
+            away_unavailable_count=availability.away_unavailable_count,
+            home_lineup_changes=rest.home_lineup_changes,
+            away_lineup_changes=rest.away_lineup_changes,
+            missing_value_x_favourite=availability.missing_value_x_favourite,
+            short_rest_x_missing_value=availability.short_rest_x_missing_value,
+            congestion_x_squad_depth=rest.congestion_x_squad_depth,
+            short_rest_x_rotation=rest.short_rest_x_rotation,
+            has_availability=availability.has_availability,
         )
 
     def _engine_probabilities(

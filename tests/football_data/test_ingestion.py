@@ -19,12 +19,12 @@ from data_sources.football_data.metrics import (
     shot_fingerprint,
 )
 from data_sources.football_data.providers.sofascore import (
+    parse_sofascore_available_leagues,
     parse_sofascore_match_details,
     parse_sofascore_matches,
 )
 from data_sources.football_data.results import MatchImportResult
 from data_sources.football_data.service import ExtendedMatchDataService
-from objects.repositories.external_entity_mapping_repository import ExternalEntityMappingRepository
 from objects.schema.data_classes.data_sources import DataSourceConfig
 from objects.schema.data_classes.provider_dtos import (
     ProviderMatch,
@@ -56,6 +56,19 @@ def test_sofascore_season_matches_parsing():
     matches = parse_sofascore_matches(payload, "17", "76986")
     assert len(matches) == 1
     assert matches[0].home_team_name == "Manchester City"
+
+
+def test_sofascore_available_leagues_parsing():
+    categories = load_fixture("sofascore", "categories.json")
+    tournaments = {
+        "1": load_fixture("sofascore", "unique_tournaments_england.json"),
+        "32": load_fixture("sofascore", "unique_tournaments_spain.json"),
+    }
+    leagues = parse_sofascore_available_leagues(categories, tournaments)
+    by_id = {league.provider_league_id: league for league in leagues}
+    assert by_id["17"].name == "Premier League"
+    assert by_id["17"].country == "England"
+    assert by_id["8"].name == "LaLiga"
 
 
 # ---------------------------------------------------------------------------
@@ -160,101 +173,6 @@ def test_postponed_fixture_matching_via_season():
     assert "postponed" in result.method or any(
         "postponed" in warning.lower() for warning in result.warnings
     )
-
-
-def test_provider_id_mapping_upsert_unique_keys():
-    session = MagicMock()
-
-    repo = ExternalEntityMappingRepository(session)
-    fake_row = SimpleNamespace(id=1, external_entity_id="47")
-    session.scalar.return_value = None
-    session.scalars.return_value.one.return_value = fake_row
-    with patch(
-        "objects.repositories.external_entity_mapping_repository.pg_insert"
-    ) as insert_mock:
-        statement = MagicMock()
-        insert_mock.return_value.values.return_value.on_conflict_do_update.return_value.returning.return_value = (
-            statement
-        )
-        row = repo.upsert(
-            provider="sofascore",
-            entity_type="league",
-            internal_entity_id=3,
-            external_entity_id="47",
-            external_name="Premier League",
-        )
-        assert row.external_entity_id == "47"
-        insert_mock.assert_called()
-
-
-def test_provider_id_mapping_upsert_keeps_existing_internal_link():
-    session = MagicMock()
-
-    repo = ExternalEntityMappingRepository(session)
-    existing = SimpleNamespace(
-        id=1,
-        external_entity_id="St. Pauli",
-        internal_entity_id=17,
-        external_name="St. Pauli",
-    )
-    # No row for the new external id; existing row for internal id 17.
-    repo.get_by_external = MagicMock(return_value=None)
-    repo.get_by_internal = MagicMock(return_value=existing)
-
-    with patch(
-        "objects.repositories.external_entity_mapping_repository.pg_insert"
-    ) as insert_mock:
-        row = repo.upsert(
-            provider="api-football",
-            entity_type="team",
-            internal_entity_id=17,
-            external_entity_id="St Pauli",
-            external_name="St Pauli",
-        )
-        assert row is existing
-        assert row.external_entity_id == "St. Pauli"
-        insert_mock.assert_not_called()
-
-
-def test_provider_id_mapping_upsert_does_not_steal_internal_slot():
-    """External A→teamX must not be moved onto teamY if teamY already mapped."""
-    from contextlib import nullcontext
-
-    session = MagicMock()
-    session.no_autoflush = nullcontext()
-
-    repo = ExternalEntityMappingRepository(session)
-    existing_external = SimpleNamespace(
-        id=2045,
-        external_entity_id="999",
-        internal_entity_id=10,
-        external_name="Other",
-        metadata_json=None,
-    )
-    existing_internal = SimpleNamespace(
-        id=100,
-        external_entity_id="111",
-        internal_entity_id=35,
-        external_name="Keep",
-        metadata_json=None,
-    )
-    repo.get_by_external = MagicMock(return_value=existing_external)
-    repo.get_by_internal = MagicMock(return_value=existing_internal)
-
-    with patch(
-        "objects.repositories.external_entity_mapping_repository.pg_insert"
-    ) as insert_mock:
-        row = repo.upsert(
-            provider="fotmob",
-            entity_type="team",
-            internal_entity_id=35,
-            external_entity_id="999",
-            external_name="Conflict",
-        )
-
-    assert row is existing_internal
-    assert existing_external.internal_entity_id == 10
-    insert_mock.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

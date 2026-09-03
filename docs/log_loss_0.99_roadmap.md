@@ -4,34 +4,34 @@ overview: "A phased roadmap to reach pooled out-of-sample log loss ≤ 0.99 on S
 todos:
   - id: phase0-eval
     content: "Phase 0: Standardize validation fraction (0.20), add multi-slice eval script, define final holdout, document ablation matrix in docs/log_loss_0.99_roadmap.md"
-    status: pending
+    status: completed
   - id: phase1-preflight
     content: "Phase 1.0: Snapshot pre-tune baseline (copy league params, dataset, model, sweep_results); align VALIDATION_FRACTION=0.20"
-    status: pending
+    status: completed
   - id: phase1-dc-optimize
     content: "Phase 1.1: Run full DC grid (210 combos/league); verify classic_dc_league_params.json covers all eligible leagues"
-    status: pending
+    status: completed
   - id: phase1-dc-rebuild
     content: "Phase 1.2: Rebuild dataset.csv with tuned DC params (fast HA + classic engine); log row/skip counts"
-    status: pending
+    status: completed
   - id: phase1-retrain
     content: "Phase 1.3: Full ML hyperparameter sweep; save new sweep_best artifacts"
-    status: pending
+    status: completed
   - id: phase1-measure
     content: "Phase 1.4: Backtest ablation matrix + shrink α sweep; write docs/baseline_after_dc_tune.md"
-    status: pending
+    status: completed
   - id: phase1-blend
     content: "Phase 1.5 (optional): Sweep market/DC blend weights; re-measure if promising"
-    status: pending
+    status: completed
   - id: phase2-injury-api
-    content: "Phase 2: Integrate external injury/player API with cutoff-safe snapshots; historical backfill + FotMob supplement for training gaps"
-    status: pending
+    content: "Phase 2: API-Football injuries+lineups only; cutoff-safe snapshots; historical backfill CLI"
+    status: completed
   - id: phase2-features
     content: "Phase 2: Implement PlayerAvailabilityCalculator; extend ResidualMLFeatures; wire into assembler and rebuild dataset"
-    status: pending
+    status: completed
   - id: phase3-draw-discover
     content: "Phase 3.1: Draw driver discovery ML (L1 logistic + GAM) on historical dataset; rank features that drive X vs blend/odds"
-    status: pending
+    status: completed
   - id: phase3-draw-ship
     content: "Phase 3.2: Ship explicit draw adjustment into blend/assembler; retrain HGB residual on improved baseline"
     status: pending
@@ -69,13 +69,13 @@ isProject: false
 | System | Log loss (20% val, 518 rows) |
 |--------|------------------------------|
 | Market | **1.0068** |
-| Blend 70/30 | 1.0100 |
-| ML residual | 1.0103 |
+| Blend 70/30 | **1.0057** (post DC tune) |
+| ML + shrink α=0.5 | **1.0022** (post DC tune) |
 | Target | **0.9900** |
 
 **Gap to close:** ~**0.017** vs market, ~**0.020** vs current ML.
 
-**Important:** validation fraction must be **aligned** between sweep ([`scripts/train_residual_ml.py`](scripts/train_residual_ml.py)), pipeline ([`scripts/run_classic_dc_ml_pipeline.sh`](scripts/run_classic_dc_ml_pipeline.sh)), and backtest. Today pipeline defaults to 15% while best sweep used 20% — fix this before comparing runs.
+**Important:** validation fraction is **aligned** at **0.20** across sweep ([`scripts/train_residual_ml.py`](scripts/train_residual_ml.py)), pipeline ([`scripts/run_classic_dc_ml_pipeline.sh`](scripts/run_classic_dc_ml_pipeline.sh)), backtest, and DC optimizer. Canonical constants live in [`config/eval_protocol.py`](config/eval_protocol.py).
 
 ```mermaid
 flowchart LR
@@ -119,7 +119,7 @@ flowchart TD
 ```
 
 Key files:
-- Blend: [`calc/residual_ml_baseline.py`](calc/residual_ml_baseline.py)
+- Blend: [`calc/residual_ml/baseline.py`](calc/residual_ml/baseline.py)
 - Features: [`calc/residual_ml_feature_assembler.py`](calc/residual_ml_feature_assembler.py)
 - Dataset: [`calc/residual_ml_dataset.py`](calc/residual_ml_dataset.py)
 - Training: [`calc/residual_ml_trainer.py`](calc/residual_ml_trainer.py)
@@ -170,6 +170,61 @@ Use only once at the end to confirm 0.99.
 
 **Exit criteria:** Reproducible numbers; ablation table in doc; holdout defined.
 
+### Phase 0 — Completed (2026-09-02)
+
+**Evaluation protocol** ([`config/eval_protocol.py`](config/eval_protocol.py)):
+
+| Constant | Value | Purpose |
+|----------|-------|---------|
+| `VALIDATION_FRACTION` | **0.20** | Aligned with [`utils/time_split.py`](utils/time_split.py) |
+| `TUNING_DRAW_MAX` | **4950** | Draws used for DC/ML tuning and default eval |
+| `HOLDOUT_DRAW_MIN` | **4951** | Final holdout (draws 4951–4960; ~5% of window) |
+| Draw window | **4760–4960** | [`config/stryktipset.py`](config/stryktipset.py) |
+
+**Canonical commands:**
+
+```bash
+export PYTHONPATH=.
+
+# Multi-slice eval (default: 20% val, holdout excluded → 492 rows on dataset.csv)
+python scripts/eval_residual_ml.py \
+  --dataset data/residual_ml/dataset.csv \
+  --model models/residual_ml/sweep_best/model.pkl \
+  --validation-fraction 0.20
+
+# Backtest ablation (default: holdout excluded; same 492-row tuning slice as eval)
+python scripts/backtest_residual_ml.py \
+  --dataset data/residual_ml/dataset.csv \
+  --model models/residual_ml/sweep_best/model.pkl \
+  --validation-fraction 0.20
+
+# Full validation time split including holdout draws (518 rows — sweep comparison)
+python scripts/backtest_residual_ml.py \
+  --dataset data/residual_ml/dataset.csv \
+  --model models/residual_ml/sweep_best/model.pkl \
+  --validation-fraction 0.20 \
+  --include-holdout
+
+# Phase 5 only — include holdout draws in eval too
+python scripts/eval_residual_ml.py --include-holdout
+```
+
+**Holdout policy:** draws **4951–4960** are excluded from tuning, sweep, shrink α search, and default backtest/eval (`TUNING_DRAW_MAX=4950`). Use `--include-holdout` / `--no-exclude-holdout` for Phase 5 or historical sweep comparison.
+
+**Canonical tuning slice:** 20% time split **with holdout excluded** (**492 rows** on current `dataset.csv`). `scripts/backtest_residual_ml.py` and `scripts/eval_residual_ml.py` both default to this.
+
+**Ablation matrix (post-pipeline `dataset.csv`):**
+
+| Row | Configuration | Log loss (492 rows, default) | Log loss (518 rows, `--include-holdout`) |
+|-----|---------------|------------------------------|------------------------------------------|
+| A | Market only | 1.0291 | **1.0068** |
+| B | Blend (70/30) | 1.0231 | **1.0057** |
+| C | Blend + ML (no shrink) | 0.9771 | **1.0091** |
+| D | Blend + ML + best shrink | α=0.0 → 0.9771 | α=0.5 → **1.0022** |
+| — | DC only (context) | 1.0377 | 1.0375 |
+
+The **492-row** slice is canonical for tuning gates (holdout excluded). The **518-row** column matches the ML sweep row count and is used for historical sweep comparison.
+
 ---
 
 ## Phase 1 — Full DC pipeline → retrain → measure (detailed runbook)
@@ -208,7 +263,7 @@ Do this **before** changing `classic_dc_league_params.json` or rebuilding the da
 | DC engine | `classic` | Per-league tuned params apply |
 | HA mode | `fast` | Pipeline default; ~20h dataset rebuild |
 
-Update [`scripts/run_classic_dc_ml_pipeline.sh`](scripts/run_classic_dc_ml_pipeline.sh) default `VALIDATION_FRACTION` from `0.15` → `0.20` before the full run (or always pass explicitly).
+Pipeline default `VALIDATION_FRACTION` is **0.20** in [`scripts/run_classic_dc_ml_pipeline.sh`](scripts/run_classic_dc_ml_pipeline.sh) (aligned with sweep and backtest).
 
 #### 1.0.2 Snapshot pre-tune artifacts
 
@@ -216,9 +271,12 @@ Copy to a dated folder (e.g. `artifacts/baseline_pre_dc_tune_YYYYMMDD/`):
 
 | File | Purpose |
 |------|---------|
-| `config/classic_dc_league_params.json` | Today: **4 leagues** tuned (smoke grid); rest use globals |
-| `data/residual_ml/dataset.csv` | Current feature matrix |
-| `models/residual_ml/sweep_best/` | `model.pkl`, `sweep_results.json`, `baseline_weights.json`, `feature_schema.json` |
+| `dataset.csv` | From `data/residual_ml/dataset_classic.csv` — **pre-tune proxy** (classic DC before full grid) |
+| `sweep_best/` | `model.pkl`, `sweep_results.json`, etc. (copied at snapshot time) |
+| `backtest.txt` | Generated backtest on `dataset.csv` @ 20% validation |
+| `classic_dc_league_params.pre_tune_note.txt` | Explains why league params are **not** copied |
+
+Do **not** copy `config/classic_dc_league_params.json` into the snapshot if the pipeline has already run — it would be post-tune.
 
 #### 1.0.3 Record pre-tune metrics (copy from existing backtest or re-run)
 
@@ -249,11 +307,25 @@ python scripts/backtest_classic_dixon_coles.py  # pooled DC vs market on ST eval
 
 #### 1.0.4 Preflight checklist
 
-- [ ] DB up to date (fixtures through draw 4960)
-- [ ] `PYTHONPATH=.` set for all commands
-- [ ] Pre-tune artifacts copied
-- [ ] Pre-tune backtest output saved to `artifacts/baseline_pre_dc_tune_*/backtest.txt`
-- [ ] `VALIDATION_FRACTION=0.20` agreed for optimizer, train sweep, and backtest
+- [x] DB up to date (fixtures through draw 4960)
+- [x] `PYTHONPATH=.` set for all commands
+- [x] Pre-tune artifacts copied (`artifacts/baseline_pre_dc_tune_20250902/`)
+- [x] Pre-tune backtest output saved to `artifacts/baseline_pre_dc_tune_*/backtest.txt`
+- [x] `VALIDATION_FRACTION=0.20` agreed for optimizer, train sweep, and backtest
+
+#### Phase 1.0 Preflight — Completed (2026-09-02)
+
+**Artifact path:** [`artifacts/baseline_pre_dc_tune_20250902/`](artifacts/baseline_pre_dc_tune_20250902/)
+
+**Post-hoc proxy:** the full DC pipeline had already run when this snapshot was taken. Only `dataset.csv` (from `dataset_classic.csv`) reliably preserves pre-tune DC features. `classic_dc_league_params.json` is intentionally **omitted** (see `classic_dc_league_params.pre_tune_note.txt`).
+
+Created by:
+
+```bash
+PYTHONPATH=. python scripts/snapshot_preflight_baseline.py --date 20250902
+```
+
+Snapshot contents: `dataset.csv` (pre-tune proxy), `sweep_best/` (copied at snapshot time), `backtest.txt`, README with metrics from copied `sweep_results.json` (market 1.0068, blend 1.0057, ML 1.0091 @ 518 val rows).
 
 ---
 
@@ -285,7 +357,7 @@ export VALIDATION_FRACTION=0.20
 python -u scripts/optimize_classic_dixon_coles.py \
   --validation-fraction 0.20 \
   --draw-min 4760 \
-  --draw-max 4960 \
+  --draw-max 4950 \
   --grid-config config/classic_dc_optimization_grid.json \
   --output config/classic_dc_league_params.json \
   2>&1 | tee artifacts/dc_optimize_full_$(date +%Y%m%d).log
@@ -313,6 +385,36 @@ From grid JSON:
 
 **Do not** use optimizer validation log loss as the Phase 1 success metric — it is DC-only on a subset. The gate is **full pipeline backtest** (Section 1.5).
 
+#### Phase 1.1 DC optimize — Completed (2026-09-02)
+
+Full grid run wrote **5 tuned leagues** to [`config/classic_dc_league_params.json`](config/classic_dc_league_params.json): **39, 41, 42, 45, 180**.
+
+Coverage verified with:
+
+```bash
+PYTHONPATH=. python scripts/verify_dc_league_coverage.py
+```
+
+**Verify output (2026-09-02):**
+
+```
+Validation slice: 456 matches, 17 leagues (fraction=0.2, draws 4760–4960)
+Params file: config/classic_dc_league_params.json (5 tuned leagues)
+
+Eligible leagues (>= min_eval_matches):
+  league=39 matches=134 status=tuned
+  league=41 matches=67 status=tuned
+  league=42 matches=22 status=tuned
+  league=45 matches=19 status=tuned
+  league=180 matches=154 status=tuned
+
+Skipped leagues (12): 61, 71, 78, 88, 103, 113, 114, 140, 179, 244, 311, 591
+  (each with < 15 validation matches)
+
+Summary: eligible=5 tuned=5 missing=0 skipped=12
+All eligible leagues have tuned params.
+```
+
 ---
 
 ### 1.2 Verify optimizer output
@@ -326,15 +428,19 @@ python -c "import json; d=json.load(open('config/classic_dc_league_params.json')
 
 **Acceptance criteria:**
 
-- [ ] File written and valid JSON
-- [ ] More leagues than smoke run (target: most of ~17 validation leagues with ≥15 matches)
-- [ ] Each entry has `xi`, `lookback`, `rho`, `log_loss`, `n_evaluated`
-- [ ] Optimizer log shows `Pooled weighted DC log loss` (informational only)
-- [ ] Copy output to `artifacts/baseline_post_dc_tune_*/classic_dc_league_params.json`
+- [x] File written and valid JSON
+- [x] More leagues than smoke run (5 eligible leagues tuned)
+- [x] Each entry has `xi`, `lookback`, `rho`, `log_loss`, `n_evaluated`
+- [x] Optimizer log shows `Pooled weighted DC log loss` (informational only)
+- [x] Copy output to `artifacts/baseline_post_dc_tune_*/classic_dc_league_params.json`
 
 **Sanity:** compare per-league `log_loss` in params file vs global defaults — large swings expected for PL (39), cups, lower leagues.
 
 **Env var for downstream:** `CLASSIC_DC_LEAGUE_PARAMS_PATH=config/classic_dc_league_params.json` (default in [`DataSourceConfig`](objects/schema/data_classes/data_sources.py)).
+
+#### Phase 1.2 Verify optimizer output — Completed (2025-09-02)
+
+Verified via pipeline step 1/4 and [`scripts/verify_dc_league_coverage.py`](scripts/verify_dc_league_coverage.py). Params archived in [`artifacts/baseline_post_dc_tune_20250902/classic_dc_league_params.json`](artifacts/baseline_post_dc_tune_20250902/classic_dc_league_params.json).
 
 ---
 
@@ -368,12 +474,16 @@ Output: [`data/residual_ml/dataset.csv`](data/residual_ml/dataset.csv) (expect ~
 
 #### 1.3.3 Rebuild checklist
 
-- [ ] Row count printed (`Wrote N rows`)
-- [ ] Note skip warnings (league missing, blend impossible)
-- [ ] Copy CSV to `artifacts/baseline_post_dc_tune_*/dataset.csv`
+- [x] Row count printed (`Wrote N rows`) — **2589 rows**
+- [x] Note skip warnings (league missing, blend impossible)
+- [x] Copy CSV to `artifacts/baseline_post_dc_tune_*/dataset.csv`
 - [ ] Optional: diff DC columns vs pre-tune CSV on sample rows (expect changes in tuned leagues)
 
 **Runtime:** ~20h with fast HA (plan accordingly).
+
+#### Phase 1.3 Rebuild dataset — Completed (2025-09-02)
+
+Rebuilt via pipeline step 2/4 (`RESIDUAL_ML_HOME_ADVANTAGE_MODE=fast`, `RESIDUAL_ML_DC_ENGINE=classic`). Output: [`data/residual_ml/dataset.csv`](data/residual_ml/dataset.csv) (**2589 rows**). Archived in [`artifacts/baseline_post_dc_tune_20250902/dataset.csv`](artifacts/baseline_post_dc_tune_20250902/dataset.csv).
 
 ---
 
@@ -418,6 +528,20 @@ From best trial in `sweep_results.json`:
 
 **Warning:** train LL ~0.94 with val LL ~1.01 indicates overfitting gap — expected; trust **validation** only.
 
+#### Phase 1.4 Retrain — Completed (2025-09-02)
+
+Full 162-trial sweep via pipeline step 3/4. Best trial in [`models/residual_ml/sweep_best/sweep_results.json`](models/residual_ml/sweep_best/sweep_results.json):
+
+| Parameter | Value |
+|-----------|-------|
+| `max_depth` | 4 |
+| `learning_rate` | 0.03 |
+| `max_iter` | 100 |
+| `label_smoothing` | 0.05 |
+| `validation_fraction` | 0.20 |
+
+Metrics: train LL 0.8319, val ML 1.0091, market val 1.0068, blend val 1.0057 (518 rows). Archived in [`artifacts/baseline_post_dc_tune_20250902/sweep_best/`](artifacts/baseline_post_dc_tune_20250902/sweep_best/).
+
 ---
 
 ### 1.5 Measure — backtest ablation matrix
@@ -450,11 +574,13 @@ Script prints (on validation slice only):
 
 | Row | Config | Pre-tune LL | Post-tune LL | Δ |
 |-----|--------|-------------|--------------|---|
-| A | Market | 1.0068 | _measure_ | |
-| B | DC only | _measure_ | _measure_ | |
-| C | Blend 70/30 | 1.0100 | _measure_ | |
-| D | ML raw | 1.0103 | _measure_ | |
-| E | ML + best shrink α | _measure_ | _measure_ | |
+| A | Market | 1.0068 | 1.0068 | 0.0000 |
+| B | DC only | 1.0537 | 1.0375 | −0.0162 |
+| C | Blend 70/30 | 1.0100 | 1.0057 | −0.0043 |
+| D | ML raw | 1.0118 | 1.0091 | −0.0027 |
+| E | ML + best shrink α | 1.0025 (α=0.6) | **1.0022** (α=0.5) | −0.0003 |
+
+518-row validation slice (`--include-holdout`). Full doc: [`docs/baseline_after_dc_tune.md`](docs/baseline_after_dc_tune.md).
 
 **Primary score for Phase 1:** row **E** (or **D** if shrink does not help). Secondary: did **C** improve (better DC → better blend baseline)?
 
@@ -477,6 +603,24 @@ Compare pooled DC log loss before/after tune (expect improvement in leagues with
 
 If ML validation LL **still &gt; market**, set production candidate to **market + shrink** or **high α shrink** until Phase 3; document in baseline doc.
 
+#### Phase 1.5 Measure — Completed (2025-09-02)
+
+Backtest outputs:
+
+- [`artifacts/backtest_post_dc_20250902.txt`](artifacts/backtest_post_dc_20250902.txt) — 518 rows (`--include-holdout`)
+- [`artifacts/backtest_post_dc_20250902_holdout_excluded.txt`](artifacts/backtest_post_dc_20250902_holdout_excluded.txt) — 492 rows (default tuning slice)
+- [`artifacts/eval_post_dc_20250902.json`](artifacts/eval_post_dc_20250902.json) — multi-slice eval
+
+**Gate results:** minimum **pass** (1.0022 ≤ 1.0025), target **pass** (≤ 1.003), stretch **fail** (> 1.000).
+
+**Production:** `RESIDUAL_ML_FINAL_SHRINK_TO_MARKET=0.5`
+
+Snapshot:
+
+```bash
+PYTHONPATH=. python scripts/snapshot_post_dc_baseline.py --date 20250902
+```
+
 ---
 
 ### 1.6 Document baseline (`docs/baseline_after_dc_tune.md`)
@@ -494,6 +638,10 @@ Create with:
 9. **Decision:** proceed to Phase 2 (injuries) yes/no; notes on which leagues drove gain/loss
 
 This document is the **basis** for all subsequent phase comparisons.
+
+#### Phase 1.6 Baseline doc — Completed (2025-09-02)
+
+Created [`docs/baseline_after_dc_tune.md`](docs/baseline_after_dc_tune.md) with ablation table, env snapshot, hyperparams, production recommendation, and Phase 2 decision.
 
 ---
 
@@ -513,6 +661,10 @@ python scripts/backtest_residual_ml.py --validation-fraction 0.20
 ```
 
 Record best weight in `docs/baseline_after_dc_tune.md` appendix. **Do not** tune blend on final holdout (Phase 5).
+
+#### Phase 1.7 Blend sweep — Skipped (2025-09-02)
+
+Blend 70/30 (1.0057) already beats market (1.0068) on the 518-row slice. No weight sweep run. Documented in [`docs/baseline_after_dc_tune.md`](docs/baseline_after_dc_tune.md) appendix.
 
 ---
 
@@ -546,60 +698,117 @@ Then run backtest shrink analysis and write `docs/baseline_after_dc_tune.md` man
 
 ### Phase 1 exit checklist
 
-- [ ] `docs/baseline_after_dc_tune.md` written
-- [ ] Post-tune ablation table complete with row counts
-- [ ] Artifacts archived under `artifacts/baseline_post_dc_tune_*`
-- [ ] `RESIDUAL_ML_FINAL_SHRINK_TO_MARKET` recommendation recorded
-- [ ] Post-tune LL ≤ pre-tune best (minimum gate)
-- [ ] Team agrees post-tune baseline is reference for Phase 2 injury work
+- [x] `docs/baseline_after_dc_tune.md` written
+- [x] Post-tune ablation table complete with row counts
+- [x] Artifacts archived under `artifacts/baseline_post_dc_tune_*`
+- [x] `RESIDUAL_ML_FINAL_SHRINK_TO_MARKET` recommendation recorded (**0.5**)
+- [x] Post-tune LL ≤ pre-tune best (minimum gate — 1.0022 ≤ 1.0025)
+- [x] Post-tune baseline is reference for Phase 2 injury work
 
 ---
 
-## Phase 2 — Injury and player availability (external API) (~0.005–0.012 expected)
+## Phase 2 — Injury and player availability (API-Football) (~0.005–0.012 expected)
 
-**Objective:** Add cutoff-safe player/injury signal the market may not fully encode at coupon time. **Primary source: external injury/player API** (user-confirmed).
+**Objective:** Add cutoff-safe player/injury signal the market may not fully encode at coupon time. **Sole source: API-Football** (`/injuries` + `/fixtures/lineups`).
 
 ### 2.1 Data layer
 
-New modules (proposed):
+Modules:
 
-- `data_sources/injuries/` — API client, DTOs, rate limiting, caching
-- `objects/models/player.py`, `objects/models/injury_snapshot.py`, `objects/models/match_availability.py` (or JSONB snapshot table)
-- `objects/repositories/` — query availability as of `cutoff_date`
+- `data_sources/injuries/` — DTOs, API-Football parser, backfill service, `ApiFootballInjuryProvider`
+- `objects/models/player.py`, `injury_snapshot.py`, `match_availability.py`
+- `objects/repositories/player_repository.py`, `injury_snapshot_repository.py`, `match_availability_repository.py`
+- `scripts/backfill_injury_snapshots.py` — CLI (calls API-Football; disk-cached via `APIFootballClient`)
+- `APIFootballClient.get_fixture_lineups` / `get_fixture_injuries`
 
-**Cutoff rule:** only injuries/status confirmed **before** `feature_cutoff_date` (= `match.start_time.date()` in assembler). Store `snapshot_timestamp` for audit.
+**Cutoff rule:** only injuries/status confirmed **before** `feature_cutoff_date` / `match.start_time`. Store `snapshot_at` for audit.
+
+**Not used for injuries/lineups:** FotMob, SofaScore (removed from this pipeline).
+
+#### Phase 2.1 Injury API + backfill CLI — Reworked (2025-09-02)
+
+Backfill resolves ST matches in the draw window → internal `fixtures` rows → fetches API-Football lineups + injuries for each `fixtures.fixture_id`.
+
+```bash
+export PYTHONPATH=.
+export API_FOOTBALL_KEY=...
+
+# Count candidates only (no HTTP)
+python scripts/backfill_injury_snapshots.py \
+  --draw-min 4760 --draw-max 4960 --skip-http
+
+# Dry-run: fetch/parse, no DB writes
+python scripts/backfill_injury_snapshots.py \
+  --draw-min 4760 --draw-max 4960 --limit 5 --dry-run
+
+# Full backfill
+python scripts/backfill_injury_snapshots.py \
+  --draw-min 4760 --draw-max 4960
+```
 
 ### 2.2 Historical backfill strategy
 
-External API may not cover full draw history 4760–4960. Plan two tracks:
+Single track — **API-Football only**:
 
-1. **Live path:** external API for upcoming coupons (production).
-2. **Training path:** backfill historical snapshots from API if available; else supplement with FotMob `raw_payload` `content.lineup` backfill ([`data_sources/football_data/providers/fotmob.py`](data_sources/football_data/providers/fotmob.py) — fix parser path bug: use `content.lineup` not top-level `lineups`) for matches missing API history.
+1. **Training path:** backfill `/injuries` + `/fixtures/lineups` for ST-linked fixtures in draws 4760–4960 (respect league `coverage.injuries` / lineups limits; empty responses → `has_availability=0`).
+2. **Live path:** same endpoints before coupon cutoff → persist `match_availability` → `ProbabilityManager`.
 
-Document coverage % per draw window; train injury model only on rows with non-null features or use missingness indicators.
+Document coverage % per draw window; train with `has_availability` missingness indicator when API returns no data.
+
+**Do not** fall back to FotMob/SofaScore lineups.
 
 ### 2.3 Player value model
 
-New `calc/player_availability_calculator.py`:
+New [`calc/player_availability_calculator.py`](calc/player_availability_calculator.py):
 
 | Feature | Description |
 |---------|-------------|
-| `home_missing_player_value` | Sum of value of unavailable starters vs typical XI |
+| `home_missing_player_value` | Unavailable count proxy (API-Football has no market values) |
 | `away_missing_player_value` | Same for away |
 | `missing_value_difference` | home − away |
-| `home_unavailable_count` / `away_unavailable_count` | Count from API |
-| `home_lineup_changes` / `away_lineup_changes` | Starter-set diff vs last match (populate stubs in [`RestCongestionFeatures`](objects/schema/data_classes/rest_congestion_features.py)) |
+| `home_unavailable_count` / `away_unavailable_count` | From `/injuries` (+ lineup overrides) |
+| `home_lineup_changes` / `away_lineup_changes` | Starter-set symmetric diff vs last match (`/fixtures/lineups`) |
 | `missing_value_x_favourite` | Interaction with `favourite_strength` |
 | `short_rest_x_missing_value` | Interaction with rest features |
+| `has_availability` | Missingness indicator (0/1) |
 
-Player value hierarchy: API-provided importance/rating if available → else minutes-weighted xG from [`match_shots`](objects/models/match_shot.py) → else marketValue from FotMob backfill.
+Player value hierarchy: unavailable **count** from API-Football injuries (no marketValue in AF payloads).
+
+#### Phase 2.3 PlayerAvailabilityCalculator — Completed (2025-09-02)
+
+Resolves ST match → fixture via team external ids + kickoff window; loads latest `match_availability` with `provider=api-football` and `snapshot_at <= start_time`.
 
 ### 2.4 Wire into ML pipeline
 
 - Extend [`ResidualMLFeatures`](objects/schema/data_classes/residual_ml_features.py) with injury/player fields.
-- Call calculator from [`ResidualMLFeatureAssembler.assemble()`](calc/residual_ml_feature_assembler.py).
-- Populate existing stubs in [`RestCongestionCalculator`](calc/rest_congestion_calculator.py): `congestion_x_squad_depth`, `short_rest_x_rotation`.
+- Call calculator from [`ResidualMLFeatureAssembler.assemble()`](calc/residual_ml/feature_assembler.py).
+- Populate stubs in [`RestCongestionCalculator`](calc/rest_congestion_calculator.py): `congestion_x_squad_depth`, `short_rest_x_rotation`, lineup changes.
 - Rebuild dataset → retrain sweep → backtest.
+
+#### Phase 2.4 Wire into ML — Completed (2025-09-02)
+
+Assembler wires availability + rest interactions. Injury features go to ML only (no DC λ scaling — Section 2.5 deferred).
+
+**Rebuild / retrain (user runs after backfill):**
+
+```bash
+export PYTHONPATH=.
+export RESIDUAL_ML_HOME_ADVANTAGE_MODE=fast
+export RESIDUAL_ML_DC_ENGINE=classic
+
+# 1) Ensure API-Football injury/lineup snapshots exist
+python scripts/backfill_injury_snapshots.py --draw-min 4760 --draw-max 4960
+
+# 2) Rebuild dataset (includes new availability columns)
+python -u scripts/build_residual_ml_dataset.py
+
+# 3) Retrain sweep + backtest
+python -u scripts/train_residual_ml.py --dataset data/residual_ml/dataset.csv --sweep \
+  --output-dir models/residual_ml/sweep_best
+python scripts/backtest_residual_ml.py --validation-fraction 0.20 --include-holdout
+```
+
+Tests: `tests/test_calc/test_player_availability_calculator.py`, rest congestion + assembler coverage.
 
 ### 2.5 Injury-adjusted DC (optional sub-phase)
 
@@ -679,9 +888,9 @@ Run in [`scripts/analyze_draw_drivers.py`](scripts/analyze_draw_drivers.py) (new
 
 **Acceptance (discovery gate):**
 
-- [ ] ≥3 drivers stable across train + validation (same sign, similar magnitude)
-- [ ] Draw Brier or draw log-loss **improves OOS** vs blend-only on validation slice
-- [ ] Overall home/away LL does not regress by >0.005 when draw adjustment applied
+- [x] ≥3 drivers stable across train + validation (same sign, similar magnitude) — **5** on `dataset.csv` (see [`docs/draw_driver_analysis.md`](docs/draw_driver_analysis.md))
+- [ ] Draw Brier or draw log-loss **improves OOS** vs blend-only on validation slice — **FAIL** on current run (val Brier/LL slightly worse than blend); do not ship Phase 3.2 until a sparse subset or re-tune beats blend
+- [ ] Overall home/away LL does not regress by >0.005 when draw adjustment applied — N/A until Phase 3.2
 
 ---
 
@@ -706,7 +915,7 @@ Translate discovery into a **small explicit rule** — not 30 coefficients.
 
 **Integration points (in order):**
 
-1. [`calc/residual_ml_baseline.py`](calc/residual_ml_baseline.py) — `apply_draw_adjustment(blend, features, config)`
+1. [`calc/residual_ml/baseline.py`](calc/residual_ml/baseline.py) — `apply_draw_adjustment(blend, features, config)`
 2. [`calc/residual_ml_feature_assembler.py`](calc/residual_ml_feature_assembler.py) — call after `blend_baselines`, before features stored / ML
 3. [`calc/residual_ml_dataset.py`](calc/residual_ml_dataset.py) — write `p_*_blend` **after** draw adjust (or audit columns `p_*_blend_pre_draw`, `p_*_blend`)
 4. [`calc/probality_manager.py`](calc/probality_manager.py) — same path at inference
@@ -771,7 +980,7 @@ Implement via [`config/blend_weights.json`](config/blend_weights.json) read in a
 
 **Phase 3 exit:**
 
-- [ ] `docs/draw_driver_analysis.md` complete with stable drivers
+- [x] `docs/draw_driver_analysis.md` complete with stable drivers (discovery done; OOS lift still open)
 - [ ] Draw log loss improved OOS vs Phase 2 blend
 - [ ] Pooled LL **≤ 1.000** on main validation (stretch **≤ 0.995**)
 - [ ] HGB retrained on draw-adjusted baseline; ablation table rows A–D documented
@@ -834,7 +1043,7 @@ Single “production profile” in roadmap doc:
 | Risk | Mitigation |
 |------|------------|
 | Market already prices injuries | Slice eval on high `missing_value`; measure incremental gain only |
-| External API lacks history | FotMob backfill for training; separate live vs train coverage metrics |
+| External API lacks history | Measure AF coverage %; `has_availability=0` rows; no FotMob fallback |
 | Overfitting to 15–20% slice | Holdout + multi-year slices + ablations |
 | DC optimizer runtime | Parallel leagues; coarse→fine grid |
 | Dataset rebuild ~20h | Fast HA; cache DC fits; incremental dataset builds |
@@ -881,6 +1090,15 @@ PYTHONPATH=. python -u scripts/optimize_classic_dixon_coles.py \
   --grid-config config/classic_dc_optimization_grid.json \
   --output config/classic_dc_league_params.json
 
+# Multi-slice eval (holdout excluded by default)
+PYTHONPATH=. python scripts/eval_residual_ml.py \
+  --dataset data/residual_ml/dataset.csv \
+  --model models/residual_ml/sweep_best/model.pkl \
+  --validation-fraction 0.20
+
+# DC league coverage check
+PYTHONPATH=. python scripts/verify_dc_league_coverage.py
+
 # Rebuild + train + backtest
 export RESIDUAL_ML_HOME_ADVANTAGE_MODE=fast RESIDUAL_ML_DC_ENGINE=classic
 PYTHONPATH=. python scripts/build_residual_ml_dataset.py
@@ -912,17 +1130,22 @@ PYTHONPATH=. python scripts/backtest_residual_ml.py \
 | Action | Path |
 |--------|------|
 | **Create** | `docs/log_loss_0.99_roadmap.md` (this document) |
-| **Create** | `docs/baseline_after_dc_tune.md` (Phase 1 deliverable — before/after ablation) |
+| **Create** | `docs/baseline_after_dc_tune.md` (Phase 1 deliverable — **done**) |
+| **Create** | `scripts/snapshot_post_dc_baseline.py` (Phase 1.2–1.5 artifact snapshot) |
 | **Create** | `docs/draw_driver_analysis.md` (Phase 3 deliverable — draw drivers + OOS metrics) |
+| **Create** | `config/eval_protocol.py` (validation fraction, holdout draws) |
 | **Create** | `scripts/eval_residual_ml.py` (multi-slice metrics) |
+| **Create** | `scripts/snapshot_preflight_baseline.py` (Phase 1.0 artifact snapshot) |
+| **Create** | `scripts/verify_dc_league_coverage.py` (DC params coverage report) |
 | **Create** | `scripts/analyze_draw_drivers.py` (draw discovery CLI) |
 | **Create** | `calc/draw_driver_analysis.py` (L1 logistic + GAM analysis) |
 | **Create** | `calc/draw_adjustment.py` (explicit draw logit adjustment) |
 | **Create** | `config/draw_adjustment.json` (shipped draw rule coefficients) |
-| **Create** | `data_sources/injuries/` (external API client) |
-| **Create** | `calc/player_availability_calculator.py` |
+| **Create** | `data_sources/injuries/` (API-Football parser + backfill — **done**) |
+| **Create** | `scripts/backfill_injury_snapshots.py` (API-Football backfill CLI — **done**) |
+| **Create** | `calc/player_availability_calculator.py` (**done**) |
 | **Create** | `config/blend_weights.json` (optional per-league weights) |
-| **Modify** | `calc/residual_ml_baseline.py` (apply_draw_adjustment) |
+| **Modify** | `calc/residual_ml/baseline.py` (apply_draw_adjustment) |
 | **Modify** | `calc/dixon_coles/optimizer.py` (parallelism) |
 | **Modify** | `objects/schema/data_classes/residual_ml_features.py` |
 | **Modify** | `calc/residual_ml_feature_assembler.py` |

@@ -74,15 +74,17 @@ Capture of patterns and choices evidenced in code, tests, and existing docs. Rat
 
 ---
 
-## DEC-006 — External entity mapping table for provider IDs
+## DEC-006 — Provider identity via EntityResolver + external_id (mapping table retired)
 
-**Decision:** Cross-provider identity stored in `external_entity_mapping` with uniqueness constraints.
+**Decision (superseded):** Cross-provider identity was previously designed around an `external_entity_mapping` table with uniqueness constraints.
 
-**Reason/rationale:** Documented in ingestion guide; model constraints.
+**Current decision:** Provider identity resolution uses `EntityResolver` plus `external_id` columns on `teams` and `leagues`. The mapping model/repository have been removed from the codebase; production resolution never read mapping rows.
 
-**Evidence:** `objects/models/external_entity_mapping.py`, `docs/football_data_ingestion.md`
+**Reason/rationale:** Code (`EntityResolver`) never consulted the mapping table; keeping it as a documented live mechanism was misleading.
 
-**Implications:** New providers require mapping rows + resolver logic.
+**Evidence:** `data_sources/entity_resolver.py`, `objects/models/team.py`, `objects/models/league.py`
+
+**Implications:** New providers need resolver paths and/or static maps (`utils/team_mappings.py`, aliases), not mapping-table rows. Existing databases may still have an orphaned `external_entity_mapping` physical table (no Alembic; do not assume `create_all` drops it).
 
 **Confidence:** HIGH
 
@@ -94,7 +96,7 @@ Capture of patterns and choices evidenced in code, tests, and existing docs. Rat
 
 **Reason/rationale:** Rationale is not documented.
 
-**Evidence:** `database/__init__.py` — no `migrations/` directory
+**Evidence:** `database.py` — no `migrations/` directory
 
 **Implications:** Schema changes need coordinated manual updates; test DBs rely on model definitions.
 

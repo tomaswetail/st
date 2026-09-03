@@ -123,6 +123,29 @@ def test_no_previous_match_uses_neutral_defaults():
     assert features.short_rest_x_rotation is None
 
 
+def test_availability_fills_lineup_and_squad_stubs():
+    calculator = _calculator(
+        home_history=[_historical(match_date=date(2024, 6, 13))],
+        away_history=[_historical(match_date=date(2024, 6, 8), home_team="Chelsea")],
+    )
+    availability = SimpleNamespace(
+        has_availability=1,
+        home_lineup_changes=3,
+        away_lineup_changes=1,
+        home_unavailable_count=2,
+        away_unavailable_count=1,
+    )
+    features = calculator.calculate(_match(), availability=availability)
+
+    assert features.home_lineup_changes == 3
+    assert features.away_lineup_changes == 1
+    # home short_rest=2 (threshold 4 - rest 2), away short_rest=0 (rest 7)
+    # matches in 14d: 1 each → congestion 0; unavailable total 3
+    assert features.congestion_x_squad_depth == 0.0
+    assert features.short_rest_x_rotation == 2.0 * 3 + 0.0 * 1
+
+
+
 def test_multiple_matches_within_14_days():
     home_history = [
         _historical(match_date=date(2024, 6, 12)),

@@ -7,11 +7,11 @@ Map **provider-specific** team, league, and match identifiers to **internal** da
 - **Resolution** — process of finding or creating internal entity for a provider record
 - **Method** — how resolution succeeded (`static_mapping`, `alias`, `exact`, `fuzzy`, `unresolved`, etc.)
 - **Confidence** — score attached to team resolution
+- **external_id** — API-Football id stored on `TeamModel` / `LeagueModel` and used for lookups
 
 # Entities
 
 - `TeamModel`, `LeagueModel`, `FixtureModel`
-- `ExternalEntityMappingModel`
 - Static maps: `config/team_aliases.json`, `utils/team_mappings.py` (`SVENSKA_SPEL_TO_API_FOOTBALL_TEAMS`, `FOTMOB_TO_API_FOOTBALL_TEAMS`)
 
 # Primary Workflows
@@ -20,15 +20,14 @@ Map **provider-specific** team, league, and match identifiers to **internal** da
 
 Order varies by provider; for **svenska-spel**:
 1. Static Svenska Spel id → API-Football id map
-2. Lookup team by API-Football external id
+2. Lookup team by API-Football `external_id`
 3. Further alias/exact/fuzzy paths (see implementation)
 
 For **api-football** / xG providers:
-1. External mapping table
-2. Alias file
-3. Exact normalized name
-4. Fuzzy match (threshold from config)
-5. Optional create-if-missing when upserting history
+1. Alias file
+2. Exact normalized name
+3. Fuzzy match (threshold from config)
+4. Postgres duplicate helpers (`find_exact_normalized`, club affix, etc.)
 
 Evidence: `data_sources/entity_resolver.py`, `tests/football_data/test_ingestion.py`
 
@@ -40,12 +39,12 @@ Evidence: `EntityResolver.resolve_match`, `tests/repositories/test_find_for_st_m
 
 # State/Lifecycle
 
-- Mappings created on successful resolution during import
+- Teams/leagues carry `external_id` from API-Football upserts
 - Unresolved teams may be logged to `missing_team_mappings.csv` / `missing_teams.csv`
 
 # Business Rules
 
-- **BR-007** — mapping uniqueness constraints
+- **BR-007** — resolve via `EntityResolver` + team/league `external_id`
 - National team Swedish names → English via `NATIONAL_TEAMS_SE_TO_EN`
 - Fuzzy threshold default 85 (`fuzzy_match_threshold`)
 
@@ -55,7 +54,7 @@ None.
 
 # Side Effects
 
-- May create `TeamModel` + mapping when `create_if_missing` enabled
+- May create `TeamModel` when historical upsert paths allow create-on-miss
 - CSV logs for unresolved matches
 
 # Integrations
@@ -90,7 +89,7 @@ All external providers depend on this layer.
 
 # Known Limitations
 
-- Large static mapping tables require manual maintenance
+- Large static mapping tables (aliases / Svenska Spel maps) require manual maintenance
 - Fuzzy matching can false-positive — tests define expected behavior
 
 # Unknowns

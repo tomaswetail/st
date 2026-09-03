@@ -11,6 +11,9 @@ from objects.models.fixture import FixtureModel
 from objects.models.st_match import STMatchModel
 from objects.repositories.fixture_repository import FixtureRepository
 from objects.schema.data_classes.data_sources import DataSourceConfig
+from objects.schema.data_classes.player_availability_features import (
+    PlayerAvailabilityFeatures,
+)
 from objects.schema.data_classes.rest_congestion_features import RestCongestionFeatures
 from utils.fixture_fields import fixture_match_date, fixture_went_to_extra_time
 
@@ -34,8 +37,17 @@ class RestCongestionCalculator:
         """Drop team history lookback cache."""
         self._team_history_cache.clear()
 
-    def calculate(self, match: STMatchModel) -> RestCongestionFeatures:
-        """Compute rest and congestion features for one ST fixture."""
+    def calculate(
+        self,
+        match: STMatchModel,
+        *,
+        availability: PlayerAvailabilityFeatures | None = None,
+    ) -> RestCongestionFeatures:
+        """Compute rest and congestion features for one ST fixture.
+
+        When ``availability`` is provided with ``has_availability=1``, fills
+        lineup/squad-depth stubs from those signals.
+        """
         if match.home_team is None or match.away_team is None:
             raise ValueError(f"Missing team on match id={match.id}")
         if match.start_time is None:
@@ -79,6 +91,26 @@ class RestCongestionCalculator:
         home_extra_time_short_rest = int(home_extra_time) * home_short_rest
         away_extra_time_short_rest = int(away_extra_time) * away_short_rest
 
+        home_lineup_changes = None
+        away_lineup_changes = None
+        congestion_x_squad_depth = None
+        short_rest_x_rotation = None
+        if availability is not None and availability.has_availability:
+            home_lineup_changes = availability.home_lineup_changes
+            away_lineup_changes = availability.away_lineup_changes
+            unavailable_total = (
+                int(availability.home_unavailable_count or 0)
+                + int(availability.away_unavailable_count or 0)
+            )
+            congestion_x_squad_depth = float(
+                (home_congestion + away_congestion) * unavailable_total
+            )
+            home_rotation = int(home_lineup_changes or 0)
+            away_rotation = int(away_lineup_changes or 0)
+            short_rest_x_rotation = float(
+                home_short_rest * home_rotation + away_short_rest * away_rotation
+            )
+
         return RestCongestionFeatures(
             home_rest_days=home_rest_days,
             away_rest_days=away_rest_days,
@@ -96,10 +128,31 @@ class RestCongestionCalculator:
             extra_time_x_short_rest=(
                 home_extra_time_short_rest + away_extra_time_short_rest
             ),
-            home_lineup_changes=None,
-            away_lineup_changes=None,
-            congestion_x_squad_depth=None,
-            short_rest_x_rotation=None,
+            home_lineup_changes=home_lineup_changes,
+            away_lineup_changes=away_lineup_changes,
+            congestion_x_squad_depth=congestion_x_squad_depth,
+            short_rest_x_rotation=short_rest_x_rotation,
+        )
+
+    def previous_fixtures(
+        self, match: STMatchModel
+    ) -> tuple[FixtureModel | None, FixtureModel | None]:
+        """Return (home_previous, away_previous) fixtures strictly before kickoff."""
+        if match.home_team is None or match.away_team is None:
+            raise ValueError(f"Missing team on match id={match.id}")
+        if match.start_time is None:
+            raise ValueError(f"Missing start_time on match id={match.id}")
+        cutoff = (
+            match.start_time.date()
+            if isinstance(match.start_time, datetime)
+            else match.start_time
+        )
+        lookback = self.config.rest_congestion_lookback_matches
+        home_history = self._load_team_history(match.home_team.name, cutoff, lookback)
+        away_history = self._load_team_history(match.away_team.name, cutoff, lookback)
+        return (
+            home_history[0] if home_history else None,
+            away_history[0] if away_history else None,
         )
 
     def _load_team_history(

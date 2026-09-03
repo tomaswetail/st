@@ -1,0 +1,14 @@
+classic_dc_league_params.json is NOT included in this snapshot.
+
+Reason: if the snapshot script runs after the DC optimization pipeline, copying
+config/classic_dc_league_params.json would store post-tune params while labeling
+the folder as "pre-DC-tune".
+
+Reliable pre-tune artifacts in this snapshot:
+- dataset.csv (copied from data/residual_ml/dataset_classic.csv — classic DC features
+  before the full per-league grid tune)
+- sweep_best/ (model + sweep_results.json copied at snapshot time)
+- backtest.txt (re-run on dataset_classic.csv at 20% validation)
+
+For league params history, rely on git history of config/classic_dc_league_params.json
+or take a snapshot before running scripts/run_classic_dc_ml_pipeline.sh.

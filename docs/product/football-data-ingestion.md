@@ -13,11 +13,10 @@ Build and maintain a **historical football database** (fixtures, teams, leagues,
 | Entity | Table | Notes |
 |--------|-------|-------|
 | `FixtureModel` | `fixtures` | Unique on `fixture_id` |
-| `TeamModel` | `teams` | Internal registry |
-| `LeagueModel` | `leagues` | Internal registry |
+| `TeamModel` | `teams` | Internal registry; `external_id` = API-Football |
+| `LeagueModel` | `leagues` | Internal registry; `external_id` = API-Football |
 | `MatchAdvancedStatsModel` | `match_advanced_stats` | Per fixture + provider |
 | `MatchShotModel` | `match_shots` | Shot-level events |
-| `ExternalEntityMappingModel` | `external_entity_mapping` | Provider ID maps |
 
 # Primary Workflows
 
@@ -68,8 +67,6 @@ None.
 | API-Football | `data_sources/api_football_client.py` |
 | SofaScore | `data_sources/football_data/providers/sofascore.py` |
 | FotMob | `data_sources/football_data/providers/fotmob.py` |
-
-League catalogue: `data_sources/football_data/league_catalogue.py`
 
 # Failure Scenarios
 

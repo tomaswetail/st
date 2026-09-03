@@ -16,8 +16,8 @@ There is **no HTTP API layer**, **no authentication**, and **no job queue** in-r
 | Layer | Technology | Evidence |
 |-------|------------|----------|
 | Language | Python 3.10+ | Type syntax, `.idea` config |
-| Database | PostgreSQL | `database/__init__.py` |
-| ORM | SQLAlchemy 2.x | `database/models.py`, repositories |
+| Database | PostgreSQL | `database.py` |
+| ORM | SQLAlchemy 2.x | `database.py`, repositories |
 | Validation/DTOs | Pydantic | `objects/schema/` |
 | Numerics | NumPy, SciPy | `calc/dixon_coles/` |
 | ML | scikit-learn (lazy import) | `calc/residual_ml/trainer.py` |
@@ -154,7 +154,7 @@ See `docs/DOMAIN.md` entity diagram.
 - `fixtures.fixture_id` unique
 - `stryktipset_matches.external_id` unique
 - `stryktipset_rounds (product_id, draw_number)` unique
-- `external_entity_mapping` dual uniqueness on external and internal ids per provider+type
+- `teams.external_id` / `leagues.external_id` store API-Football ids used by `EntityResolver`
 
 ## Schema management
 

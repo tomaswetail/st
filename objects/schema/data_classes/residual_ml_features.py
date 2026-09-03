@@ -90,6 +90,20 @@ class ResidualMLFeatures:
 
     travel_distance_km: float | None = None
 
+    # Player availability / injury (None when no pre-cutoff snapshot)
+    home_missing_player_value: float | None = None
+    away_missing_player_value: float | None = None
+    missing_value_difference: float | None = None
+    home_unavailable_count: int | None = None
+    away_unavailable_count: int | None = None
+    home_lineup_changes: int | None = None
+    away_lineup_changes: int | None = None
+    missing_value_x_favourite: float | None = None
+    short_rest_x_missing_value: float | None = None
+    congestion_x_squad_depth: float | None = None
+    short_rest_x_rotation: float | None = None
+    has_availability: int = 0
+
     _METADATA_FIELDS = frozenset(
         {"match_id", "draw_number", "feature_cutoff_date"}
     )

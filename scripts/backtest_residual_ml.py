@@ -2,8 +2,9 @@
 """Backtest market, DC, blend, and ML probabilities on a dataset.
 
 By default evaluates only the time-split validation slice (same ordering as
-training) so train rows are not scored. Pass --all-rows to score the full CSV
-(optimistic / contaminated).
+training) so train rows are not scored. Holdout draws (4951–4960) are excluded
+by default; pass --include-holdout for Phase 5. Pass --all-rows to score the
+full CSV (optimistic / contaminated).
 """
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ from calc.residual_ml import (
     score_baseline_log_losses,
     select_backtest_rows,
 )
+from config.eval_protocol import TUNING_DRAW_MAX
 from objects.schema.data_classes.data_sources import DataSourceConfig
 from utils.repo_paths import resolve_repo_path
 from utils.time_split import DEFAULT_VALIDATION_FRACTION
@@ -74,10 +76,31 @@ def main() -> None:
         default=None,
         help="Keep only rows with draw_number <= this value",
     )
+    parser.add_argument(
+        "--exclude-holdout",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            f"Exclude final holdout draws (>{TUNING_DRAW_MAX}; default). "
+            "Use --no-exclude-holdout or --include-holdout for Phase 5."
+        ),
+    )
+    parser.add_argument(
+        "--include-holdout",
+        action="store_true",
+        help="Include holdout draws (Phase 5 only; same as --no-exclude-holdout)",
+    )
     args = parser.parse_args()
 
     if args.all_rows and args.validation_fraction is not None:
         parser.error("Use either --all-rows or --validation-fraction, not both")
+    if args.include_holdout and args.max_draw is not None:
+        parser.error("Use either --include-holdout or --max-draw, not both")
+
+    exclude_holdout = args.exclude_holdout and not args.include_holdout
+    max_draw = args.max_draw
+    if exclude_holdout and not args.all_rows and max_draw is None:
+        max_draw = TUNING_DRAW_MAX
 
     dataset_path = resolve_repo_path(args.dataset)
     model_path = resolve_repo_path(args.model)
@@ -98,10 +121,13 @@ def main() -> None:
         all_rows=args.all_rows,
         validation_fraction=None if args.all_rows else validation_fraction,
         min_draw=args.min_draw,
-        max_draw=args.max_draw,
+        max_draw=max_draw,
     )
+    holdout_note = ""
+    if exclude_holdout and not args.all_rows and args.max_draw is None:
+        holdout_note = f", holdout excluded (>{TUNING_DRAW_MAX})"
     print(
-        f"Backtest filter: {filter_description} "
+        f"Backtest filter: {filter_description}{holdout_note} "
         f"({len(rows)}/{len(all_rows)} rows)",
         flush=True,
     )

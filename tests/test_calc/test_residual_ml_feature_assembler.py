@@ -14,8 +14,26 @@ from objects.schema.data_classes.balance_and_environment_features import (
 )
 from objects.schema.data_classes.data_sources import DataSourceConfig
 from objects.schema.data_classes.league_behavior_features import LeagueBehaviorFeatures
+from objects.schema.data_classes.player_availability_features import (
+    PlayerAvailabilityFeatures,
+)
 from objects.schema.data_classes.rest_congestion_features import RestCongestionFeatures
 from objects.schema.data_classes.team_strength_features import MatchStrengthFeatures
+
+
+def _empty_availability() -> PlayerAvailabilityFeatures:
+    return PlayerAvailabilityFeatures(
+        home_missing_player_value=None,
+        away_missing_player_value=None,
+        missing_value_difference=None,
+        home_unavailable_count=None,
+        away_unavailable_count=None,
+        home_lineup_changes=None,
+        away_lineup_changes=None,
+        missing_value_x_favourite=None,
+        short_rest_x_missing_value=None,
+        has_availability=0,
+    )
 
 
 def _match():
@@ -143,6 +161,10 @@ def test_assembler_maps_feature_groups():
             short_rest_x_rotation=None,
         )
     )
+    assembler.rest_calculator.previous_fixtures = MagicMock(return_value=(None, None))
+    assembler.availability_calculator.calculate = MagicMock(
+        return_value=_empty_availability()
+    )
     assembler.home_advantage_calculator.process = MagicMock(
         return_value=SimpleNamespace(home_advantage=0.12)
     )
@@ -171,8 +193,11 @@ def test_assembler_maps_feature_groups():
     assert features.home_advantage_log == pytest.approx(0.12)
     assert features.home_advantage_coefficient == pytest.approx(float(__import__("math").exp(0.12)))
     assert features.travel_distance_km is None
+    assert features.has_availability == 0
+    assert features.home_missing_player_value is None
 
     assembler.home_advantage_calculator.process.assert_called_once()
+    assembler.availability_calculator.calculate.assert_called_once()
     strength_call = assembler.strength_calculator.get_fixture_features.call_args
     assert strength_call.kwargs["target_league_external_id"] == 39
     assert strength_call.kwargs["home_advantage_coefficient"] == pytest.approx(
@@ -271,6 +296,10 @@ def _stub_assemblers(assembler: ResidualMLFeatureAssembler) -> MatchStrengthFeat
             congestion_x_squad_depth=None,
             short_rest_x_rotation=None,
         )
+    )
+    assembler.rest_calculator.previous_fixtures = MagicMock(return_value=(None, None))
+    assembler.availability_calculator.calculate = MagicMock(
+        return_value=_empty_availability()
     )
     assembler.home_advantage_calculator.process = MagicMock(
         return_value=SimpleNamespace(home_advantage=0.12)

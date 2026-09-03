@@ -17,7 +17,6 @@ ExtendedMatchDataService         → SofaScoreProvider → match_advanced_stats,
 | API-Football client | `data_sources/api_football_client.py` |
 | Match / team import | `data_sources/data_collector.py`, `team_name_fetcher.py` |
 | SofaScore xG service | `data_sources/football_data/service.py` |
-| League catalogue (SofaScore) | `data_sources/football_data/league_catalogue.py` |
 | Entity resolution | `data_sources/entity_resolver.py` |
 | CLI | `services/football_data_cli.py` |
 
@@ -26,9 +25,11 @@ ExtendedMatchDataService         → SofaScoreProvider → match_advanced_stats,
 Old `source` values (`football-data.co.uk`, `espn`, …) and `provider=fotmob` mappings are obsolete. After backup:
 
 ```sql
-TRUNCATE fixtures, match_advanced_stats, match_shots,
-  external_entity_mapping RESTART IDENTITY CASCADE;
+TRUNCATE fixtures, match_advanced_stats, match_shots
+  RESTART IDENTITY CASCADE;
 -- optionally also truncate teams / leagues if starting clean
+-- Note: older DBs may still have an orphaned external_entity_mapping table;
+-- it is unused by application code and is not required for wipe/reimport.
 ```
 
 Then:
@@ -69,33 +70,17 @@ Other config: `kickoff_match_tolerance_minutes`, `xg_aggregate_tolerance`, `fuzz
 
 > **Note:** Older versions of this doc mention `create_missing_historical_matches`; that field is **not present** in current `DataSourceConfig`. xG import attaches to existing fixtures and logs unresolved rows.
 
-## External-ID mapping
+## Entity resolution (provider IDs)
 
-Internal IDs are not SofaScore/API-Football IDs. Map them in `external_entity_mapping`:
+Internal PKs are not SofaScore/API-Football IDs. Resolve via `EntityResolver`:
 
-- Unique on `(provider, entity_type, external_entity_id)`
-- Unique on `(provider, entity_type, internal_entity_id)`
+- Teams and leagues store API-Football ids on `external_id`
+- Svenska Spel / FotMob use static maps into API-Football ids where available (`utils/team_mappings.py`)
+- Otherwise alias / exact / fuzzy name matching
 
 Providers in use: `api-football` (teams/leagues/fixtures), `sofascore` (xG leagues/matches).
 
-### Discover and map SofaScore leagues
-
-```python
-from database import SessionLocal
-from data_sources.football_data.league_catalogue import LeagueCatalogueService
-
-session = SessionLocal()
-catalogue = LeagueCatalogueService(provider="sofascore", session=session)
-premier = catalogue.find_leagues(query="Premier League", country="England")
-result = catalogue.map_league(league_id=1, external_entity_id="17")
-catalogue.close()
-```
-
-```bash
-python -m services.football_data_cli list-leagues --provider sofascore --query Premier
-python -m services.football_data_cli suggest-league-mappings --provider sofascore
-python -m services.football_data_cli map-league --provider sofascore --league-id 1 --external-id 17
-```
+SofaScore league IDs for xG import are resolved through the entity-resolution path (not a dedicated mapping table). There is no live `external_entity_mapping` model; older databases may still contain an orphaned physical table.
 
 ## Example xG import
 

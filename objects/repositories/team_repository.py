@@ -1,8 +1,7 @@
 from typing import Any
 
-from sqlalchemy import delete, select, text, update
+from sqlalchemy import select, text, update
 
-from objects.models.external_entity_mapping import ExternalEntityMappingModel
 from objects.models.fixture import FixtureModel
 from objects.models.match_shot import MatchShotModel
 from objects.models.st_match import STMatchModel
@@ -275,12 +274,6 @@ class TeamRepository(BaseRepository[TeamModel]):
             .where(MatchShotModel.team_id == remove_team_id)
             .values(team_id=keep_team_id)
         ).rowcount or 0
-        mappings_deleted = self.session.execute(
-            delete(ExternalEntityMappingModel).where(
-                ExternalEntityMappingModel.entity_type == "team",
-                ExternalEntityMappingModel.internal_entity_id == remove_team_id,
-            )
-        ).rowcount or 0
 
         self.delete(remove_team)
         self.session.commit()
@@ -289,7 +282,6 @@ class TeamRepository(BaseRepository[TeamModel]):
             "fixtures_updated": int(fixtures_updated),
             "st_updated": int(st_updated),
             "shots_updated": int(shots_updated),
-            "mappings_deleted": int(mappings_deleted),
             "removed_team_id": remove_team_id,
         }
 

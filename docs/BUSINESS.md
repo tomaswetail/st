@@ -180,11 +180,11 @@ Evidence: `objects/models/fixture.py`, `tests/repositories/test_historical_match
 
 Confidence: **HIGH**
 
-## BR-007 — External entity mappings are unique per provider + entity type
+## BR-007 — Provider IDs resolve via EntityResolver and team/league external_id
 
-Each external ID maps to at most one internal ID (and vice versa) per `(provider, entity_type)`.
+Provider team/league/match IDs must be resolved through `EntityResolver`. Canonical API-Football ids live on `teams.external_id` and `leagues.external_id`. There is no live cross-provider mapping table in application code (an orphaned `external_entity_mapping` table may still exist in older DBs).
 
-Evidence: `objects/models/external_entity_mapping.py`
+Evidence: `data_sources/entity_resolver.py`, `objects/models/team.py`, `objects/models/league.py`
 
 Confidence: **HIGH**
 

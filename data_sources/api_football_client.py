@@ -135,6 +135,14 @@ class APIFootballClient:
         self._write_cache(cache_key, data)
         return data
 
+    def get_fixture_lineups(self, fixture_id: int) -> dict[str, Any]:
+        """GET /fixtures/lineups?fixture={id}."""
+        return self.get("fixtures/lineups", {"fixture": int(fixture_id)})
+
+    def get_fixture_injuries(self, fixture_id: int) -> dict[str, Any]:
+        """GET /injuries?fixture={id}."""
+        return self.get("injuries", {"fixture": int(fixture_id)})
+
 
 def normalize_fixture(raw: dict[str, Any]) -> Fixture:
     fixture = raw["fixture"]

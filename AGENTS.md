@@ -23,7 +23,7 @@ Also useful: [`README.md`](README.md), [`docs/football_data_ingestion.md`](docs/
   - Entity resolution / team matching (`data_sources/entity_resolver.py`)
   - Feature cutoff dates in `calc/strength_calculator.py` and related calculators
   - Probability blend weights and ML baseline logic (`calc/probability_manager.py`)
-  - Fixture upsert keys and external entity mappings
+  - Fixture upsert keys and EntityResolver / team&league `external_id`
   - DC league params JSON used in production backtests
 
 ## Implementation conventions

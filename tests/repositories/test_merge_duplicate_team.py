@@ -48,14 +48,13 @@ def test_merge_duplicate_reassigns_and_removes_team():
     repo, session = _repo_with_teams(keep_id=17, remove_id=42)
     remove_team = repo.get(42)
 
-    # fixtures home, fixtures away, st home, st away, shots, mappings
+    # fixtures home, fixtures away, st home, st away, shots
     execute_results = [
         SimpleNamespace(rowcount=3),  # fixtures home
         SimpleNamespace(rowcount=2),  # fixtures away
         SimpleNamespace(rowcount=1),  # st home
         SimpleNamespace(rowcount=0),  # st away
         SimpleNamespace(rowcount=4),  # shots
-        SimpleNamespace(rowcount=2),  # mappings
     ]
     session.execute = MagicMock(side_effect=execute_results)
 
@@ -65,9 +64,8 @@ def test_merge_duplicate_reassigns_and_removes_team():
         "fixtures_updated": 5,
         "st_updated": 1,
         "shots_updated": 4,
-        "mappings_deleted": 2,
         "removed_team_id": 42,
     }
-    assert session.execute.call_count == 6
+    assert session.execute.call_count == 5
     repo.delete.assert_called_once_with(remove_team)
     session.commit.assert_called_once()

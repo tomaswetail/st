@@ -10,17 +10,13 @@ from sqlalchemy.orm import Session
 from data_sources import api_football_client
 from data_sources.api_football_client import APIFootballClient, API_FOOTBALL_SOURCE
 from data_sources.api_football_leagues import all_api_football_league_codes
-from objects.repositories.external_entity_mapping_repository import (
-    ExternalEntityMappingRepository,
-)
 from objects.repositories.fixture_repository import FixtureRepository
 from objects.repositories.league_repository import LeagueRepository
 from objects.repositories.meta_data_repository import MetaDataRepository
 from objects.repositories.team_repository import TeamRepository
 from objects.schema.data_classes.data_sources import DataSourceConfig
 from objects.schema.db.fixture import FixtureCreate
-from services.draw_manager import STDrawManager
-from utils.common import LEAGUES_EXTERNAL_IDS
+from data_sources.draw_manager import STDrawManager
 from utils.seasons import last_n_season_codes
 
 logger = logging.getLogger(__name__)
@@ -57,9 +53,6 @@ class DataCollector:
         self.leagues_repo = LeagueRepository(session)
         self.teams_repo = TeamRepository(session)
         self.metadata_repo = MetaDataRepository(session)
-        self.mapping_repo = ExternalEntityMappingRepository(
-            self.fixtures_repo.session
-        )
         self.api_football_client = APIFootballClient(config=self.config)
         self._session = self.fixtures_repo.session
 

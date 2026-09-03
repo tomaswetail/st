@@ -4,19 +4,13 @@ from __future__ import annotations
 
 import logging
 
-from sqlalchemy import select
-
 from calc.probability_manager import ProbabilityManager
-from data_sources.api_football_client import APIFootballClient, get_all_leagues
 from data_sources.data_collector import DataCollector
 from data_sources.football_data import ExtendedMatchDataService
-from data_sources.football_data.providers.fotmob import FotMobProvider
 from database import SessionLocal, init_db
-from objects.models.external_entity_mapping import ExternalEntityMappingModel
-from objects.repositories.league_repository import LeagueRepository
 from objects.schema.data_classes.data_sources import DataSourceConfig
-from services.draw_manager import STDrawManager
-from utils.common import API_FOOTBALL_TO_FOTMOB_LEAGUE_MAPPING, FOTMOBLEAGUE_EXTERNAL_ID_TO_CCODE
+from data_sources.draw_manager import STDrawManager
+from utils.common import API_FOOTBALL_TO_FOTMOB_LEAGUE_MAPPING
 
 logging.basicConfig(
     level=logging.INFO,
@@ -120,7 +114,7 @@ def main_extra_data() -> None:
 
 
 def import_st():
-    from services.draw_manager import STDrawManager
+    from data_sources.draw_manager import STDrawManager
     init_db()
     session = SessionLocal()
     d = STDrawManager(session)
