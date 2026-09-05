@@ -6,8 +6,8 @@ import math
 from dataclasses import asdict, dataclass, field
 from typing import Any, Sequence
 
-from calc.probability_metrics import multiclass_log_loss
-from calc.residual_ml.baseline import apply_market_only_baseline, shrink_toward_market
+from src.calc.probability_metrics import multiclass_log_loss
+from src.calc.residual_ml.baseline import apply_market_only_baseline, shrink_toward_market
 from config.eval_protocol import DRAW_WINDOW_MAX, DRAW_WINDOW_MIN
 
 MARKET_KEYS = ("p_home_market_norm", "p_draw_market_norm", "p_away_market_norm")
@@ -319,13 +319,29 @@ class SliceMetrics:
     ml_log_loss: float | None = None
     best_shrink_alpha: float | None = None
     best_shrink_log_loss: float | None = None
+    production_shrink_alpha: float | None = None
+    production_shrink_log_loss: float | None = None
     top_pick: dict[str, tuple[float | None, int]] = field(default_factory=dict)
+
+
+def _production_shrink_loss(
+    scoring: BacktestScoringResult,
+    production_shrink_alpha: float | None,
+) -> float | None:
+    if production_shrink_alpha is None:
+        return None
+    for alpha, loss in scoring.shrink_results:
+        if abs(alpha - production_shrink_alpha) < 1e-12:
+            return loss
+    return None
 
 
 def summarize_slice_metrics(
     slice_name: str,
     rows: list[dict[str, Any]],
     scoring: BacktestScoringResult | None = None,
+    *,
+    production_shrink_alpha: float | None = None,
 ) -> SliceMetrics:
     """Build pooled metrics for one row slice."""
     baselines = score_baseline_log_losses(rows)
@@ -349,42 +365,78 @@ def summarize_slice_metrics(
     )
     metrics.best_shrink_alpha = scoring.best_alpha
     metrics.best_shrink_log_loss = scoring.best_loss
+    if production_shrink_alpha is not None:
+        metrics.production_shrink_alpha = production_shrink_alpha
+        metrics.production_shrink_log_loss = _production_shrink_loss(
+            scoring, production_shrink_alpha
+        )
     return metrics
+
+
+def _score_slice_with_trainer(
+    slice_rows: list[dict[str, Any]],
+    trainer: Any,
+) -> BacktestScoringResult:
+    return run_backtest_scoring(
+        slice_rows,
+        trainer,
+        use_market_only_baseline=False,
+    )
 
 
 def build_multi_slice_report(
     rows: list[dict[str, Any]],
     scoring: BacktestScoringResult | None = None,
+    trainer: Any | None = None,
+    *,
+    production_shrink_alpha: float | None = None,
+    use_market_only_baseline: bool = False,
 ) -> dict[str, SliceMetrics]:
-    """Pooled metrics plus per-year and per-draw-quarter slices."""
+    """Pooled metrics plus year/quarter/league/availability/injury slices."""
+    if use_market_only_baseline:
+        apply_market_only_baseline(rows)
+
+    def metrics_for(
+        slice_name: str,
+        slice_rows: list[dict[str, Any]],
+        *,
+        fallback_scoring: BacktestScoringResult | None = None,
+    ) -> SliceMetrics:
+        slice_scoring = fallback_scoring
+        if trainer is not None and slice_rows:
+            slice_scoring = _score_slice_with_trainer(slice_rows, trainer)
+        return summarize_slice_metrics(
+            slice_name,
+            slice_rows,
+            slice_scoring,
+            production_shrink_alpha=production_shrink_alpha,
+        )
+
     report = {
-        "pooled": summarize_slice_metrics("pooled", rows, scoring),
+        "pooled": metrics_for("pooled", rows, fallback_scoring=scoring),
     }
     for year, year_rows in slice_rows_by_year(rows).items():
-        report[f"year:{year}"] = summarize_slice_metrics(
-            f"year:{year}",
-            year_rows,
-        )
+        report[f"year:{year}"] = metrics_for(f"year:{year}", year_rows)
     for quarter, quarter_rows in slice_rows_by_draw_quarter(rows).items():
-        report[f"draw_quarter:{quarter}"] = summarize_slice_metrics(
+        report[f"draw_quarter:{quarter}"] = metrics_for(
             f"draw_quarter:{quarter}",
             quarter_rows,
         )
     league_slices = slice_rows_by_league(rows)
     if league_slices is not None:
         for league_id, league_rows in league_slices.items():
-            report[f"league:{league_id}"] = summarize_slice_metrics(
+            report[f"league:{league_id}"] = metrics_for(
                 f"league:{league_id}",
                 league_rows,
             )
     availability_slices = slice_rows_by_availability(rows)
     if availability_slices is not None:
         for slice_name, slice_rows in availability_slices.items():
-            report[slice_name] = summarize_slice_metrics(slice_name, slice_rows)
+            report[slice_name] = metrics_for(slice_name, slice_rows)
     injury_slices = slice_rows_by_injury_heavy(rows)
     if injury_slices is not None:
         for slice_name, slice_rows in injury_slices.items():
-            report[slice_name] = summarize_slice_metrics(slice_name, slice_rows)
+            report[slice_name] = metrics_for(slice_name, slice_rows)
     return report
 
 
@@ -534,7 +586,7 @@ def apply_draw_adjustment_to_rows(
     draw_config: Any | None = None,
 ) -> list[dict[str, Any]]:
     """Return copies with p_*_blend set to draw-adjusted pre-draw blend."""
-    from calc.draw_adjustment import apply_draw_adjustment, load_draw_adjustment_config
+    from src.calc.draw_adjustment import apply_draw_adjustment, load_draw_adjustment_config
 
     config = draw_config if draw_config is not None else load_draw_adjustment_config()
 
@@ -581,7 +633,7 @@ def run_phase3_ablation(
     C: B + HGB residual (requires trainer)
     D: C + shrink toward market
     """
-    from calc.draw_adjustment import load_draw_adjustment_config
+    from src.calc.draw_adjustment import load_draw_adjustment_config
 
     config = draw_config if draw_config is not None else load_draw_adjustment_config()
     blend_keys = ("p_home_blend", "p_draw_blend", "p_away_blend")

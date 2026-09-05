@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from utils.time_split import (
+from src.utils.time_split import (
     DEFAULT_VALIDATION_FRACTION,
     split_index_for_fraction,
     time_split_dataset_rows,

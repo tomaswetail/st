@@ -2,7 +2,7 @@ from datetime import date
 
 from pydantic import BaseModel, Field
 
-from objects.schema.data_classes.recent_form_stats import RecentFormStats, TeamRestDays
+from src.objects.schema.data_classes.recent_form_stats import RecentFormStats, TeamRestDays
 
 
 class MatchRecentFormFeatures(BaseModel):

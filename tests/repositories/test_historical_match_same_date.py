@@ -5,8 +5,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
-from objects.repositories.fixture_repository import FixtureRepository
-from objects.schema.db.fixture import FixtureCreate
+from src.objects.repositories.fixture_repository import FixtureRepository
+from src.objects.schema.db.fixture import FixtureCreate
 
 
 def _repo() -> FixtureRepository:
@@ -40,7 +40,7 @@ def test_upsert_many_writes_by_fixture_id():
     match = _create()
 
     with patch(
-        "objects.repositories.fixture_repository.pg_insert"
+        "src.objects.repositories.fixture_repository.pg_insert"
     ) as insert_mock:
         statement = MagicMock()
         insert_mock.return_value.values.return_value.on_conflict_do_update.return_value = (
@@ -60,7 +60,7 @@ def test_upsert_many_writes_each_fixture():
     second = _create(fixture_id=2)
 
     with patch(
-        "objects.repositories.fixture_repository.pg_insert"
+        "src.objects.repositories.fixture_repository.pg_insert"
     ) as insert_mock:
         statement = MagicMock()
         insert_mock.return_value.values.return_value.on_conflict_do_update.return_value = (

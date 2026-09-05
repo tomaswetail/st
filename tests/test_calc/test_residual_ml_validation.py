@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from calc.residual_ml.validation import resolve_validation_fraction
+from src.calc.residual_ml.validation import resolve_validation_fraction
 
 
 def test_resolve_validation_fraction_prefers_cli_value(tmp_path: Path):

@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from calc.strength_calculator import (
+from src.calc.strength_calculator import (
     StrengthCalculator,
     _scoreline_probability,
     dixon_coles_matrix,
@@ -522,7 +522,7 @@ def _match_metrics_for_gate():
 
 
 def test_opponent_adjustment_skipped_when_config_none():
-    from calc.strength_calculator import _ObservationBuckets
+    from src.calc.strength_calculator import _ObservationBuckets
 
     calculator = make_calculator(football_data_opponent_adjustment="none")
     calculator._get_opponent_strength_before = MagicMock(
@@ -536,7 +536,7 @@ def test_opponent_adjustment_skipped_when_config_none():
 
 
 def test_opponent_adjustment_runs_when_config_simple():
-    from calc.strength_calculator import _ObservationBuckets
+    from src.calc.strength_calculator import _ObservationBuckets
 
     calculator = make_calculator(football_data_opponent_adjustment="simple")
     calculator._get_opponent_strength_before = MagicMock(
@@ -595,7 +595,7 @@ def test_league_averages_uses_only_matches_before_cutoff():
     }
 
     with patch(
-        "calc.strength_calculator.baselines_from_stats",
+        "src.calc.strength_calculator.baselines_from_stats",
         return_value=expected,
     ) as baseline_mock:
 

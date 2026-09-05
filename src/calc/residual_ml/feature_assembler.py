@@ -7,23 +7,23 @@ from math import exp
 
 from sqlalchemy.orm import Session
 
-from calc.balance_and_environment import BalanceAndEnvironment
-from calc.dixon_coles.model import DixonColesModel, DixonColesPrediction
-from calc.dixon_coles.service import DixonColesService
-from calc.league_behavior_calculator import LeagueBehaviorCalculator
-from calc.market_probabilities import MarketProbabilities
-from calc.player_availability_calculator import PlayerAvailabilityCalculator
-from calc.rest_congestion_calculator import RestCongestionCalculator
-from calc.strength_calculator import StrengthCalculator
-from objects.models.st_match import STMatchModel
-from objects.repositories.fixture_repository import FixtureRepository
-from objects.repositories.league_repository import LeagueRepository
-from objects.schema.data_classes.data_sources import DataSourceConfig
-from objects.schema.data_classes.residual_ml_features import ResidualMLFeatures
-from objects.schema.data_classes.team_strength_features import MatchStrengthFeatures
-from objects.schema.db.st_match_odds import STMatchOdds
-from objects.schema.db.team import Team
-from utils.common import ensure_unit_probabilities
+from src.calc.balance_and_environment import BalanceAndEnvironment
+from src.calc.dixon_coles.model import DixonColesModel, DixonColesPrediction
+from src.calc.dixon_coles.service import DixonColesService
+from src.calc.league_behavior_calculator import LeagueBehaviorCalculator
+from src.calc.market_probabilities import MarketProbabilities
+from src.calc.player_availability_calculator import PlayerAvailabilityCalculator
+from src.calc.rest_congestion_calculator import RestCongestionCalculator
+from src.calc.strength_calculator import StrengthCalculator
+from src.objects.models.st_match import STMatchModel
+from src.objects.repositories.fixture_repository import FixtureRepository
+from src.objects.repositories.league_repository import LeagueRepository
+from src.objects.schema.data_classes.data_sources import DataSourceConfig
+from src.objects.schema.data_classes.residual_ml_features import ResidualMLFeatures
+from src.objects.schema.data_classes.team_strength_features import MatchStrengthFeatures
+from src.objects.schema.db.st_match_odds import STMatchOdds
+from src.objects.schema.db.team import Team
+from src.utils.common import ensure_unit_probabilities
 
 
 class ResidualMLFeatureAssembler:
@@ -259,7 +259,7 @@ class ResidualMLFeatureAssembler:
 
         classic = self._classic_dc_prediction(match, cutoff, league_external_id)
         if classic is None:
-            return strength_tuple
+            return (None, None, None, None, None)
         return (
             classic.lambda_home,
             classic.lambda_away,
@@ -291,7 +291,8 @@ class ResidualMLFeatureAssembler:
                 if cache_key not in self._classic_dc_fallback_logged:
                     print(
                         f"Classic DC fit failed league={league_external_id} "
-                        f"as_of={cutoff} ({exc}); falling back to strength DC",
+                        f"as_of={cutoff} ({exc}); classic engine omitted, "
+                        f"blend will use market",
                         flush=True,
                     )
                     self._classic_dc_fallback_logged.add(cache_key)
@@ -307,7 +308,8 @@ class ResidualMLFeatureAssembler:
             if cache_key not in self._classic_dc_fallback_logged:
                 print(
                     f"Classic DC predict failed league={league_external_id} "
-                    f"as_of={cutoff} ({exc}); falling back to strength DC",
+                    f"as_of={cutoff} ({exc}); classic engine omitted, "
+                    f"blend will use market",
                     flush=True,
                 )
                 self._classic_dc_fallback_logged.add(cache_key)

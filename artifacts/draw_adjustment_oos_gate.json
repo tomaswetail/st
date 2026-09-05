@@ -1,0 +1,288 @@
+{
+  "gate_result": "PASS",
+  "enabled": true,
+  "holdout_draw_min": 4951,
+  "validation_fraction": 0.2,
+  "n_train": 1968,
+  "n_validation": 492,
+  "n_tuning": 2460,
+  "best_candidate": {
+    "name": "refit_offset_top5",
+    "method": "train_mle_offset",
+    "feature_names": [
+      "away_npxg_for",
+      "away_short_rest",
+      "away_npxg_against",
+      "combined_low_scoring_rate",
+      "congestion_difference"
+    ],
+    "intercept": 0.1063696738772306,
+    "betas": {
+      "away_npxg_for": -0.31653871693952507,
+      "away_short_rest": 0.20430165082921664,
+      "away_npxg_against": 0.17439973031599385,
+      "combined_low_scoring_rate": 0.043276111033897856,
+      "congestion_difference": 0.1673998738760768
+    },
+    "validation_draw_brier_blend": 0.1792172865191027,
+    "validation_draw_brier_adj": 0.17784897606342331,
+    "validation_draw_ll_blend": 0.5436222365829187,
+    "validation_draw_ll_adj": 0.5398944599385637,
+    "train_draw_brier_blend": 0.18876227385309016,
+    "train_draw_brier_adj": 0.18807911565366867,
+    "train_draw_ll_blend": 0.5642716719474797,
+    "train_draw_ll_adj": 0.5623439216173549,
+    "improves_oos": true
+  },
+  "candidates": [
+    {
+      "name": "l1_train_coefs_top5",
+      "method": "discovery_l1_train_coefs",
+      "feature_names": [
+        "away_npxg_for",
+        "away_short_rest",
+        "away_npxg_against",
+        "combined_low_scoring_rate",
+        "congestion_difference"
+      ],
+      "intercept": 0.0,
+      "betas": {
+        "away_npxg_for": -0.10955333695681589,
+        "away_short_rest": 0.048328047446036984,
+        "away_npxg_against": 0.04719263877508896,
+        "combined_low_scoring_rate": -0.024298498667375875,
+        "congestion_difference": 0.010077914452130719
+      },
+      "validation_draw_brier_blend": 0.1792172865191027,
+      "validation_draw_brier_adj": 0.17826889909121252,
+      "validation_draw_ll_blend": 0.5436222365829187,
+      "validation_draw_ll_adj": 0.541101660284403,
+      "train_draw_brier_blend": 0.18876227385309016,
+      "train_draw_brier_adj": 0.1885420345354714,
+      "train_draw_ll_blend": 0.5642716719474797,
+      "train_draw_ll_adj": 0.5636901276283967,
+      "improves_oos": true
+    },
+    {
+      "name": "l1_train_coefs_top4",
+      "method": "discovery_l1_train_coefs",
+      "feature_names": [
+        "away_npxg_for",
+        "away_short_rest",
+        "away_npxg_against",
+        "combined_low_scoring_rate"
+      ],
+      "intercept": 0.0,
+      "betas": {
+        "away_npxg_for": -0.10955333695681589,
+        "away_short_rest": 0.048328047446036984,
+        "away_npxg_against": 0.04719263877508896,
+        "combined_low_scoring_rate": -0.024298498667375875
+      },
+      "validation_draw_brier_blend": 0.1792172865191027,
+      "validation_draw_brier_adj": 0.17827635965515665,
+      "validation_draw_ll_blend": 0.5436222365829187,
+      "validation_draw_ll_adj": 0.5411219227533204,
+      "train_draw_brier_blend": 0.18876227385309016,
+      "train_draw_brier_adj": 0.18854534526763983,
+      "train_draw_ll_blend": 0.5642716719474797,
+      "train_draw_ll_adj": 0.5636991228207827,
+      "improves_oos": true
+    },
+    {
+      "name": "l1_train_coefs_top3",
+      "method": "discovery_l1_train_coefs",
+      "feature_names": [
+        "away_npxg_for",
+        "away_short_rest",
+        "away_npxg_against"
+      ],
+      "intercept": 0.0,
+      "betas": {
+        "away_npxg_for": -0.10955333695681589,
+        "away_short_rest": 0.048328047446036984,
+        "away_npxg_against": 0.04719263877508896
+      },
+      "validation_draw_brier_blend": 0.1792172865191027,
+      "validation_draw_brier_adj": 0.17834167650746696,
+      "validation_draw_ll_blend": 0.5436222365829187,
+      "validation_draw_ll_adj": 0.5412995739662734,
+      "train_draw_brier_blend": 0.18876227385309016,
+      "train_draw_brier_adj": 0.18851976151191663,
+      "train_draw_ll_blend": 0.5642716719474797,
+      "train_draw_ll_adj": 0.5636237623914754,
+      "improves_oos": true
+    },
+    {
+      "name": "l1_train_coefs_top2",
+      "method": "discovery_l1_train_coefs",
+      "feature_names": [
+        "away_npxg_for",
+        "away_short_rest"
+      ],
+      "intercept": 0.0,
+      "betas": {
+        "away_npxg_for": -0.10955333695681589,
+        "away_short_rest": 0.048328047446036984
+      },
+      "validation_draw_brier_blend": 0.1792172865191027,
+      "validation_draw_brier_adj": 0.1782008037931416,
+      "validation_draw_ll_blend": 0.5436222365829187,
+      "validation_draw_ll_adj": 0.5409361804242447,
+      "train_draw_brier_blend": 0.18876227385309016,
+      "train_draw_brier_adj": 0.18868808461656936,
+      "train_draw_ll_blend": 0.5642716719474797,
+      "train_draw_ll_adj": 0.5641050243119224,
+      "improves_oos": true
+    },
+    {
+      "name": "refit_offset_top5",
+      "method": "train_mle_offset",
+      "feature_names": [
+        "away_npxg_for",
+        "away_short_rest",
+        "away_npxg_against",
+        "combined_low_scoring_rate",
+        "congestion_difference"
+      ],
+      "intercept": 0.1063696738772306,
+      "betas": {
+        "away_npxg_for": -0.31653871693952507,
+        "away_short_rest": 0.20430165082921664,
+        "away_npxg_against": 0.17439973031599385,
+        "combined_low_scoring_rate": 0.043276111033897856,
+        "congestion_difference": 0.1673998738760768
+      },
+      "validation_draw_brier_blend": 0.1792172865191027,
+      "validation_draw_brier_adj": 0.17784897606342331,
+      "validation_draw_ll_blend": 0.5436222365829187,
+      "validation_draw_ll_adj": 0.5398944599385637,
+      "train_draw_brier_blend": 0.18876227385309016,
+      "train_draw_brier_adj": 0.18807911565366867,
+      "train_draw_ll_blend": 0.5642716719474797,
+      "train_draw_ll_adj": 0.5623439216173549,
+      "improves_oos": true
+    },
+    {
+      "name": "refit_offset_top4",
+      "method": "train_mle_offset",
+      "feature_names": [
+        "away_npxg_for",
+        "away_short_rest",
+        "away_npxg_against",
+        "combined_low_scoring_rate"
+      ],
+      "intercept": 0.10575058127506706,
+      "betas": {
+        "away_npxg_for": -0.315511077304922,
+        "away_short_rest": 0.20655454833197076,
+        "away_npxg_against": 0.17334127093137916,
+        "combined_low_scoring_rate": 0.04604890173176812
+      },
+      "validation_draw_brier_blend": 0.1792172865191027,
+      "validation_draw_brier_adj": 0.17796604411341363,
+      "validation_draw_ll_blend": 0.5436222365829187,
+      "validation_draw_ll_adj": 0.5402102947363734,
+      "train_draw_brier_blend": 0.18876227385309016,
+      "train_draw_brier_adj": 0.18811256497284984,
+      "train_draw_ll_blend": 0.5642716719474797,
+      "train_draw_ll_adj": 0.5624434621599489,
+      "improves_oos": true
+    },
+    {
+      "name": "refit_offset_top3",
+      "method": "train_mle_offset",
+      "feature_names": [
+        "away_npxg_for",
+        "away_short_rest",
+        "away_npxg_against"
+      ],
+      "intercept": 0.12110688662433755,
+      "betas": {
+        "away_npxg_for": -0.3133332497080815,
+        "away_short_rest": 0.20794823696535517,
+        "away_npxg_against": 0.17611885766373425
+      },
+      "validation_draw_brier_blend": 0.1792172865191027,
+      "validation_draw_brier_adj": 0.17794444819445165,
+      "validation_draw_ll_blend": 0.5436222365829187,
+      "validation_draw_ll_adj": 0.540151500687333,
+      "train_draw_brier_blend": 0.18876227385309016,
+      "train_draw_brier_adj": 0.18811345249024475,
+      "train_draw_ll_blend": 0.5642716719474797,
+      "train_draw_ll_adj": 0.5624491649398876,
+      "improves_oos": true
+    },
+    {
+      "name": "refit_offset_top2",
+      "method": "train_mle_offset",
+      "feature_names": [
+        "away_npxg_for",
+        "away_short_rest"
+      ],
+      "intercept": 0.1872150191435781,
+      "betas": {
+        "away_npxg_for": -0.20012383795242075,
+        "away_short_rest": 0.2137738306850945
+      },
+      "validation_draw_brier_blend": 0.1792172865191027,
+      "validation_draw_brier_adj": 0.17831051797627406,
+      "validation_draw_ll_blend": 0.5436222365829187,
+      "validation_draw_ll_adj": 0.5412140363144378,
+      "train_draw_brier_blend": 0.18876227385309016,
+      "train_draw_brier_adj": 0.18828670042535778,
+      "train_draw_ll_blend": 0.5642716719474797,
+      "train_draw_ll_adj": 0.5629086649583825,
+      "improves_oos": true
+    },
+    {
+      "name": "refit_offset_top1",
+      "method": "train_mle_offset",
+      "feature_names": [
+        "away_npxg_for"
+      ],
+      "intercept": 0.19658929814760814,
+      "betas": {
+        "away_npxg_for": -0.18831079276052673
+      },
+      "validation_draw_brier_blend": 0.1792172865191027,
+      "validation_draw_brier_adj": 0.17865647003092264,
+      "validation_draw_ll_blend": 0.5436222365829187,
+      "validation_draw_ll_adj": 0.5421449868745724,
+      "train_draw_brier_blend": 0.18876227385309016,
+      "train_draw_brier_adj": 0.18841765596670498,
+      "train_draw_ll_blend": 0.5642716719474797,
+      "train_draw_ll_adj": 0.5633266111624408,
+      "improves_oos": true
+    }
+  ],
+  "recommended_config": {
+    "enabled": true,
+    "intercept": 0.1063696738772306,
+    "beta0": 0.1063696738772306,
+    "features": [
+      {
+        "name": "away_npxg_for",
+        "beta": -0.31653871693952507
+      },
+      {
+        "name": "away_short_rest",
+        "beta": 0.20430165082921664
+      },
+      {
+        "name": "away_npxg_against",
+        "beta": 0.17439973031599385
+      },
+      {
+        "name": "combined_low_scoring_rate",
+        "beta": 0.043276111033897856
+      },
+      {
+        "name": "congestion_difference",
+        "beta": 0.1673998738760768
+      }
+    ],
+    "missing_feature_default": 0.0,
+    "notes": "OOS gate PASS: candidate=refit_offset_top5 method=train_mle_offset. Val draw Brier blend=0.179217 adj=0.177849 (\u0394=-0.001368); Val draw LL blend=0.543622 adj=0.539894 (\u0394=-0.003728). Phase 3.1 discovery full-L1 OOS remains FAIL. Full dataset rebuild + HGB retrain deferred unless run separately."
+  }
+}

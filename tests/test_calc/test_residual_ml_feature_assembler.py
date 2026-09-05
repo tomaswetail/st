@@ -8,17 +8,17 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from calc.residual_ml.feature_assembler import ResidualMLFeatureAssembler
-from objects.schema.data_classes.balance_and_environment_features import (
+from src.calc.residual_ml.feature_assembler import ResidualMLFeatureAssembler
+from src.objects.schema.data_classes.balance_and_environment_features import (
     BalanceAndEnvironmentFeatures,
 )
-from objects.schema.data_classes.data_sources import DataSourceConfig
-from objects.schema.data_classes.league_behavior_features import LeagueBehaviorFeatures
-from objects.schema.data_classes.player_availability_features import (
+from src.objects.schema.data_classes.data_sources import DataSourceConfig
+from src.objects.schema.data_classes.league_behavior_features import LeagueBehaviorFeatures
+from src.objects.schema.data_classes.player_availability_features import (
     PlayerAvailabilityFeatures,
 )
-from objects.schema.data_classes.rest_congestion_features import RestCongestionFeatures
-from objects.schema.data_classes.team_strength_features import MatchStrengthFeatures
+from src.objects.schema.data_classes.rest_congestion_features import RestCongestionFeatures
+from src.objects.schema.data_classes.team_strength_features import MatchStrengthFeatures
 
 
 def _empty_availability() -> PlayerAvailabilityFeatures:
@@ -352,6 +352,54 @@ def test_assembler_strength_engine_keeps_strength_dc():
     assert features.p_draw_dc == pytest.approx(0.27)
     assert features.expected_home_goals == pytest.approx(1.55)
     assembler.dixon_coles_service.fit_league.assert_not_called()
+
+
+def test_assembler_classic_fit_failure_omits_engine_probs():
+    session = MagicMock()
+    assembler = ResidualMLFeatureAssembler(
+        session,
+        config=DataSourceConfig(residual_ml_dc_engine="classic"),
+    )
+    _stub_assemblers(assembler)
+    assembler.dixon_coles_service.fit_league = MagicMock(
+        side_effect=ValueError("not enough matches")
+    )
+
+    features = assembler.assemble(_match())
+
+    assert features.p_home_dc is None
+    assert features.p_draw_dc is None
+    assert features.p_away_dc is None
+    assert features.expected_home_goals is None
+    assert features.expected_away_goals is None
+    assert features.market_vs_dc_home is None
+    assert features.market_vs_dc_draw is None
+    assert features.market_vs_dc_away is None
+    assert features.home_npxg_for == pytest.approx(1.4)
+    assert features.attack_strength_difference == pytest.approx(0.1)
+
+
+def test_assembler_classic_predict_failure_omits_engine_probs():
+    session = MagicMock()
+    assembler = ResidualMLFeatureAssembler(
+        session,
+        config=DataSourceConfig(residual_ml_dc_engine="classic"),
+    )
+    _stub_assemblers(assembler)
+    classic_model = MagicMock()
+    classic_model.predict.side_effect = RuntimeError("unknown team")
+    assembler.dixon_coles_service.fit_league = MagicMock(return_value=classic_model)
+
+    features = assembler.assemble(_match())
+
+    assert features.p_home_dc is None
+    assert features.p_draw_dc is None
+    assert features.p_away_dc is None
+    assert features.expected_home_goals is None
+    assert features.expected_away_goals is None
+    assert features.market_vs_dc_home is None
+    assert features.home_npxg_for == pytest.approx(1.4)
+    assert features.attack_strength_difference == pytest.approx(0.1)
 
 
 def test_assembler_classic_fit_cached_per_league_day():

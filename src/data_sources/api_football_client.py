@@ -12,11 +12,11 @@ from typing import Any
 
 import requests
 
-from objects.schema.data_classes.data_sources import DataSourceConfig
-from objects.schema.data_classes.fixture import Fixture
-from objects.schema.data_classes.league_info import LeagueInfo
-from objects.schema.db.fixture import FixtureCreate
-from objects.schema.db.league import LeagueCreate
+from src.objects.schema.data_classes.data_sources import DataSourceConfig
+from src.objects.schema.data_classes.fixture import Fixture
+from src.objects.schema.data_classes.league_info import LeagueInfo
+from src.objects.schema.db.fixture import FixtureCreate
+from src.objects.schema.db.league import LeagueCreate
 
 logger = logging.getLogger(__name__)
 

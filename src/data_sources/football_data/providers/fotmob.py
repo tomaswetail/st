@@ -6,12 +6,12 @@ import logging
 from datetime import date, datetime, timezone
 from typing import Any
 
-from data_sources.football_data.http_client import (
+from src.data_sources.football_data.http_client import (
     FootballDataHttpError,
     ThrottledHttpClient,
 )
-from objects.schema.data_classes.data_sources import DataSourceConfig
-from objects.schema.data_classes.provider_dtos import (
+from src.objects.schema.data_classes.data_sources import DataSourceConfig
+from src.objects.schema.data_classes.provider_dtos import (
     ProviderLeague,
     ProviderMatch,
     ProviderMatchDetails,
@@ -19,7 +19,7 @@ from objects.schema.data_classes.provider_dtos import (
     ProviderShot,
     ProviderTeam,
 )
-from utils.common import get_season_rev
+from src.utils.common import get_season_rev
 
 logger = logging.getLogger(__name__)
 

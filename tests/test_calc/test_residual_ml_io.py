@@ -5,7 +5,7 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
-from calc.residual_ml.io import load_dataset_rows
+from src.calc.residual_ml.io import load_dataset_rows
 
 
 def test_load_dataset_rows_csv_coerces_int_fields(tmp_path: Path):

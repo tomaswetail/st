@@ -12,7 +12,7 @@ from typing import Any
 
 import httpx
 
-from objects.schema.data_classes.svenska_spel_config import SvenskaSpelConfig
+from src.objects.schema.data_classes.svenska_spel_config import SvenskaSpelConfig
 
 logger = logging.getLogger(__name__)
 

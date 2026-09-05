@@ -1,0 +1,118 @@
+{
+  "decision": "CONTINUE",
+  "source_eval": "artifacts/dc_rho_mle_promotion/gate_eval_492_tuning.json",
+  "slice": "492-row tuning (default eval, holdout excluded)",
+  "note": "Allowlist locked from the 492-row tuning slice only. Official 518 include-holdout was not used to pick leagues.",
+  "min_n_for_allowlist": 15,
+  "allowlist_rule": "n>=15 and blend_log_loss < market_log_loss -> 70/30; else market-only (1.0/0.0). League 45 kept only if 492 n>=15 and blend wins.",
+  "stop_rule": "STOP if 492 pooled blend beats market AND leagues 180 and 41 are not a tax (blend<=market or n<15).",
+  "pooled": {
+    "n": 492,
+    "market_log_loss": 1.02905231971842,
+    "market_n": 492,
+    "blend_log_loss": 1.0256280730599285,
+    "blend_n": 492
+  },
+  "pooled_blend_beats_market": true,
+  "league_180_is_tax": false,
+  "league_41_is_tax": true,
+  "leagues": {
+    "39": {
+      "n": 144,
+      "market_log_loss": 0.9513149923953017,
+      "market_n": 144,
+      "blend_log_loss": 0.949149855766652,
+      "blend_n": 144
+    },
+    "41": {
+      "n": 80,
+      "market_log_loss": 1.0479057669806688,
+      "market_n": 80,
+      "blend_log_loss": 1.0482727479099299,
+      "blend_n": 80
+    },
+    "42": {
+      "n": 23,
+      "market_log_loss": 1.0466783254684262,
+      "market_n": 23,
+      "blend_log_loss": 1.047619900433451,
+      "blend_n": 23
+    },
+    "45": {
+      "n": 19,
+      "market_log_loss": 0.9820121470621496,
+      "market_n": 19,
+      "blend_log_loss": 0.9299699823954634,
+      "blend_n": 19
+    },
+    "61": {
+      "n": 3,
+      "market_log_loss": 0.8265872996861914,
+      "market_n": 3,
+      "blend_log_loss": 0.8320169314005139,
+      "blend_n": 3
+    },
+    "71": {
+      "n": 4,
+      "market_log_loss": 0.9056320728801734,
+      "market_n": 4,
+      "blend_log_loss": 1.0093189903906072,
+      "blend_n": 4
+    },
+    "78": {
+      "n": 1,
+      "market_log_loss": 1.041453874828161,
+      "market_n": 1,
+      "blend_log_loss": 1.0164638093524054,
+      "blend_n": 1
+    },
+    "88": {
+      "n": 1,
+      "market_log_loss": 1.0897679132124263,
+      "market_n": 1,
+      "blend_log_loss": 1.1724896204996664,
+      "blend_n": 1
+    },
+    "113": {
+      "n": 2,
+      "market_log_loss": 1.058696439224305,
+      "market_n": 2,
+      "blend_log_loss": 1.0527475503377552,
+      "blend_n": 2
+    },
+    "140": {
+      "n": 3,
+      "market_log_loss": 1.325169395548166,
+      "market_n": 3,
+      "blend_log_loss": 1.3495610234764364,
+      "blend_n": 3
+    },
+    "179": {
+      "n": 4,
+      "market_log_loss": 1.0776237607624122,
+      "market_n": 4,
+      "blend_log_loss": 1.0554198011385287,
+      "blend_n": 4
+    },
+    "180": {
+      "n": 201,
+      "market_log_loss": 1.0782172389532358,
+      "market_n": 201,
+      "blend_log_loss": 1.073272136096046,
+      "blend_n": 201
+    },
+    "591": {
+      "n": 2,
+      "market_log_loss": 1.2289106761993374,
+      "market_n": 2,
+      "blend_log_loss": 1.277697150429555,
+      "blend_n": 2
+    }
+  },
+  "allowlisted_league_ids": [
+    "39",
+    "45",
+    "180"
+  ],
+  "continue_reason": "league 41 is a tax on 492 (n>=15 and blend > market)"
+}

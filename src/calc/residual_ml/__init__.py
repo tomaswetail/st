@@ -1,6 +1,6 @@
 """Residual ML training, evaluation, and inference."""
 
-from calc.residual_ml.baseline import (
+from src.calc.residual_ml.baseline import (
     apply_draw_adjustment,
     apply_market_only_baseline,
     apply_residual_deltas,
@@ -10,25 +10,25 @@ from calc.residual_ml.baseline import (
     market_baseline,
     shrink_toward_market,
 )
-from calc.residual_ml.blend_weights import (
+from src.calc.residual_ml.blend_weights import (
     load_blend_weights_config,
     select_blend_weights,
 )
-from calc.residual_ml.dataset import ResidualMLDatasetBuilder
-from calc.residual_ml.evaluation import (
+from src.calc.residual_ml.dataset import ResidualMLDatasetBuilder
+from src.calc.residual_ml.evaluation import (
     BacktestScoringResult,
     run_backtest_scoring,
     run_phase3_ablation,
     score_baseline_log_losses,
     score_outcome_metrics,
 )
-from calc.residual_ml.feature_assembler import ResidualMLFeatureAssembler
-from calc.residual_ml.filters import filter_rows_by_draw, select_backtest_rows
-from calc.residual_ml.io import load_dataset_rows
-from calc.residual_ml.model import ResidualMLModel
-from calc.residual_ml.sweep import run_hyperparameter_sweep, train_and_save
-from calc.residual_ml.trainer import ResidualMLTrainer
-from calc.residual_ml.validation import resolve_validation_fraction
+from src.calc.residual_ml.feature_assembler import ResidualMLFeatureAssembler
+from src.calc.residual_ml.filters import filter_rows_by_draw, select_backtest_rows
+from src.calc.residual_ml.io import load_dataset_rows
+from src.calc.residual_ml.model import ResidualMLModel
+from src.calc.residual_ml.sweep import run_hyperparameter_sweep, train_and_save
+from src.calc.residual_ml.trainer import ResidualMLTrainer
+from src.calc.residual_ml.validation import resolve_validation_fraction
 
 __all__ = [
     "BacktestScoringResult",

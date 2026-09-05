@@ -9,7 +9,7 @@ from sqlalchemy import DateTime, Double, ForeignKey, Integer, String, UniqueCons
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from database import Base
+from src.database import Base
 
 
 class MatchAvailabilityModel(Base):

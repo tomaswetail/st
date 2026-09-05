@@ -12,7 +12,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from calc.residual_ml import (
+from src.calc.residual_ml import (
     ResidualMLModel,
     is_market_only_weights,
     load_dataset_rows,
@@ -22,9 +22,9 @@ from calc.residual_ml import (
     select_backtest_rows,
 )
 from config.eval_protocol import TUNING_DRAW_MAX
-from objects.schema.data_classes.data_sources import DataSourceConfig
-from utils.repo_paths import resolve_repo_path
-from utils.time_split import DEFAULT_VALIDATION_FRACTION
+from src.objects.schema.data_classes.data_sources import DataSourceConfig
+from src.utils.repo_paths import resolve_repo_path
+from src.utils.time_split import DEFAULT_VALIDATION_FRACTION
 
 
 def main() -> None:

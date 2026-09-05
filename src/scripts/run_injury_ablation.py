@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from utils.repo_paths import repo_root, resolve_repo_path
+from src.utils.repo_paths import repo_root, resolve_repo_path
 
 ABLATION_CONFIGS: dict[str, dict[str, Any]] = {
     "B0": {
@@ -43,7 +43,7 @@ ABLATION_CONFIGS: dict[str, dict[str, Any]] = {
 
 def _run(cmd: list[str], *, env: dict[str, str] | None = None) -> None:
     print("+ " + " ".join(cmd), flush=True)
-    subprocess.run(cmd, check=True, env=env)
+    subprocess.run(cmd, check=True, env=env, cwd=repo_root())
 
 
 def _paths_for(ablation_id: str) -> dict[str, Path]:
@@ -74,7 +74,6 @@ def run_ablation(
     paths["model_dir"].mkdir(parents=True, exist_ok=True)
 
     env = os.environ.copy()
-    env["PYTHONPATH"] = "src"
     env["RESIDUAL_ML_BLEND_WEIGHTS_PATH"] = str(paths["blend_config"])
 
     reuse_from = spec["reuse_dataset_from"]
@@ -95,7 +94,8 @@ def run_ablation(
             _run(
                 [
                     sys.executable,
-                    "src/scripts/reblend_residual_ml_dataset.py",
+                    "-m",
+                    "src.scripts.reblend_residual_ml_dataset",
                     "--input",
                     str(base_dataset),
                     "--output",
@@ -107,7 +107,7 @@ def run_ablation(
             )
         else:
             _run(
-                [sys.executable, "-u", "src/scripts/build_residual_ml_dataset.py"],
+                [sys.executable, "-u", "-m", "src.scripts.build_residual_ml_dataset"],
                 env=env,
             )
             built = resolve_repo_path(Path("data/residual_ml/dataset.csv"))
@@ -118,7 +118,8 @@ def run_ablation(
         train_cmd = [
             sys.executable,
             "-u",
-            "src/scripts/train_residual_ml.py",
+            "-m",
+            "src.scripts.train_residual_ml",
             "--dataset",
             str(paths["dataset"]),
             "--sweep",
@@ -133,7 +134,8 @@ def run_ablation(
         _run(
             [
                 sys.executable,
-                "src/scripts/eval_residual_ml.py",
+                "-m",
+                "src.scripts.eval_residual_ml",
                 "--dataset",
                 str(paths["dataset"]),
                 "--model",

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
-from utils.fixture_fields import fixture_match_date
+from src.utils.fixture_fields import fixture_match_date
 
 
 @dataclass(frozen=True)

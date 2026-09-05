@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from calc.residual_ml.baseline import (
+from src.calc.residual_ml.baseline import (
     apply_residual_deltas,
     blend_baselines,
     engine_baseline,
@@ -79,7 +79,7 @@ def test_shrink_toward_market():
 
 
 def test_apply_market_only_baseline():
-    from calc.residual_ml.baseline import apply_market_only_baseline, is_market_only_weights
+    from src.calc.residual_ml.baseline import apply_market_only_baseline, is_market_only_weights
 
     rows = [
         {

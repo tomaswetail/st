@@ -1,0 +1,55 @@
+Eval filter: time-split validation fraction=0.2 (518/2589 rows)
+
+[pooled] rows=518
+  market: log_loss=1.0068 (518 rows) top_pick=50.8% (518 rows)
+  dc: log_loss=1.0375 (465 rows) top_pick=46.0% (465 rows)
+  blend: log_loss=1.0057 (518 rows) top_pick=51.2% (518 rows)
+  ml: log_loss=1.0091 market_on_ml_rows=1.0068
+  ml_best_shrink: alpha=0.5 log_loss=1.0022
+
+[draw_quarter:Q1] rows=0
+  market: log_loss=— (0 rows) top_pick=— (0 rows)
+  dc: log_loss=— (0 rows) top_pick=— (0 rows)
+  blend: log_loss=— (0 rows) top_pick=— (0 rows)
+
+[draw_quarter:Q2] rows=0
+  market: log_loss=— (0 rows) top_pick=— (0 rows)
+  dc: log_loss=— (0 rows) top_pick=— (0 rows)
+  blend: log_loss=— (0 rows) top_pick=— (0 rows)
+
+[draw_quarter:Q3] rows=0
+  market: log_loss=— (0 rows) top_pick=— (0 rows)
+  dc: log_loss=— (0 rows) top_pick=— (0 rows)
+  blend: log_loss=— (0 rows) top_pick=— (0 rows)
+
+[draw_quarter:Q4] rows=518
+  market: log_loss=1.0068 (518 rows) top_pick=50.8% (518 rows)
+  dc: log_loss=1.0375 (465 rows) top_pick=46.0% (465 rows)
+  blend: log_loss=1.0057 (518 rows) top_pick=51.2% (518 rows)
+
+[year:2025] rows=173
+  market: log_loss=0.9647 (173 rows) top_pick=56.1% (173 rows)
+  dc: log_loss=0.9790 (169 rows) top_pick=56.2% (169 rows)
+  blend: log_loss=0.9629 (173 rows) top_pick=58.4% (173 rows)
+
+[year:2026] rows=345
+  market: log_loss=1.0279 (345 rows) top_pick=48.1% (345 rows)
+  dc: log_loss=1.0709 (296 rows) top_pick=40.2% (296 rows)
+  blend: log_loss=1.0271 (345 rows) top_pick=47.5% (345 rows)
+
+[outcome:market] rows=518
+  draw_ll=0.5636 draw_brier=0.1879 home_ll=0.6434 away_ll=0.5588 pooled_ll=1.0068
+
+[outcome:dc] rows=465
+  draw_ll=0.5570 draw_brier=0.1856 home_ll=0.6650 away_ll=0.5901 pooled_ll=1.0375
+
+[outcome:blend] rows=518
+  draw_ll=0.5617 draw_brier=0.1872 home_ll=0.6422 away_ll=0.5597 pooled_ll=1.0057
+
+[ablation A–D]
+  A: pooled_ll=1.0057 draw_ll=0.5617 draw_brier=0.1872 home_ll=0.6422 away_ll=0.5597 n=518
+  B: pooled_ll=1.0030 draw_ll=0.5591 draw_brier=0.1862 home_ll=0.6415 away_ll=0.5594 n=518
+  C: pooled_ll=1.0079 draw_ll=0.5690 draw_brier=0.1897 home_ll=0.6423 away_ll=0.5558 n=518
+  D: pooled_ll=1.0021 draw_ll=0.5649 draw_brier=0.1883 home_ll=0.6395 away_ll=0.5539 n=518
+
+Wrote JSON report to /home/tomas/wetail/git/st/artifacts/phase5_holdout_eval.json

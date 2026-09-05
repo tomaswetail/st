@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from data_sources.injuries.parsers.api_football import parse_api_football_availability
+from src.data_sources.injuries.parsers.api_football import parse_api_football_availability
 
 
 def _lineups_payload() -> dict:

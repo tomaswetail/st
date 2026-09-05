@@ -7,7 +7,7 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
-from objects.schema.data_classes.data_sources import DataSourceConfig
+from src.objects.schema.data_classes.data_sources import DataSourceConfig
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +23,7 @@ class ClassicDcOptimizationGrid:
     min_eval_matches_per_league: int
     min_training_matches: int
     min_team_matches: int
+    fit_rho: bool = False
 
 
 @dataclass(frozen=True)
@@ -38,13 +39,13 @@ class ClassicDcLeagueParams:
 
 
 def default_optimization_grid_path() -> Path:
-    from utils.repo_paths import resolve_repo_path
+    from src.utils.repo_paths import resolve_repo_path
 
     return resolve_repo_path(CLASSIC_DC_OPTIMIZATION_GRID_RELATIVE)
 
 
 def default_league_params_path() -> Path:
-    from utils.repo_paths import resolve_repo_path
+    from src.utils.repo_paths import resolve_repo_path
 
     return resolve_repo_path(CLASSIC_DC_LEAGUE_PARAMS_RELATIVE)
 
@@ -61,6 +62,7 @@ def load_optimization_grid(path: Path | None = None) -> ClassicDcOptimizationGri
         min_eval_matches_per_league=int(raw.get("min_eval_matches_per_league", 15)),
         min_training_matches=int(raw.get("min_training_matches", 50)),
         min_team_matches=int(raw.get("min_team_matches", 5)),
+        fit_rho=bool(raw.get("fit_rho", False)),
     )
 
 

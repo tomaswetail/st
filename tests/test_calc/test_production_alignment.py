@@ -8,11 +8,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from calc.probability_manager import ProbabilityManager
-from calc.residual_ml.baseline import shrink_toward_market
-from calc.residual_ml.dataset import ResidualMLDatasetBuilder
-from objects.schema.data_classes.data_sources import DataSourceConfig
-from objects.schema.data_classes.residual_ml_features import ResidualMLFeatures
+from src.calc.probability_manager import ProbabilityManager
+from src.calc.residual_ml.baseline import shrink_toward_market
+from src.calc.residual_ml.dataset import ResidualMLDatasetBuilder
+from src.objects.schema.data_classes.data_sources import DataSourceConfig
+from src.objects.schema.data_classes.residual_ml_features import ResidualMLFeatures
 
 
 def _minimal_features(*, league_external_id: int | None = 39) -> ResidualMLFeatures:

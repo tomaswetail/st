@@ -7,17 +7,17 @@ from datetime import date, timedelta
 import pytest
 import numpy as np
 
-from calc.dixon_coles.metrics import (
+from src.calc.dixon_coles.metrics import (
     clip_and_normalize_probs,
     log_loss_one,
     ranked_probability_score,
 )
-from calc.dixon_coles.model import (
+from src.calc.dixon_coles.model import (
     DixonColesModel,
     filter_matches_by_lookback,
     match_weight,
 )
-from calc.dixon_coles.types import DixonColesMatch
+from src.calc.dixon_coles.types import DixonColesMatch
 
 
 def _match(
@@ -94,7 +94,7 @@ def test_filter_matches_by_lookback_matches_fixture_date_index():
         _match(5, 1, 2, 1, 0, base=as_of),
     ]
     filtered = filter_matches_by_lookback(matches, as_of=as_of, lookback_days=30)
-    from calc.dixon_coles.model import FixtureDateIndex
+    from src.calc.dixon_coles.model import FixtureDateIndex
 
     indexed = FixtureDateIndex.from_matches(matches).window(
         as_of=as_of,
@@ -104,8 +104,8 @@ def test_filter_matches_by_lookback_matches_fixture_date_index():
 
 
 def test_vectorized_scoreline_matches_scalar_for_low_scores():
-    from calc.dixon_coles.model import _vectorized_scoreline_log_probability
-    from calc.strength_calculator import _scoreline_probability
+    from src.calc.dixon_coles.model import _vectorized_scoreline_log_probability
+    from src.calc.strength_calculator import _scoreline_probability
 
     for home_goals in range(6):
         for away_goals in range(6):
@@ -132,7 +132,7 @@ def test_vectorized_scoreline_matches_scalar_for_low_scores():
 
 
 def test_vectorized_neg_log_likelihood_matches_scalar_loop():
-    from calc.dixon_coles.model import (
+    from src.calc.dixon_coles.model import (
         _scalar_neg_log_likelihood,
         _vectorized_neg_log_likelihood,
     )

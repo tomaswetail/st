@@ -5,8 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
-from calc.residual_ml.sweep import run_hyperparameter_sweep
-from calc.residual_ml.trainer import ResidualMLTrainer, ResidualMLTrainingResult
+from src.calc.residual_ml.sweep import run_hyperparameter_sweep
+from src.calc.residual_ml.trainer import ResidualMLTrainer, ResidualMLTrainingResult
 
 
 def _sample_rows() -> list[dict]:
@@ -69,10 +69,10 @@ def test_sweep_saves_best_trainer_without_extra_fit(tmp_path: Path):
 
     with patch.object(ResidualMLTrainer, "fit", fake_fit):
         with patch.object(ResidualMLTrainer, "save", fake_save):
-            with patch("calc.residual_ml.sweep.MAX_DEPTHS", [3]):
-                with patch("calc.residual_ml.sweep.LEARNING_RATES", [0.05]):
-                    with patch("calc.residual_ml.sweep.MAX_ITERS", [100]):
-                        with patch("calc.residual_ml.sweep.LABEL_SMOOTHINGS", [0.0]):
+            with patch("src.calc.residual_ml.sweep.MAX_DEPTHS", [3]):
+                with patch("src.calc.residual_ml.sweep.LEARNING_RATES", [0.05]):
+                    with patch("src.calc.residual_ml.sweep.MAX_ITERS", [100]):
+                        with patch("src.calc.residual_ml.sweep.LABEL_SMOOTHINGS", [0.0]):
                             best = run_hyperparameter_sweep(
                                 _sample_rows(),
                                 market_weight=0.7,

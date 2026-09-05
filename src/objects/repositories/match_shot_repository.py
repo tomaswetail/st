@@ -7,9 +7,9 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from objects.models.match_shot import MatchShotModel
-from objects.repositories.base import BaseRepository
-from objects.repositories.utils import json_safe
+from src.objects.models.match_shot import MatchShotModel
+from src.objects.repositories.base import BaseRepository
+from src.objects.repositories.utils import json_safe
 
 
 class MatchShotRepository(BaseRepository[MatchShotModel]):

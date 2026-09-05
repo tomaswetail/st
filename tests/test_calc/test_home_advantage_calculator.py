@@ -9,10 +9,10 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from calc.home_advantage_calculator import HomeAdvantageCalculator
-from objects.schema.data_classes.data_sources import DataSourceConfig
-from objects.schema.db.team import Team
-from utils.competition_type import competition_type_flags, is_league_match
+from src.calc.home_advantage_calculator import HomeAdvantageCalculator
+from src.objects.schema.data_classes.data_sources import DataSourceConfig
+from src.objects.schema.db.team import Team
+from src.utils.competition_type import competition_type_flags, is_league_match
 
 PREMIER_LEAGUE_ID = 39
 FA_CUP_ID = 45

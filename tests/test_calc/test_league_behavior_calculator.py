@@ -8,9 +8,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from calc.league_behavior_calculator import LeagueBehaviorCalculator
-from objects.schema.data_classes.data_sources import DataSourceConfig
-from objects.schema.data_classes.league_behavior_features import LeagueBehaviorFeatures
+from src.calc.league_behavior_calculator import LeagueBehaviorCalculator
+from src.objects.schema.data_classes.data_sources import DataSourceConfig
+from src.objects.schema.data_classes.league_behavior_features import LeagueBehaviorFeatures
 
 
 def _match(

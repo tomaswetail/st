@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from data_sources.classic_dc_config import (
+from src.data_sources.classic_dc_config import (
     default_league_params_path,
     default_optimization_grid_path,
 )
-from utils.repo_paths import repo_root, resolve_repo_path
+from src.utils.repo_paths import repo_root, resolve_repo_path
 
 
 def test_repo_root_is_true_repository_root():

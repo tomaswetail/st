@@ -10,14 +10,14 @@ from typing import Any, Sequence
 
 from sqlalchemy.orm import Session
 
-from calc.strength_helpers import shrink
-from objects.models.fixture import FixtureModel
-from objects.models.st_match import STMatchModel
-from objects.repositories.fixture_repository import FixtureRepository
-from objects.repositories.league_repository import LeagueRepository
-from utils.fixture_fields import fixture_goals_away, fixture_goals_home, fixture_home_name, fixture_away_name, fixture_match_date, fixture_outcome
-from objects.schema.data_classes.data_sources import DataSourceConfig
-from objects.schema.data_classes.league_behavior_features import LeagueBehaviorFeatures
+from src.calc.strength_helpers import shrink
+from src.objects.models.fixture import FixtureModel
+from src.objects.models.st_match import STMatchModel
+from src.objects.repositories.fixture_repository import FixtureRepository
+from src.objects.repositories.league_repository import LeagueRepository
+from src.utils.fixture_fields import fixture_goals_away, fixture_goals_home, fixture_home_name, fixture_away_name, fixture_match_date, fixture_outcome
+from src.objects.schema.data_classes.data_sources import DataSourceConfig
+from src.objects.schema.data_classes.league_behavior_features import LeagueBehaviorFeatures
 
 
 @dataclass(frozen=True)

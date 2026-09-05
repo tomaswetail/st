@@ -6,10 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from calc.residual_ml.baseline import apply_residual_deltas, blend_baselines
-from calc.residual_ml.model import ResidualMLModel
-from calc.residual_ml.trainer import ResidualMLTrainer
-from objects.schema.data_classes.residual_ml_features import ResidualMLFeatures
+from src.calc.residual_ml.baseline import apply_residual_deltas, blend_baselines
+from src.calc.residual_ml.model import ResidualMLModel
+from src.calc.residual_ml.trainer import ResidualMLTrainer
+from src.objects.schema.data_classes.residual_ml_features import ResidualMLFeatures
 
 
 def _synthetic_rows(count: int = 120) -> list[dict]:

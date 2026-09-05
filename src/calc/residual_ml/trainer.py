@@ -10,14 +10,14 @@ from typing import Any
 
 import numpy as np
 
-from calc.probability_metrics import multiclass_log_loss
-from calc.residual_ml.baseline import (
+from src.calc.probability_metrics import multiclass_log_loss
+from src.calc.residual_ml.baseline import (
     OUTCOMES,
     apply_residual_deltas,
     target_logit_deltas,
 )
-from calc.residual_ml.injury_features import INJURY_FEATURE_COLUMNS
-from calc.residual_ml.vectorize import vectorize_row_values
+from src.calc.residual_ml.injury_features import INJURY_FEATURE_COLUMNS
+from src.calc.residual_ml.vectorize import vectorize_row_values
 
 MODEL_TYPE = "residual_logit_v1"
 

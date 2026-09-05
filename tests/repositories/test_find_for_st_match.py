@@ -6,8 +6,8 @@ from datetime import date, datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from data_sources.entity_resolver import EntityResolver
-from objects.schema.data_classes.provider_dtos import ProviderMatch
+from src.data_sources.entity_resolver import EntityResolver
+from src.objects.schema.data_classes.provider_dtos import ProviderMatch
 
 
 def _resolver() -> EntityResolver:
@@ -375,7 +375,7 @@ def test_resolve_team_svenska_spel_uses_static_mapping():
     resolver._aliases = {}
 
     with patch.dict(
-        "data_sources.entity_resolver.SVENSKA_SPEL_TO_API_FOOTBALL_TEAMS",
+        "src.data_sources.entity_resolver.SVENSKA_SPEL_TO_API_FOOTBALL_TEAMS",
         {60: 46},
         clear=False,
     ):
@@ -404,7 +404,7 @@ def test_resolve_team_svenska_spel_falls_through_when_unmapped():
     resolver.team_repo.find_substring_duplicate = MagicMock(return_value=None)
 
     with patch.dict(
-        "data_sources.entity_resolver.SVENSKA_SPEL_TO_API_FOOTBALL_TEAMS",
+        "src.data_sources.entity_resolver.SVENSKA_SPEL_TO_API_FOOTBALL_TEAMS",
         {},
         clear=True,
     ):
@@ -432,7 +432,7 @@ def test_resolve_team_api_football_ignores_svenska_spel_mapping():
     resolver.team_repo.find_substring_duplicate = MagicMock(return_value=None)
 
     with patch.dict(
-        "data_sources.entity_resolver.SVENSKA_SPEL_TO_API_FOOTBALL_TEAMS",
+        "src.data_sources.entity_resolver.SVENSKA_SPEL_TO_API_FOOTBALL_TEAMS",
         {60: 46},
         clear=False,
     ):

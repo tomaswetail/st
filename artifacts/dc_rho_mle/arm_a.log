@@ -1,0 +1,48 @@
+Optimizing 12 leagues on 441 validation matches (time-split validation fraction=0.2)
+League optimization: 5 leagues, 210 grid combos/league, 4 worker(s), rho=grid
+Skipping 7 league(s): 61, 71, 78, 88, 140, 179, 591
+  [1/5] queued league=39 (133 validation matches, 1473 fixtures)
+  [2/5] queued league=41 (69 validation matches, 2196 fixtures)
+  [3/5] queued league=42 (23 validation matches, 2200 fixtures)
+  [4/5] queued league=45 (19 validation matches, 3503 fixtures)
+  [5/5] queued league=180 (179 validation matches, 729 fixtures)
+[1/5] finished league=42 log_loss=1.0697 xi=0.0001 lookback=1095 rho=0.05 scored=23 (elapsed 1286s, ETA ~1286s)
+[2/5] finished league=39 log_loss=0.9663 xi=0.0001 lookback=1460 rho=-0.15 scored=133 (elapsed 2438s, ETA ~914s)
+[3/5] finished league=180 log_loss=1.0694 xi=0.0001 lookback=1460 rho=0.05 scored=179 (elapsed 3290s, ETA ~548s)
+[4/5] finished league=45 log_loss=0.9193 xi=0.005 lookback=730 rho=0.0 scored=19 (elapsed 4219s, ETA ~264s)
+[5/5] finished league=41 log_loss=1.0749 xi=0.0001 lookback=1460 rho=-0.2 scored=69 (elapsed 4469s)
+League optimization complete: 5 leagues in 4468.6s
+Wrote per-league params to /home/tomas/wetail/git/st/artifacts/dc_rho_mle/params_arm_a_grid.json
+Pooled weighted DC log loss: 1.0311
+league=39 best xi=0.0001 lookback=1460 rho=-0.15 log_loss=0.9663 rps=0.1950 scored=133 skipped=0 rho_fitted=n/a
+  top1: xi=0.0001 lookback=1460 rho=-0.15 log_loss=0.9663 rps=0.1950
+  top2: xi=0.0001 lookback=1825 rho=-0.15 log_loss=0.9663 rps=0.1950
+  top3: xi=0.00025 lookback=1460 rho=-0.15 log_loss=0.9664 rps=0.1951
+league=41 best xi=0.0001 lookback=1460 rho=-0.2 log_loss=1.0749 rps=0.2146 scored=69 skipped=0 rho_fitted=n/a
+  top1: xi=0.0001 lookback=1460 rho=-0.2 log_loss=1.0749 rps=0.2146
+  top2: xi=0.0001 lookback=1825 rho=-0.2 log_loss=1.0749 rps=0.2146
+  top3: xi=0.0001 lookback=1460 rho=-0.15 log_loss=1.0752 rps=0.2149
+league=42 best xi=0.0001 lookback=1095 rho=0.05 log_loss=1.0697 rps=0.2388 scored=23 skipped=0 rho_fitted=n/a
+  top1: xi=0.0001 lookback=1095 rho=0.05 log_loss=1.0697 rps=0.2388
+  top2: xi=0.00025 lookback=1095 rho=0.05 log_loss=1.0705 rps=0.2392
+  top3: xi=0.0001 lookback=1460 rho=0.05 log_loss=1.0715 rps=0.2399
+league=45 best xi=0.005 lookback=730 rho=0.0 log_loss=0.9193 rps=0.2086 scored=19 skipped=0 rho_fitted=n/a
+  top1: xi=0.005 lookback=730 rho=0.0 log_loss=0.9193 rps=0.2086
+  top2: xi=0.003 lookback=730 rho=-0.05 log_loss=0.9268 rps=0.2094
+  top3: xi=0.005 lookback=730 rho=0.05 log_loss=0.9395 rps=0.2162
+league=180 best xi=0.0001 lookback=1460 rho=0.05 log_loss=1.0694 rps=0.2366 scored=179 skipped=0 rho_fitted=n/a
+  top1: xi=0.0001 lookback=1460 rho=0.05 log_loss=1.0694 rps=0.2366
+  top2: xi=0.0001 lookback=1825 rho=0.05 log_loss=1.0694 rps=0.2366
+  top3: xi=0.00025 lookback=1460 rho=0.05 log_loss=1.0694 rps=0.2366
+Skipped leagues:
+  league=61: too few validation matches (3 < 15)
+  league=71: too few validation matches (4 < 15)
+  league=78: too few validation matches (1 < 15)
+  league=88: too few validation matches (1 < 15)
+  league=140: too few validation matches (3 < 15)
+  league=179: too few validation matches (4 < 15)
+  league=591: too few validation matches (2 < 15)
+
+real	74m31,218s
+user	1049m47,493s
+sys	0m26,048s

@@ -5,11 +5,11 @@ from __future__ import annotations
 from datetime import date
 from unittest.mock import MagicMock
 
-from calc.home_advantage_calculator import HomeAdvantageCalculator
-from calc.league_behavior_calculator import LeagueBehaviorCalculator
-from calc.residual_ml.feature_assembler import ResidualMLFeatureAssembler
-from calc.rest_congestion_calculator import RestCongestionCalculator
-from calc.strength_calculator import StrengthCalculator
+from src.calc.home_advantage_calculator import HomeAdvantageCalculator
+from src.calc.league_behavior_calculator import LeagueBehaviorCalculator
+from src.calc.residual_ml.feature_assembler import ResidualMLFeatureAssembler
+from src.calc.rest_congestion_calculator import RestCongestionCalculator
+from src.calc.strength_calculator import StrengthCalculator
 
 
 def test_clear_caches_empties_calculator_dicts():

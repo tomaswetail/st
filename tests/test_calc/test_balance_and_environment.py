@@ -19,7 +19,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from calc.balance_and_environment import BalanceAndEnvironment
+from src.calc.balance_and_environment import BalanceAndEnvironment
 
 
 @dataclass(frozen=True)

@@ -1,9 +1,9 @@
 from sqlalchemy import func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from objects.models.meta_data import MetadataRow
+from src.objects.models.meta_data import MetadataRow
 
-from objects.repositories.base import BaseRepository
+from src.objects.repositories.base import BaseRepository
 
 
 class MetaDataRepository(BaseRepository[MetadataRow]):

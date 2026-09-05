@@ -5,14 +5,13 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import shutil
 import subprocess
 import sys
 from datetime import date
 from pathlib import Path
 
-from utils.repo_paths import repo_root, resolve_repo_path
+from src.utils.repo_paths import repo_root, resolve_repo_path
 
 LEAGUE_PARAMS_NOTE = """\
 classic_dc_league_params.json is NOT included in this snapshot.
@@ -108,8 +107,7 @@ pre-tune DC feature columns reliably.
 Reproduce `backtest.txt`:
 
 ```bash
-export PYTHONPATH=src
-python src/scripts/backtest_residual_ml.py \\
+python -m src.scripts.backtest_residual_ml \\
   --dataset artifacts/baseline_pre_dc_tune_{snapshot_date}/dataset.csv \\
   --model artifacts/baseline_pre_dc_tune_{snapshot_date}/sweep_best/model.pkl \\
   --validation-fraction 0.20 \\
@@ -124,10 +122,10 @@ def _run_backtest(snapshot_dir: Path, root: Path) -> bool:
     if not dataset_path.exists() or not model_path.exists():
         return False
 
-    backtest_script = root / "src" / "scripts" / "backtest_residual_ml.py"
     command = [
         sys.executable,
-        str(backtest_script),
+        "-m",
+        "src.scripts.backtest_residual_ml",
         "--dataset",
         str(dataset_path),
         "--model",
@@ -142,7 +140,6 @@ def _run_backtest(snapshot_dir: Path, root: Path) -> bool:
         capture_output=True,
         text=True,
         check=False,
-        env={**os.environ, "PYTHONPATH": str(root / "src")},
     )
     output = result.stdout
     if result.stderr:

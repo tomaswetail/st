@@ -1,0 +1,462 @@
+{
+  "filter": "time-split validation fraction=0.2, draws \u2026\u20134950, holdout excluded (>4950)",
+  "validation_fraction": 0.2,
+  "row_count": 492,
+  "slices": {
+    "pooled": {
+      "name": "pooled",
+      "row_count": 492,
+      "baselines": {
+        "market": {
+          "log_loss": 1.02905231971842,
+          "row_count": 492
+        },
+        "dc": {
+          "log_loss": 1.0377420754660662,
+          "row_count": 487
+        },
+        "blend": {
+          "log_loss": 1.0230805847414515,
+          "row_count": 492
+        }
+      },
+      "market_on_ml_rows": 1.02905231971842,
+      "ml_log_loss": 0.9771044324416095,
+      "best_shrink_alpha": 0.0,
+      "best_shrink_log_loss": 0.9771044324416095,
+      "top_pick": {
+        "market": {
+          "accuracy": 0.4735772357723577,
+          "row_count": 492
+        },
+        "dc": {
+          "accuracy": 0.459958932238193,
+          "row_count": 487
+        },
+        "blend": {
+          "accuracy": 0.48577235772357724,
+          "row_count": 492
+        }
+      }
+    },
+    "year:2025": {
+      "name": "year:2025",
+      "row_count": 276,
+      "baselines": {
+        "market": {
+          "log_loss": 1.0087989471040615,
+          "row_count": 276
+        },
+        "dc": {
+          "log_loss": 1.017343778756505,
+          "row_count": 271
+        },
+        "blend": {
+          "log_loss": 1.0030001482536783,
+          "row_count": 276
+        }
+      },
+      "market_on_ml_rows": null,
+      "ml_log_loss": null,
+      "best_shrink_alpha": null,
+      "best_shrink_log_loss": null,
+      "top_pick": {
+        "market": {
+          "accuracy": 0.4891304347826087,
+          "row_count": 276
+        },
+        "dc": {
+          "accuracy": 0.5092250922509225,
+          "row_count": 271
+        },
+        "blend": {
+          "accuracy": 0.5181159420289855,
+          "row_count": 276
+        }
+      }
+    },
+    "year:2026": {
+      "name": "year:2026",
+      "row_count": 216,
+      "baselines": {
+        "market": {
+          "log_loss": 1.054931629170101,
+          "row_count": 216
+        },
+        "dc": {
+          "log_loss": 1.0633343829118596,
+          "row_count": 216
+        },
+        "blend": {
+          "log_loss": 1.0487389202536062,
+          "row_count": 216
+        }
+      },
+      "market_on_ml_rows": null,
+      "ml_log_loss": null,
+      "best_shrink_alpha": null,
+      "best_shrink_log_loss": null,
+      "top_pick": {
+        "market": {
+          "accuracy": 0.4537037037037037,
+          "row_count": 216
+        },
+        "dc": {
+          "accuracy": 0.39814814814814814,
+          "row_count": 216
+        },
+        "blend": {
+          "accuracy": 0.4444444444444444,
+          "row_count": 216
+        }
+      }
+    },
+    "draw_quarter:Q1": {
+      "name": "draw_quarter:Q1",
+      "row_count": 0,
+      "baselines": {
+        "market": {
+          "log_loss": null,
+          "row_count": 0
+        },
+        "dc": {
+          "log_loss": null,
+          "row_count": 0
+        },
+        "blend": {
+          "log_loss": null,
+          "row_count": 0
+        }
+      },
+      "market_on_ml_rows": null,
+      "ml_log_loss": null,
+      "best_shrink_alpha": null,
+      "best_shrink_log_loss": null,
+      "top_pick": {
+        "market": {
+          "accuracy": null,
+          "row_count": 0
+        },
+        "dc": {
+          "accuracy": null,
+          "row_count": 0
+        },
+        "blend": {
+          "accuracy": null,
+          "row_count": 0
+        }
+      }
+    },
+    "draw_quarter:Q2": {
+      "name": "draw_quarter:Q2",
+      "row_count": 0,
+      "baselines": {
+        "market": {
+          "log_loss": null,
+          "row_count": 0
+        },
+        "dc": {
+          "log_loss": null,
+          "row_count": 0
+        },
+        "blend": {
+          "log_loss": null,
+          "row_count": 0
+        }
+      },
+      "market_on_ml_rows": null,
+      "ml_log_loss": null,
+      "best_shrink_alpha": null,
+      "best_shrink_log_loss": null,
+      "top_pick": {
+        "market": {
+          "accuracy": null,
+          "row_count": 0
+        },
+        "dc": {
+          "accuracy": null,
+          "row_count": 0
+        },
+        "blend": {
+          "accuracy": null,
+          "row_count": 0
+        }
+      }
+    },
+    "draw_quarter:Q3": {
+      "name": "draw_quarter:Q3",
+      "row_count": 0,
+      "baselines": {
+        "market": {
+          "log_loss": null,
+          "row_count": 0
+        },
+        "dc": {
+          "log_loss": null,
+          "row_count": 0
+        },
+        "blend": {
+          "log_loss": null,
+          "row_count": 0
+        }
+      },
+      "market_on_ml_rows": null,
+      "ml_log_loss": null,
+      "best_shrink_alpha": null,
+      "best_shrink_log_loss": null,
+      "top_pick": {
+        "market": {
+          "accuracy": null,
+          "row_count": 0
+        },
+        "dc": {
+          "accuracy": null,
+          "row_count": 0
+        },
+        "blend": {
+          "accuracy": null,
+          "row_count": 0
+        }
+      }
+    },
+    "draw_quarter:Q4": {
+      "name": "draw_quarter:Q4",
+      "row_count": 492,
+      "baselines": {
+        "market": {
+          "log_loss": 1.02905231971842,
+          "row_count": 492
+        },
+        "dc": {
+          "log_loss": 1.0377420754660662,
+          "row_count": 487
+        },
+        "blend": {
+          "log_loss": 1.0230805847414515,
+          "row_count": 492
+        }
+      },
+      "market_on_ml_rows": null,
+      "ml_log_loss": null,
+      "best_shrink_alpha": null,
+      "best_shrink_log_loss": null,
+      "top_pick": {
+        "market": {
+          "accuracy": 0.4735772357723577,
+          "row_count": 492
+        },
+        "dc": {
+          "accuracy": 0.459958932238193,
+          "row_count": 487
+        },
+        "blend": {
+          "accuracy": 0.48577235772357724,
+          "row_count": 492
+        }
+      }
+    }
+  },
+  "outcome_metrics": {
+    "market": {
+      "row_count": 492,
+      "metric_definition": "binary one-vs-rest: draw uses y=(label==X); home uses y=(label==1); away uses y=(label==2)",
+      "draw_log_loss": 0.5448804599900177,
+      "draw_brier": 0.17968741344016448,
+      "home_log_loss": 0.6691578378069204,
+      "away_log_loss": 0.586188462276549,
+      "pooled_multiclass_log_loss": 1.02905231971842
+    },
+    "dc": {
+      "row_count": 487,
+      "metric_definition": "binary one-vs-rest: draw uses y=(label==X); home uses y=(label==1); away uses y=(label==2)",
+      "draw_log_loss": 0.5437412986042971,
+      "draw_brier": 0.17937919658893645,
+      "home_log_loss": 0.6722002032060131,
+      "away_log_loss": 0.5957757315259719,
+      "pooled_multiclass_log_loss": 1.0377420754660662
+    },
+    "blend": {
+      "row_count": 492,
+      "metric_definition": "binary one-vs-rest: draw uses y=(label==X); home uses y=(label==1); away uses y=(label==2)",
+      "draw_log_loss": 0.5436222365829182,
+      "draw_brier": 0.17921728651910263,
+      "home_log_loss": 0.6633426044221052,
+      "away_log_loss": 0.5835007238374424,
+      "pooled_multiclass_log_loss": 1.0230805847414515
+    }
+  },
+  "pipeline_order": "conditional blend \u2192 draw adjust \u2192 HGB",
+  "ablation": {
+    "metric_definition": "draw/home/away LL are binary one-vs-rest; pooled_log_loss is multiclass 1X2",
+    "calibration_deciles_A": [
+      {
+        "decile": 1,
+        "n": 49,
+        "mean_predicted_p_draw": 0.18734044714882173,
+        "actual_draw_rate": 0.14285714285714285
+      },
+      {
+        "decile": 2,
+        "n": 49,
+        "mean_predicted_p_draw": 0.2384751969237364,
+        "actual_draw_rate": 0.2857142857142857
+      },
+      {
+        "decile": 3,
+        "n": 49,
+        "mean_predicted_p_draw": 0.25193277234089034,
+        "actual_draw_rate": 0.24489795918367346
+      },
+      {
+        "decile": 4,
+        "n": 49,
+        "mean_predicted_p_draw": 0.2604287981560743,
+        "actual_draw_rate": 0.2857142857142857
+      },
+      {
+        "decile": 5,
+        "n": 49,
+        "mean_predicted_p_draw": 0.2675149102273986,
+        "actual_draw_rate": 0.22448979591836735
+      },
+      {
+        "decile": 6,
+        "n": 49,
+        "mean_predicted_p_draw": 0.27378161848099813,
+        "actual_draw_rate": 0.12244897959183673
+      },
+      {
+        "decile": 7,
+        "n": 49,
+        "mean_predicted_p_draw": 0.27922292382655856,
+        "actual_draw_rate": 0.24489795918367346
+      },
+      {
+        "decile": 8,
+        "n": 49,
+        "mean_predicted_p_draw": 0.2841799658597358,
+        "actual_draw_rate": 0.22448979591836735
+      },
+      {
+        "decile": 9,
+        "n": 49,
+        "mean_predicted_p_draw": 0.2896615519177282,
+        "actual_draw_rate": 0.22448979591836735
+      },
+      {
+        "decile": 10,
+        "n": 51,
+        "mean_predicted_p_draw": 0.3027782390122201,
+        "actual_draw_rate": 0.3333333333333333
+      }
+    ],
+    "calibration_deciles_B": [
+      {
+        "decile": 1,
+        "n": 49,
+        "mean_predicted_p_draw": 0.17624577594429475,
+        "actual_draw_rate": 0.12244897959183673
+      },
+      {
+        "decile": 2,
+        "n": 49,
+        "mean_predicted_p_draw": 0.22476673045821205,
+        "actual_draw_rate": 0.1836734693877551
+      },
+      {
+        "decile": 3,
+        "n": 49,
+        "mean_predicted_p_draw": 0.2411643838964177,
+        "actual_draw_rate": 0.30612244897959184
+      },
+      {
+        "decile": 4,
+        "n": 49,
+        "mean_predicted_p_draw": 0.25046045087813823,
+        "actual_draw_rate": 0.24489795918367346
+      },
+      {
+        "decile": 5,
+        "n": 49,
+        "mean_predicted_p_draw": 0.25805940908572483,
+        "actual_draw_rate": 0.1836734693877551
+      },
+      {
+        "decile": 6,
+        "n": 49,
+        "mean_predicted_p_draw": 0.2661584541590644,
+        "actual_draw_rate": 0.14285714285714285
+      },
+      {
+        "decile": 7,
+        "n": 49,
+        "mean_predicted_p_draw": 0.2748938915818138,
+        "actual_draw_rate": 0.32653061224489793
+      },
+      {
+        "decile": 8,
+        "n": 49,
+        "mean_predicted_p_draw": 0.2812325087128325,
+        "actual_draw_rate": 0.24489795918367346
+      },
+      {
+        "decile": 9,
+        "n": 49,
+        "mean_predicted_p_draw": 0.2912788349879381,
+        "actual_draw_rate": 0.2653061224489796
+      },
+      {
+        "decile": 10,
+        "n": 51,
+        "mean_predicted_p_draw": 0.3112147938461941,
+        "actual_draw_rate": 0.3137254901960784
+      }
+    ],
+    "rows": {
+      "A": {
+        "name": "A",
+        "description": "Blend as stored in dataset (fixed or conditional; may lack draw adj)",
+        "row_count": 492,
+        "pooled_log_loss": 1.0230805847414515,
+        "draw_log_loss": 0.5436222365829182,
+        "draw_brier": 0.17921728651910263,
+        "home_log_loss": 0.6633426044221052,
+        "away_log_loss": 0.5835007238374424,
+        "shrink_alpha": null
+      },
+      "B": {
+        "name": "B",
+        "description": "Blend + explicit draw adjustment (offline)",
+        "row_count": 492,
+        "pooled_log_loss": 1.0193528080970968,
+        "draw_log_loss": 0.5398944599385638,
+        "draw_brier": 0.17784897606342318,
+        "home_log_loss": 0.661425746253671,
+        "away_log_loss": 0.5839456682295082,
+        "shrink_alpha": null
+      },
+      "C": {
+        "name": "C",
+        "description": "Blend + draw adj + HGB (predict on draw-adjusted blend columns)",
+        "row_count": 492,
+        "pooled_log_loss": 0.9753537211700717,
+        "draw_log_loss": 0.5261234255760023,
+        "draw_brier": 0.17324887935744704,
+        "home_log_loss": 0.6369125861015859,
+        "away_log_loss": 0.5537961008585907,
+        "shrink_alpha": null
+      },
+      "D": {
+        "name": "D",
+        "description": "C + shrink toward market (alpha=0.3)",
+        "row_count": 492,
+        "pooled_log_loss": 0.9855858842336284,
+        "draw_log_loss": 0.5297229817058091,
+        "draw_brier": 0.17429624997631052,
+        "home_log_loss": 0.6434588940767028,
+        "away_log_loss": 0.5600938868187911,
+        "shrink_alpha": 0.3
+      }
+    }
+  }
+}

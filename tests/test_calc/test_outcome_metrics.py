@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from calc.draw_adjustment import DrawAdjustmentConfig
-from calc.residual_ml.evaluation import (
+from src.calc.draw_adjustment import DrawAdjustmentConfig
+from src.calc.residual_ml.evaluation import (
     apply_draw_adjustment_to_rows,
     score_outcome_metrics,
 )

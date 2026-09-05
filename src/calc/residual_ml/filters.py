@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from utils.time_split import DEFAULT_VALIDATION_FRACTION, time_split_dataset_rows
+from src.utils.time_split import DEFAULT_VALIDATION_FRACTION, time_split_dataset_rows
 
 
 def _draw_number(row: dict[str, Any]) -> int | None:

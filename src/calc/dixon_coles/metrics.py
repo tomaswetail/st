@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Sequence
 
-from calc.probability_metrics import (
+from src.calc.probability_metrics import (
     PROB_EPSILON,
     clip_and_normalize_probs,
     log_loss_one,

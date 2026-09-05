@@ -2,8 +2,7 @@
 """Run Phase 3.1 draw-driver discovery on residual ML dataset.csv.
 
 ```bash
-export PYTHONPATH=src
-python src/scripts/analyze_draw_drivers.py \\
+python -m src.scripts.analyze_draw_drivers \\
   --dataset data/residual_ml/dataset.csv \\
   --output-dir artifacts/draw_analysis \\
   --write-doc docs/reports/ml_draw/draw_driver_analysis.md
@@ -15,14 +14,14 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from calc.draw_driver_analysis import (
+from src.calc.draw_driver_analysis import (
     load_dataset_rows,
     render_draw_driver_markdown,
     run_draw_discovery,
     write_discovery_artifacts,
 )
 from config.eval_protocol import VALIDATION_FRACTION
-from utils.repo_paths import repo_root, resolve_repo_path
+from src.utils.repo_paths import repo_root, resolve_repo_path
 
 
 def main() -> None:

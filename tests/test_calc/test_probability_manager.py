@@ -4,6 +4,6 @@ from __future__ import annotations
 
 
 def test_probability_manager_import():
-    from calc.probability_manager import ProbabilityManager
+    from src.calc.probability_manager import ProbabilityManager
 
     assert ProbabilityManager is not None

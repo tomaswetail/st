@@ -1,0 +1,42 @@
+{
+  "39": {
+    "xi": 0.002,
+    "lookback": 1460,
+    "rho": -0.2,
+    "log_loss": 0.9760764259969623,
+    "rps": 0.1927468705632847,
+    "n_evaluated": 98,
+    "validation_start": "2025-12-06",
+    "validation_end": "2026-07-05"
+  },
+  "41": {
+    "xi": 0.0001,
+    "lookback": 1460,
+    "rho": -0.15,
+    "log_loss": 1.0268805419700926,
+    "rps": 0.20541181897730143,
+    "n_evaluated": 50,
+    "validation_start": "2025-12-06",
+    "validation_end": "2026-07-05"
+  },
+  "45": {
+    "xi": 0.005,
+    "lookback": 730,
+    "rho": 0.0,
+    "log_loss": 0.9116430389288122,
+    "rps": 0.2059414148656254,
+    "n_evaluated": 19,
+    "validation_start": "2025-12-06",
+    "validation_end": "2026-07-05"
+  },
+  "180": {
+    "xi": 0.0001,
+    "lookback": 365,
+    "rho": 0.05,
+    "log_loss": 1.0806827302878053,
+    "rps": 0.2375081635772579,
+    "n_evaluated": 104,
+    "validation_start": "2025-12-06",
+    "validation_end": "2026-07-05"
+  }
+}

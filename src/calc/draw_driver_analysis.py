@@ -19,7 +19,7 @@ from sklearn.metrics import brier_score_loss, log_loss
 from sklearn.preprocessing import StandardScaler
 
 from config.eval_protocol import HOLDOUT_DRAW_MIN, VALIDATION_FRACTION
-from utils.time_split import time_split_dataset_rows
+from src.utils.time_split import time_split_dataset_rows
 
 # Baselines always included so coefficients are incremental vs odds+DC blend.
 BASELINE_FEATURES = ("p_draw_blend",)

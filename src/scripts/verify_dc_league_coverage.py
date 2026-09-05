@@ -8,15 +8,15 @@ import sys
 from datetime import date
 from pathlib import Path
 
-from calc.dixon_coles.optimizer import group_eval_matches_by_league
-from calc.dixon_coles.service import DixonColesService
-from calc.dixon_coles.walk_forward import EvalMatch
+from src.calc.dixon_coles.optimizer import group_eval_matches_by_league
+from src.calc.dixon_coles.service import DixonColesService
+from src.calc.dixon_coles.walk_forward import EvalMatch
 from config.stryktipset import STRYKETIPSET_DRAW_MAX, STRYKETIPSET_DRAW_MIN
-from data_sources.classic_dc_config import default_league_params_path, load_league_params
-from database import SessionLocal, init_db
-from objects.schema.data_classes.data_sources import DataSourceConfig
-from utils.repo_paths import resolve_repo_path
-from utils.time_split import DEFAULT_VALIDATION_FRACTION, time_split_rows
+from src.data_sources.classic_dc_config import default_league_params_path, load_league_params
+from src.database import SessionLocal, init_db
+from src.objects.schema.data_classes.data_sources import DataSourceConfig
+from src.utils.repo_paths import resolve_repo_path
+from src.utils.time_split import DEFAULT_VALIDATION_FRACTION, time_split_rows
 
 
 def time_split_eval_matches(

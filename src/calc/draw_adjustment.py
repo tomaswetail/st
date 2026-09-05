@@ -15,9 +15,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
 
-from calc.probability_metrics import PROB_EPSILON
-from utils.common import OUTCOMES
-from utils.repo_paths import repo_root, resolve_repo_path
+from src.calc.probability_metrics import PROB_EPSILON
+from src.utils.common import OUTCOMES
+from src.utils.repo_paths import repo_root, resolve_repo_path
 
 DEFAULT_CONFIG_PATH = repo_root() / "config" / "draw_adjustment.json"
 MISSING_FEATURE_DEFAULT = 0.0

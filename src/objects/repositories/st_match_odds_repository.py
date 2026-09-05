@@ -2,11 +2,11 @@ from typing import Any
 
 from sqlalchemy import select
 
-from objects.models.st_match import STMatchModel
-from objects.models.st_match_odds import STMatchOddsModel
+from src.objects.models.st_match import STMatchModel
+from src.objects.models.st_match_odds import STMatchOddsModel
 
-from objects.repositories.base import BaseRepository
-from utils.common import parse_swedish_decimal
+from src.objects.repositories.base import BaseRepository
+from src.utils.common import parse_swedish_decimal
 
 
 class STMatchOddsRepository(BaseRepository[STMatchOddsModel]):

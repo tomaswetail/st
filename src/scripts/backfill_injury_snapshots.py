@@ -7,15 +7,14 @@ FotMob/SofaScore are not used.
 Example:
 
 ```bash
-export PYTHONPATH=src
 export API_FOOTBALL_KEY=...
 
 # Dry-run: resolve ST matches → fixtures, no DB writes (still may HTTP unless --skip-http)
-python src/scripts/backfill_injury_snapshots.py \\
+python -m src.scripts.backfill_injury_snapshots \\
   --draw-min 4760 --draw-max 4960 --limit 5 --dry-run
 
 # Full backfill for draw window
-python src/scripts/backfill_injury_snapshots.py \\
+python -m src.scripts.backfill_injury_snapshots \\
   --draw-min 4760 --draw-max 4960
 ```
 """
@@ -27,8 +26,8 @@ import logging
 from datetime import date
 
 from config.stryktipset import STRYKETIPSET_DRAW_MAX, STRYKETIPSET_DRAW_MIN
-from data_sources.injuries.backfill import InjuryBackfillService
-from database import SessionLocal, init_db
+from src.data_sources.injuries.backfill import InjuryBackfillService
+from src.database import SessionLocal, init_db
 
 logging.basicConfig(
     level=logging.INFO,

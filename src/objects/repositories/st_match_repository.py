@@ -4,12 +4,12 @@ from datetime import date
 from sqlalchemy import Date, cast, select
 from sqlalchemy.orm import selectinload
 
-from objects.models.st_match import STMatchModel
-from objects.models.st_round import STRoundModel
-from objects.models.team import TeamModel
+from src.objects.models.st_match import STMatchModel
+from src.objects.models.st_round import STRoundModel
+from src.objects.models.team import TeamModel
 
-from objects.repositories.base import BaseRepository
-from objects.repositories.utils import (
+from src.objects.repositories.base import BaseRepository
+from src.objects.repositories.utils import (
     parse_datetime,
     result_by_type,
     stryktipset_result,

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from objects.schema.data_classes.provider_dtos import (
+from src.objects.schema.data_classes.provider_dtos import (
     ProviderLeague,
     ProviderMatch,
     ProviderMatchDetails,

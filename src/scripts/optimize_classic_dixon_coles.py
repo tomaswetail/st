@@ -7,52 +7,45 @@ import argparse
 from datetime import date
 from pathlib import Path
 
-from calc.dixon_coles.optimizer import DixonColesOptimizer, group_eval_matches_by_league
-from calc.dixon_coles.service import DixonColesService
-from calc.dixon_coles.walk_forward import EvalMatch
+from src.calc.dixon_coles.optimizer import DixonColesOptimizer, group_eval_matches_by_league
+from src.calc.dixon_coles.service import DixonColesService
+from src.calc.dixon_coles.walk_forward import EvalMatch
 from config.eval_protocol import TUNING_DRAW_MAX
 from config.stryktipset import STRYKETIPSET_DRAW_MAX, STRYKETIPSET_DRAW_MIN
-from data_sources.classic_dc_config import (
+from src.data_sources.classic_dc_config import (
     ClassicDcLeagueParams,
     default_league_params_path,
     load_optimization_grid,
     write_league_params,
 )
-from database import SessionLocal, init_db
-from objects.schema.data_classes.data_sources import DataSourceConfig
-from utils.repo_paths import resolve_repo_path
-from utils.time_split import DEFAULT_VALIDATION_FRACTION, time_split_rows
+from src.database import SessionLocal, init_db
+from src.objects.schema.data_classes.data_sources import DataSourceConfig
+from src.utils.repo_paths import resolve_repo_path
+from src.utils.time_split import DEFAULT_VALIDATION_FRACTION, time_split_rows
 
 DEFAULT_DRAW_MIN = STRYKETIPSET_DRAW_MIN
 DEFAULT_DRAW_MAX = TUNING_DRAW_MAX
 
 
-def time_split_eval_matches(
-    eval_matches: list[EvalMatch],
+def resolve_optimize_fit_rho(
     *,
-    validation_fraction: float,
-) -> tuple[list[EvalMatch], list[EvalMatch]]:
-    return time_split_rows(
-        eval_matches,
-        validation_fraction=validation_fraction,
-        sort_key=lambda match: (match.match_date, match.home_team_external_id),
-    )
+    cli_fit_rho: bool | None,
+    grid_fit_rho: bool,
+    config_fit_rho: bool,
+) -> bool:
+    """Resolve MLE-ρ for an optimize run.
+
+    An explicit ``--fit-rho`` / ``--no-fit-rho`` wins. Otherwise live config
+    (``DataSourceConfig.classic_dc_fit_rho``, default True) or the grid JSON
+    ``fit_rho`` key enable MLE ρ, so a missing grid key cannot silently
+    grid-search when the live default is on.
+    """
+    if cli_fit_rho is not None:
+        return bool(cli_fit_rho)
+    return bool(config_fit_rho) or bool(grid_fit_rho)
 
 
-def filter_eval_matches_by_date(
-    eval_matches: list[EvalMatch],
-    *,
-    date_from: date,
-    date_to: date,
-) -> list[EvalMatch]:
-    return [
-        match
-        for match in eval_matches
-        if date_from <= match.match_date <= date_to
-    ]
-
-
-def main() -> None:
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--draw-min", type=int, default=DEFAULT_DRAW_MIN)
     parser.add_argument(
@@ -87,6 +80,47 @@ def main() -> None:
         default=1,
         help="Parallel worker processes for per-league optimization (default: 1)",
     )
+    parser.add_argument(
+        "--fit-rho",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            "Estimate rho by MLE inside each fit instead of grid-searching it "
+            "(drops the rho grid dimension). Default follows "
+            "DataSourceConfig.classic_dc_fit_rho and/or the grid JSON fit_rho "
+            "key. Use --no-fit-rho to force a rho grid search."
+        ),
+    )
+    return parser
+
+
+def time_split_eval_matches(
+    eval_matches: list[EvalMatch],
+    *,
+    validation_fraction: float,
+) -> tuple[list[EvalMatch], list[EvalMatch]]:
+    return time_split_rows(
+        eval_matches,
+        validation_fraction=validation_fraction,
+        sort_key=lambda match: (match.match_date, match.home_team_external_id),
+    )
+
+
+def filter_eval_matches_by_date(
+    eval_matches: list[EvalMatch],
+    *,
+    date_from: date,
+    date_to: date,
+) -> list[EvalMatch]:
+    return [
+        match
+        for match in eval_matches
+        if date_from <= match.match_date <= date_to
+    ]
+
+
+def main() -> None:
+    parser = build_parser()
     args = parser.parse_args()
 
     if args.date_from and args.date_to and args.date_from > args.date_to:
@@ -95,6 +129,11 @@ def main() -> None:
     init_db()
     grid = load_optimization_grid(resolve_repo_path(args.grid_config))
     config = DataSourceConfig()
+    fit_rho = resolve_optimize_fit_rho(
+        cli_fit_rho=args.fit_rho,
+        grid_fit_rho=grid.fit_rho,
+        config_fit_rho=config.classic_dc_fit_rho,
+    )
     session = SessionLocal()
     try:
         service = DixonColesService(session, config=config)
@@ -154,6 +193,9 @@ def main() -> None:
             min_eval_matches_per_league=grid.min_eval_matches_per_league,
             max_goals=config.dixon_coles_max_goals,
             jobs=max(1, args.jobs),
+            fit_rho=fit_rho,
+            rho_min=config.classic_dc_rho_min,
+            rho_max=config.classic_dc_rho_max,
         )
 
         output_path = resolve_repo_path(args.output)
@@ -184,7 +226,8 @@ def main() -> None:
                 f"lookback={league_result.best_lookback} rho={league_result.best_rho} "
                 f"log_loss={league_result.log_loss:.4f} rps={league_result.rps:.4f} "
                 f"scored={league_result.evaluated_matches} "
-                f"skipped={league_result.skipped_matches}",
+                f"skipped={league_result.skipped_matches} "
+                f"{league_result.rho_diagnostics.summary()}",
                 flush=True,
             )
             for index, row in enumerate(league_result.top_parameter_results(3), start=1):

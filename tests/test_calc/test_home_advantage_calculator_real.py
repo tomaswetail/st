@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from calc.home_advantage_calculator import HomeAdvantageCalculator
+from src.calc.home_advantage_calculator import HomeAdvantageCalculator
 from unittest.mock import call
 
 LEAGUE_ID = 10

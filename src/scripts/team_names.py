@@ -1,14 +1,14 @@
 import csv
 from typing import Any
 
-from data_sources.api_football_client import get_all_leagues, APIFootballClient, get_team_names_by_league
-from data_sources.football_data.providers.fotmob import FotMobProvider
-from data_sources.svenskaspel_api_client import SvenskaSpelClient
-from database import init_db, SessionLocal
-from objects.repositories.team_repository import TeamRepository
+from src.data_sources.api_football_client import get_all_leagues, APIFootballClient, get_team_names_by_league
+from src.data_sources.football_data.providers.fotmob import FotMobProvider
+from src.data_sources.svenskaspel_api_client import SvenskaSpelClient
+from src.database import init_db, SessionLocal
+from src.objects.repositories.team_repository import TeamRepository
 from config.stryktipset import STRYKETIPSET_DRAW_MAX, STRYKETIPSET_DRAW_MIN
-from utils.common import LEAGUES_EXTERNAL_IDS, API_FOOTBALL_TO_FOTMOB_LEAGUE_MAPPING, FOTMOBLEAGUE_EXTERNAL_ID_TO_CCODE
-from utils.repo_paths import resolve_repo_path
+from src.utils.common import LEAGUES_EXTERNAL_IDS, API_FOOTBALL_TO_FOTMOB_LEAGUE_MAPPING, FOTMOBLEAGUE_EXTERNAL_ID_TO_CCODE
+from src.utils.repo_paths import resolve_repo_path
 
 EXTRA = {
     8814: "BRA",
@@ -155,7 +155,7 @@ def _get_fotmob_teams(league_id, country_code):
 
 
 def st_teams():
-    from data_sources.draw_manager import STDrawManager
+    from src.data_sources.draw_manager import STDrawManager
     init_db()
     session = SessionLocal()
     d = STDrawManager(session)

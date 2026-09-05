@@ -6,8 +6,8 @@ import json
 import re
 from difflib import SequenceMatcher
 
-from objects.schema.data_classes.data_sources import DataSourceConfig
-from utils.common import fix_swedish_name, swedish_to_ascii
+from src.objects.schema.data_classes.data_sources import DataSourceConfig
+from src.utils.common import fix_swedish_name, swedish_to_ascii
 
 _SUFFIXES = (
     " ff",

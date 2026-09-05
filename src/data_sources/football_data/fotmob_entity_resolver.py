@@ -7,17 +7,17 @@ from difflib import SequenceMatcher
 from rapidfuzz import fuzz
 from sqlalchemy.orm import Session
 
-from data_sources.football_data.providers.fotmob import FotMobProvider
-from objects.repositories.league_repository import LeagueRepository
-from objects.repositories.team_repository import TeamRepository
-from objects.schema.data_classes.data_sources import DataSourceConfig
-from objects.schema.data_classes.provider_dtos import ProviderTeam
-from utils.common import (
+from src.data_sources.football_data.providers.fotmob import FotMobProvider
+from src.objects.repositories.league_repository import LeagueRepository
+from src.objects.repositories.team_repository import TeamRepository
+from src.objects.schema.data_classes.data_sources import DataSourceConfig
+from src.objects.schema.data_classes.provider_dtos import ProviderTeam
+from src.utils.common import (
     API_FOOTBALL_TO_FOTMOB_LEAGUE_MAPPING,
     FOTMOBLEAGUE_EXTERNAL_ID_TO_CCODE,
 )
-from utils.team_mappings import FOTMOB_TO_API_FOOTBALL_TEAMS
-from utils.team_name_matcher import _load_aliases, normalize_team_name
+from src.utils.team_mappings import FOTMOB_TO_API_FOOTBALL_TEAMS
+from src.utils.team_name_matcher import _load_aliases, normalize_team_name
 
 EXTRA = {
     8814: "BRA",

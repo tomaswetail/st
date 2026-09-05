@@ -6,8 +6,8 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from data_sources.injuries.backfill import InjuryBackfillService
-from data_sources.injuries.dtos import MatchAvailabilitySnapshot, PlayerAvailabilityRecord
+from src.data_sources.injuries.backfill import InjuryBackfillService
+from src.data_sources.injuries.dtos import MatchAvailabilitySnapshot, PlayerAvailabilityRecord
 
 
 def _sample_snapshot(fixture_id: int = 42) -> MatchAvailabilitySnapshot:
@@ -107,7 +107,7 @@ def test_backfill_fetches_and_persists() -> None:
     service._persist_snapshot = MagicMock()  # type: ignore[method-assign]
 
     with patch(
-        "data_sources.injuries.backfill.parse_api_football_availability",
+        "src.data_sources.injuries.backfill.parse_api_football_availability",
         return_value=_sample_snapshot(42),
     ):
         result = service.backfill()

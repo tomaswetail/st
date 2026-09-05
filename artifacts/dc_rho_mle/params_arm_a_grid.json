@@ -1,0 +1,52 @@
+{
+  "39": {
+    "xi": 0.0001,
+    "lookback": 1460,
+    "rho": -0.15,
+    "log_loss": 0.9663172568608861,
+    "rps": 0.19500987872052739,
+    "n_evaluated": 133,
+    "validation_start": "2025-08-30",
+    "validation_end": "2026-04-25"
+  },
+  "41": {
+    "xi": 0.0001,
+    "lookback": 1460,
+    "rho": -0.2,
+    "log_loss": 1.0749236867450385,
+    "rps": 0.21464592309392708,
+    "n_evaluated": 69,
+    "validation_start": "2025-08-30",
+    "validation_end": "2026-04-25"
+  },
+  "42": {
+    "xi": 0.0001,
+    "lookback": 1095,
+    "rho": 0.05,
+    "log_loss": 1.0696556725600623,
+    "rps": 0.23879522097007663,
+    "n_evaluated": 23,
+    "validation_start": "2025-08-30",
+    "validation_end": "2026-04-25"
+  },
+  "45": {
+    "xi": 0.005,
+    "lookback": 730,
+    "rho": 0.0,
+    "log_loss": 0.9193110802377519,
+    "rps": 0.20862105360716152,
+    "n_evaluated": 19,
+    "validation_start": "2025-08-30",
+    "validation_end": "2026-04-25"
+  },
+  "180": {
+    "xi": 0.0001,
+    "lookback": 1460,
+    "rho": 0.05,
+    "log_loss": 1.0693573076937999,
+    "rps": 0.23660296600061956,
+    "n_evaluated": 179,
+    "validation_start": "2025-08-30",
+    "validation_end": "2026-04-25"
+  }
+}

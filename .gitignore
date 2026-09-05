@@ -1,3 +1,6 @@
+__pycache__/
+*.pyc
+
 /data/cache/svenskaspel/
 /objects/data/cache/
 /bck/st_poisson_distribution_backup_2026-09-03.sql

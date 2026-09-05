@@ -11,17 +11,17 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from objects.models.fixture import FixtureModel
-from objects.models.league import LeagueModel
-from objects.models.team import TeamModel
-from objects.repositories.fixture_repository import FixtureRepository
-from objects.repositories.league_repository import LeagueRepository
-from objects.repositories.team_repository import TeamRepository
-from objects.schema.data_classes.data_sources import DataSourceConfig
-from objects.schema.data_classes.provider_dtos import ProviderMatch
-from utils.common import NATIONAL_TEAMS_SE_TO_EN
-from utils.team_mappings import SVENSKA_SPEL_TO_API_FOOTBALL_TEAMS
-from utils.team_name_matcher import _load_aliases, normalize_team_name
+from src.objects.models.fixture import FixtureModel
+from src.objects.models.league import LeagueModel
+from src.objects.models.team import TeamModel
+from src.objects.repositories.fixture_repository import FixtureRepository
+from src.objects.repositories.league_repository import LeagueRepository
+from src.objects.repositories.team_repository import TeamRepository
+from src.objects.schema.data_classes.data_sources import DataSourceConfig
+from src.objects.schema.data_classes.provider_dtos import ProviderMatch
+from src.utils.common import NATIONAL_TEAMS_SE_TO_EN
+from src.utils.team_mappings import SVENSKA_SPEL_TO_API_FOOTBALL_TEAMS
+from src.utils.team_name_matcher import _load_aliases, normalize_team_name
 
 # Temporary alias for call sites / type hints still using the old name.
 

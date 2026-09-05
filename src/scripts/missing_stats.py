@@ -7,12 +7,12 @@ import argparse
 import logging
 from datetime import date
 
-from data_sources.football_data import ExtendedMatchDataService
-from data_sources.football_data.fotmob_entity_resolver import FotMobEntityResolver
-from data_sources.football_data.results import BatchImportResult
-from database import SessionLocal, init_db
-from objects.schema.data_classes.data_sources import DataSourceConfig
-from utils.common import LEAGUES_EXTERNAL_IDS
+from src.data_sources.football_data import ExtendedMatchDataService
+from src.data_sources.football_data.fotmob_entity_resolver import FotMobEntityResolver
+from src.data_sources.football_data.results import BatchImportResult
+from src.database import SessionLocal, init_db
+from src.objects.schema.data_classes.data_sources import DataSourceConfig
+from src.utils.common import LEAGUES_EXTERNAL_IDS
 
 logging.basicConfig(
     level=logging.INFO,

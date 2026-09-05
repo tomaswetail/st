@@ -8,7 +8,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
-from objects.schema.data_classes.provider_dtos import (
+from src.objects.schema.data_classes.provider_dtos import (
     ProviderMatchDetails,
     ProviderShot,
 )

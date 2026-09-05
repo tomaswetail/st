@@ -6,21 +6,21 @@ from datetime import date, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
-from calc.dixon_coles.model import DixonColesModel, DixonColesPrediction
-from calc.dixon_coles.types import DixonColesMatch
-from calc.dixon_coles.walk_forward import (
+from src.calc.dixon_coles.model import DixonColesModel, DixonColesPrediction
+from src.calc.dixon_coles.types import DixonColesMatch
+from src.calc.dixon_coles.walk_forward import (
     EvalMatch,
     WalkForwardResult,
     run_walk_forward,
 )
-from calc.market_probabilities import MarketProbabilities
-from data_sources.classic_dc_config import ClassicDcLeagueParams, load_league_params
-from objects.repositories.fixture_repository import FixtureRepository
-from objects.repositories.league_repository import LeagueRepository
-from objects.repositories.st_match_repository import STMatchRepository
-from objects.schema.data_classes.data_sources import DataSourceConfig
-from objects.schema.db.st_match_odds import STMatchOdds
-from utils.common import ensure_unit_probabilities
+from src.calc.market_probabilities import MarketProbabilities
+from src.data_sources.classic_dc_config import ClassicDcLeagueParams, load_league_params
+from src.objects.repositories.fixture_repository import FixtureRepository
+from src.objects.repositories.league_repository import LeagueRepository
+from src.objects.repositories.st_match_repository import STMatchRepository
+from src.objects.schema.data_classes.data_sources import DataSourceConfig
+from src.objects.schema.db.st_match_odds import STMatchOdds
+from src.utils.common import ensure_unit_probabilities
 
 
 class DixonColesService:
@@ -105,6 +105,9 @@ class DixonColesService:
                 else self.config.classic_dc_min_team_matches
             ),
             as_of=as_of,
+            fit_rho=self.config.classic_dc_fit_rho,
+            rho_min=self.config.classic_dc_rho_min,
+            rho_max=self.config.classic_dc_rho_max,
         )
         return model.fit(matches, as_of=as_of)
 

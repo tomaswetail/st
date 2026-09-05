@@ -10,15 +10,15 @@ from sqlalchemy import cast, Date, func, or_, outerjoin, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
-from data_sources.api_football_leagues import (
+from src.data_sources.api_football_leagues import (
     load_api_football_leagues,
 )
-from objects.models.fixture import FixtureModel
-from objects.models.match_advanced_stats import MatchAdvancedStatsModel
-from objects.models.team import TeamModel
-from objects.repositories.base import BaseRepository
-from objects.schema.db.fixture import Fixture, FixtureCreate
-from utils.seasons import season_code_to_start_year
+from src.objects.models.fixture import FixtureModel
+from src.objects.models.match_advanced_stats import MatchAdvancedStatsModel
+from src.objects.models.team import TeamModel
+from src.objects.repositories.base import BaseRepository
+from src.objects.schema.db.fixture import Fixture, FixtureCreate
+from src.utils.seasons import season_code_to_start_year
 
 logger = logging.getLogger(__name__)
 
@@ -44,8 +44,8 @@ class FixtureRepository(BaseRepository[FixtureModel]):
 
     def __init__(self, session: Session | None = None) -> None:
         super().__init__(session)
-        from objects.repositories.league_repository import LeagueRepository
-        from objects.repositories.team_repository import TeamRepository
+        from src.objects.repositories.league_repository import LeagueRepository
+        from src.objects.repositories.team_repository import TeamRepository
 
         self.team_repo = TeamRepository(self.session)
         self.league_repo = LeagueRepository(self.session)

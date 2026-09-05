@@ -1,5 +1,5 @@
-from objects.schema.db.st_match_odds import STMatchOdds
-from utils.common import odds_to_probabilities
+from src.objects.schema.db.st_match_odds import STMatchOdds
+from src.utils.common import odds_to_probabilities
 
 
 class MarketProbabilities:

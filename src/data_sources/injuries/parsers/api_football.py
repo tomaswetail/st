@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from data_sources.injuries.dtos import MatchAvailabilitySnapshot, PlayerAvailabilityRecord
+from src.data_sources.injuries.dtos import MatchAvailabilitySnapshot, PlayerAvailabilityRecord
 
 PROVIDER = "api-football"
 SOURCE = "api_football_injuries_lineups"

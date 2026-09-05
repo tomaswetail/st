@@ -1,0 +1,232 @@
+Eval filter: time-split validation fraction=0.2 (518/2589 rows)
+
+[pooled] rows=518
+  market: log_loss=1.0068 (518 rows) top_pick=50.8% (518 rows)
+  dc: log_loss=1.0471 (465 rows) top_pick=46.7% (465 rows)
+  blend: log_loss=1.0083 (518 rows) top_pick=51.2% (518 rows)
+  ml: log_loss=1.0149 market_on_ml_rows=1.0068
+  ml_best_shrink: alpha=0.7 log_loss=1.0046
+  ml_production_shrink: alpha=0.7 log_loss=1.0046
+
+[availability:0] rows=185
+  market: log_loss=0.9996 (185 rows) top_pick=50.3% (185 rows)
+  dc: log_loss=1.0742 (132 rows) top_pick=44.7% (132 rows)
+  blend: log_loss=1.0007 (185 rows) top_pick=51.4% (185 rows)
+  ml: log_loss=1.0068 market_on_ml_rows=0.9996
+  ml_best_shrink: alpha=0.7 log_loss=0.9971
+  ml_production_shrink: alpha=0.7 log_loss=0.9971
+
+[availability:1] rows=333
+  market: log_loss=1.0108 (333 rows) top_pick=51.1% (333 rows)
+  dc: log_loss=1.0364 (333 rows) top_pick=47.4% (333 rows)
+  blend: log_loss=1.0126 (333 rows) top_pick=51.1% (333 rows)
+  ml: log_loss=1.0194 market_on_ml_rows=1.0108
+  ml_best_shrink: alpha=0.7 log_loss=1.0089
+  ml_production_shrink: alpha=0.7 log_loss=1.0089
+
+[draw_quarter:Q1] rows=0
+  market: log_loss=— (0 rows) top_pick=— (0 rows)
+  dc: log_loss=— (0 rows) top_pick=— (0 rows)
+  blend: log_loss=— (0 rows) top_pick=— (0 rows)
+
+[draw_quarter:Q2] rows=0
+  market: log_loss=— (0 rows) top_pick=— (0 rows)
+  dc: log_loss=— (0 rows) top_pick=— (0 rows)
+  blend: log_loss=— (0 rows) top_pick=— (0 rows)
+
+[draw_quarter:Q3] rows=0
+  market: log_loss=— (0 rows) top_pick=— (0 rows)
+  dc: log_loss=— (0 rows) top_pick=— (0 rows)
+  blend: log_loss=— (0 rows) top_pick=— (0 rows)
+
+[draw_quarter:Q4] rows=518
+  market: log_loss=1.0068 (518 rows) top_pick=50.8% (518 rows)
+  dc: log_loss=1.0471 (465 rows) top_pick=46.7% (465 rows)
+  blend: log_loss=1.0083 (518 rows) top_pick=51.2% (518 rows)
+  ml: log_loss=1.0149 market_on_ml_rows=1.0068
+  ml_best_shrink: alpha=0.7 log_loss=1.0046
+  ml_production_shrink: alpha=0.7 log_loss=1.0046
+
+[injury_heavy:<=0.0] rows=333
+  market: log_loss=1.0108 (333 rows) top_pick=51.1% (333 rows)
+  dc: log_loss=1.0364 (333 rows) top_pick=47.4% (333 rows)
+  blend: log_loss=1.0126 (333 rows) top_pick=51.1% (333 rows)
+  ml: log_loss=1.0194 market_on_ml_rows=1.0108
+  ml_best_shrink: alpha=0.7 log_loss=1.0089
+  ml_production_shrink: alpha=0.7 log_loss=1.0089
+
+[injury_heavy:>0.0] rows=0
+  market: log_loss=— (0 rows) top_pick=— (0 rows)
+  dc: log_loss=— (0 rows) top_pick=— (0 rows)
+  blend: log_loss=— (0 rows) top_pick=— (0 rows)
+
+[league:103] rows=1
+  market: log_loss=0.5827 (1 rows) top_pick=100.0% (1 rows)
+  dc: log_loss=0.6760 (1 rows) top_pick=100.0% (1 rows)
+  blend: log_loss=0.6098 (1 rows) top_pick=100.0% (1 rows)
+  ml: log_loss=0.5686 market_on_ml_rows=0.5827
+  ml_best_shrink: alpha=0.0 log_loss=0.5686
+  ml_production_shrink: alpha=0.7 log_loss=0.5785
+
+[league:113] rows=5
+  market: log_loss=1.0053 (5 rows) top_pick=40.0% (5 rows)
+  dc: log_loss=1.2688 (5 rows) top_pick=20.0% (5 rows)
+  blend: log_loss=1.0575 (5 rows) top_pick=40.0% (5 rows)
+  ml: log_loss=1.2009 market_on_ml_rows=1.0053
+  ml_best_shrink: alpha=1.0 log_loss=1.0053
+  ml_production_shrink: alpha=0.7 log_loss=1.0554
+
+[league:114] rows=10
+  market: log_loss=0.9973 (10 rows) top_pick=50.0% (10 rows)
+  dc: log_loss=1.0805 (10 rows) top_pick=50.0% (10 rows)
+  blend: log_loss=1.0122 (10 rows) top_pick=60.0% (10 rows)
+  ml: log_loss=1.0331 market_on_ml_rows=0.9973
+  ml_best_shrink: alpha=1.0 log_loss=0.9973
+  ml_production_shrink: alpha=0.7 log_loss=1.0047
+
+[league:140] rows=11
+  market: log_loss=1.1653 (11 rows) top_pick=45.5% (11 rows)
+  dc: log_loss=1.2582 (11 rows) top_pick=36.4% (11 rows)
+  blend: log_loss=1.1906 (11 rows) top_pick=36.4% (11 rows)
+  ml: log_loss=1.2677 market_on_ml_rows=1.1653
+  ml_best_shrink: alpha=1.0 log_loss=1.1653
+  ml_production_shrink: alpha=0.7 log_loss=1.1915
+
+[league:179] rows=4
+  market: log_loss=1.0776 (4 rows) top_pick=25.0% (4 rows)
+  dc: log_loss=1.0088 (4 rows) top_pick=50.0% (4 rows)
+  blend: log_loss=1.0554 (4 rows) top_pick=25.0% (4 rows)
+  ml: log_loss=0.9879 market_on_ml_rows=1.0776
+  ml_best_shrink: alpha=0.0 log_loss=0.9879
+  ml_production_shrink: alpha=0.7 log_loss=1.0472
+
+[league:180] rows=158
+  market: log_loss=1.0529 (158 rows) top_pick=46.2% (158 rows)
+  dc: log_loss=1.0796 (158 rows) top_pick=46.2% (158 rows)
+  blend: log_loss=1.0542 (158 rows) top_pick=47.5% (158 rows)
+  ml: log_loss=1.0569 market_on_ml_rows=1.0529
+  ml_best_shrink: alpha=0.6 log_loss=1.0501
+  ml_production_shrink: alpha=0.7 log_loss=1.0503
+
+[league:244] rows=11
+  market: log_loss=0.9503 (11 rows) top_pick=45.5% (11 rows)
+  dc: log_loss=1.0674 (11 rows) top_pick=54.5% (11 rows)
+  blend: log_loss=0.9676 (11 rows) top_pick=54.5% (11 rows)
+  ml: log_loss=0.8770 market_on_ml_rows=0.9503
+  ml_best_shrink: alpha=0.0 log_loss=0.8770
+  ml_production_shrink: alpha=0.7 log_loss=0.9234
+
+[league:311] rows=2
+  market: log_loss=1.6008 (2 rows) top_pick=0.0% (2 rows)
+  dc: log_loss=— (0 rows) top_pick=— (0 rows)
+  blend: log_loss=1.6008 (2 rows) top_pick=0.0% (2 rows)
+  ml: log_loss=1.8700 market_on_ml_rows=1.6008
+  ml_best_shrink: alpha=1.0 log_loss=1.6008
+  ml_production_shrink: alpha=0.7 log_loss=1.6738
+
+[league:39] rows=135
+  market: log_loss=0.9580 (135 rows) top_pick=56.3% (135 rows)
+  dc: log_loss=0.9566 (135 rows) top_pick=52.6% (135 rows)
+  blend: log_loss=0.9538 (135 rows) top_pick=56.3% (135 rows)
+  ml: log_loss=0.9567 market_on_ml_rows=0.9580
+  ml_best_shrink: alpha=0.5 log_loss=0.9513
+  ml_production_shrink: alpha=0.7 log_loss=0.9526
+
+[league:41] rows=67
+  market: log_loss=1.0401 (67 rows) top_pick=47.8% (67 rows)
+  dc: log_loss=1.0589 (67 rows) top_pick=46.3% (67 rows)
+  blend: log_loss=1.0427 (67 rows) top_pick=46.3% (67 rows)
+  ml: log_loss=1.0596 market_on_ml_rows=1.0401
+  ml_best_shrink: alpha=0.9 log_loss=1.0398
+  ml_production_shrink: alpha=0.7 log_loss=1.0407
+
+[league:42] rows=22
+  market: log_loss=1.0660 (22 rows) top_pick=45.5% (22 rows)
+  dc: log_loss=1.0987 (22 rows) top_pick=36.4% (22 rows)
+  blend: log_loss=1.0678 (22 rows) top_pick=45.5% (22 rows)
+  ml: log_loss=1.0751 market_on_ml_rows=1.0660
+  ml_best_shrink: alpha=0.7 log_loss=1.0626
+  ml_production_shrink: alpha=0.7 log_loss=1.0626
+
+[league:45] rows=19
+  market: log_loss=0.9820 (19 rows) top_pick=57.9% (19 rows)
+  dc: log_loss=0.9797 (19 rows) top_pick=52.6% (19 rows)
+  blend: log_loss=0.9300 (19 rows) top_pick=57.9% (19 rows)
+  ml: log_loss=0.9951 market_on_ml_rows=0.9820
+  ml_best_shrink: alpha=0.8 log_loss=0.9800
+  ml_production_shrink: alpha=0.7 log_loss=0.9800
+
+[league:564] rows=1
+  market: log_loss=1.3138 (1 rows) top_pick=0.0% (1 rows)
+  dc: log_loss=1.3550 (1 rows) top_pick=0.0% (1 rows)
+  blend: log_loss=1.3260 (1 rows) top_pick=0.0% (1 rows)
+  ml: log_loss=1.5882 market_on_ml_rows=1.3138
+  ml_best_shrink: alpha=1.0 log_loss=1.3138
+  ml_production_shrink: alpha=0.7 log_loss=1.3885
+
+[league:591] rows=2
+  market: log_loss=1.2289 (2 rows) top_pick=0.0% (2 rows)
+  dc: log_loss=1.4069 (2 rows) top_pick=0.0% (2 rows)
+  blend: log_loss=1.2777 (2 rows) top_pick=0.0% (2 rows)
+  ml: log_loss=1.1938 market_on_ml_rows=1.2289
+  ml_best_shrink: alpha=0.0 log_loss=1.1938
+  ml_production_shrink: alpha=0.7 log_loss=1.2176
+
+[league:61] rows=4
+  market: log_loss=0.8045 (4 rows) top_pick=100.0% (4 rows)
+  dc: log_loss=0.7968 (4 rows) top_pick=75.0% (4 rows)
+  blend: log_loss=0.8013 (4 rows) top_pick=100.0% (4 rows)
+  ml: log_loss=0.6840 market_on_ml_rows=0.8045
+  ml_best_shrink: alpha=0.0 log_loss=0.6840
+  ml_production_shrink: alpha=0.7 log_loss=0.7662
+
+[league:71] rows=8
+  market: log_loss=0.8545 (8 rows) top_pick=62.5% (8 rows)
+  dc: log_loss=1.3544 (8 rows) top_pick=0.0% (8 rows)
+  blend: log_loss=0.9649 (8 rows) top_pick=62.5% (8 rows)
+  ml: log_loss=0.9104 market_on_ml_rows=0.8545
+  ml_best_shrink: alpha=1.0 log_loss=0.8545
+  ml_production_shrink: alpha=0.7 log_loss=0.8661
+
+[league:78] rows=1
+  market: log_loss=1.0415 (1 rows) top_pick=0.0% (1 rows)
+  dc: log_loss=0.9605 (1 rows) top_pick=0.0% (1 rows)
+  blend: log_loss=1.0165 (1 rows) top_pick=0.0% (1 rows)
+  ml: log_loss=0.8677 market_on_ml_rows=1.0415
+  ml_best_shrink: alpha=0.0 log_loss=0.8677
+  ml_production_shrink: alpha=0.7 log_loss=0.9861
+
+[league:88] rows=1
+  market: log_loss=1.0898 (1 rows) top_pick=0.0% (1 rows)
+  dc: log_loss=1.3972 (1 rows) top_pick=0.0% (1 rows)
+  blend: log_loss=1.1725 (1 rows) top_pick=0.0% (1 rows)
+  ml: log_loss=0.5736 market_on_ml_rows=1.0898
+  ml_best_shrink: alpha=0.0 log_loss=0.5736
+  ml_production_shrink: alpha=0.7 log_loss=0.9052
+
+[year:2025] rows=173
+  market: log_loss=0.9647 (173 rows) top_pick=56.1% (173 rows)
+  dc: log_loss=0.9962 (169 rows) top_pick=55.0% (169 rows)
+  blend: log_loss=0.9678 (173 rows) top_pick=58.4% (173 rows)
+  ml: log_loss=0.9633 market_on_ml_rows=0.9647
+  ml_best_shrink: alpha=0.4 log_loss=0.9602
+  ml_production_shrink: alpha=0.7 log_loss=0.9611
+
+[year:2026] rows=345
+  market: log_loss=1.0279 (345 rows) top_pick=48.1% (345 rows)
+  dc: log_loss=1.0762 (296 rows) top_pick=41.9% (296 rows)
+  blend: log_loss=1.0287 (345 rows) top_pick=47.5% (345 rows)
+  ml: log_loss=1.0408 market_on_ml_rows=1.0279
+  ml_best_shrink: alpha=0.8 log_loss=1.0264
+  ml_production_shrink: alpha=0.7 log_loss=1.0265
+
+[outcome:market] rows=518
+  draw_ll=0.5636 draw_brier=0.1879 home_ll=0.6434 away_ll=0.5588 pooled_ll=1.0068
+
+[outcome:dc] rows=465
+  draw_ll=0.5647 draw_brier=0.1887 home_ll=0.6683 away_ll=0.5942 pooled_ll=1.0471
+
+[outcome:blend] rows=518
+  draw_ll=0.5636 draw_brier=0.1880 home_ll=0.6429 away_ll=0.5611 pooled_ll=1.0083
+
+Wrote JSON report to /home/tomas/wetail/git/st/artifacts/dc_rho_mle_promotion/gate_eval_slices.json

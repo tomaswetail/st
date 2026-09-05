@@ -7,7 +7,7 @@ from datetime import datetime
 from sqlalchemy import DateTime, Double, Integer, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
-from database import Base
+from src.database import Base
 
 
 class PlayerModel(Base):

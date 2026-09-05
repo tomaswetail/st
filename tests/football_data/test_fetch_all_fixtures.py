@@ -7,11 +7,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from data_sources.football_data.service import ExtendedMatchDataService
-from objects.models.fixture import FixtureModel
-from objects.repositories.fixture_repository import FixtureRepository
-from scripts.missing_stats import fetch_missing_stats
-from utils.common import LEAGUES_EXTERNAL_IDS
+from src.data_sources.football_data.service import ExtendedMatchDataService
+from src.objects.models.fixture import FixtureModel
+from src.objects.repositories.fixture_repository import FixtureRepository
+from src.scripts.missing_stats import fetch_missing_stats
+from src.utils.common import LEAGUES_EXTERNAL_IDS
 
 
 # ---------------------------------------------------------------------------
@@ -125,10 +125,10 @@ def test_fetch_missing_stats_calls_fetch_and_store_all_fixtures():
     session = MagicMock()
 
     with (
-        patch("scripts.missing_stats.init_db"),
-        patch("scripts.missing_stats.SessionLocal", return_value=session),
+        patch("src.scripts.missing_stats.init_db"),
+        patch("src.scripts.missing_stats.SessionLocal", return_value=session),
         patch(
-            "scripts.missing_stats.ExtendedMatchDataService",
+            "src.scripts.missing_stats.ExtendedMatchDataService",
             return_value=service,
         ),
     ):

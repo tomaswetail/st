@@ -78,7 +78,7 @@ def __getattr__(name: str):
 
 
 def init_db() -> None:
-    import objects.models  # noqa: F401
+    import src.objects.models  # noqa: F401
     from sqlalchemy import text
     from sqlalchemy.exc import ProgrammingError
 

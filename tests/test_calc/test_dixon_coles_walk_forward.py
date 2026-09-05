@@ -6,9 +6,9 @@ from datetime import date
 
 import pytest
 
-from calc.dixon_coles.metrics import log_loss_one, ranked_probability_score
-from calc.dixon_coles.model import DixonColesModel, DixonColesPrediction
-from calc.dixon_coles.walk_forward import EvalMatch, run_walk_forward, run_walk_forward_per_league
+from src.calc.dixon_coles.metrics import log_loss_one, ranked_probability_score
+from src.calc.dixon_coles.model import DixonColesModel, DixonColesPrediction
+from src.calc.dixon_coles.walk_forward import EvalMatch, run_walk_forward, run_walk_forward_per_league
 
 
 def _eval(

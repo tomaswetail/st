@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from calc.draw_driver_analysis import (
+from src.calc.draw_driver_analysis import (
     build_analysis_rows,
     filter_tuning_rows,
     render_draw_driver_markdown,

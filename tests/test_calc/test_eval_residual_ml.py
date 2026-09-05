@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-from calc.residual_ml.evaluation import (
+from src.calc.residual_ml.evaluation import (
+    build_multi_slice_report,
     draw_quarter_ranges,
+    run_backtest_scoring,
     slice_rows_by_availability,
     slice_rows_by_draw_quarter,
     slice_rows_by_injury_heavy,
@@ -131,3 +133,98 @@ def test_slice_rows_by_injury_heavy_splits_on_difference():
     assert grouped is not None
     assert len(grouped["injury_heavy:>0.0"]) == 1
     assert len(grouped["injury_heavy:<=0.0"]) == 1
+
+
+class _FakeTrainer:
+    def predict_match_proba(self, row):
+        return {"1": 0.50, "X": 0.30, "2": 0.20}
+
+
+def _scored_row(
+    match_id: int,
+    match_date: str,
+    draw_number: int,
+    label: str,
+    *,
+    league_external_id: int,
+    market_probs: tuple[float, float, float],
+) -> dict:
+    home, draw, away = market_probs
+    return {
+        **_row(
+            match_id,
+            match_date,
+            draw_number,
+            label,
+            league_external_id=league_external_id,
+            market_probs=market_probs,
+        ),
+        "p_home_dc_norm": 0.40,
+        "p_draw_dc_norm": 0.30,
+        "p_away_dc_norm": 0.30,
+        "p_home_blend": home,
+        "p_draw_blend": draw,
+        "p_away_blend": away,
+    }
+
+
+def _scored_fixture_rows() -> list[dict]:
+    return [
+        _scored_row(
+            1, "2025-03-01", 4900, "1", league_external_id=39, market_probs=(0.60, 0.25, 0.15)
+        ),
+        _scored_row(
+            2, "2025-03-08", 4901, "X", league_external_id=39, market_probs=(0.45, 0.30, 0.25)
+        ),
+        _scored_row(
+            3, "2026-01-10", 4950, "2", league_external_id=180, market_probs=(0.35, 0.30, 0.35)
+        ),
+        _scored_row(
+            4, "2026-01-17", 4951, "1", league_external_id=180, market_probs=(0.50, 0.28, 0.22)
+        ),
+    ]
+
+
+def test_build_multi_slice_report_fills_ml_on_year_and_league():
+    rows = _scored_fixture_rows()
+    trainer = _FakeTrainer()
+    report = build_multi_slice_report(
+        rows,
+        trainer=trainer,
+        production_shrink_alpha=0.7,
+    )
+
+    for slice_name in ("pooled", "year:2025", "year:2026", "league:39", "league:180"):
+        metrics = report[slice_name]
+        assert metrics.ml_log_loss is not None, slice_name
+        assert metrics.best_shrink_log_loss is not None, slice_name
+        assert metrics.best_shrink_alpha is not None, slice_name
+        assert metrics.production_shrink_alpha == 0.7
+        assert metrics.production_shrink_log_loss is not None, slice_name
+
+
+def test_build_multi_slice_report_pooled_matches_direct_scoring():
+    rows = _scored_fixture_rows()
+    trainer = _FakeTrainer()
+    scoring = run_backtest_scoring(rows, trainer)
+    report = build_multi_slice_report(rows, trainer=trainer)
+
+    raw_ml = next(loss for alpha, loss in scoring.shrink_results if alpha <= 0)
+    assert report["pooled"].ml_log_loss == raw_ml
+    assert report["pooled"].best_shrink_log_loss == scoring.best_loss
+    assert report["pooled"].best_shrink_alpha == scoring.best_alpha
+    assert report["pooled"].row_count == len(rows)
+
+
+def test_build_multi_slice_report_without_trainer_keeps_ml_null():
+    rows = _scored_fixture_rows()
+    report = build_multi_slice_report(rows)
+
+    assert report["pooled"].baselines["market"][0] is not None
+    assert report["year:2025"].baselines["market"][0] is not None
+    assert report["league:39"].baselines["market"][0] is not None
+    assert report["pooled"].ml_log_loss is None
+    assert report["year:2025"].ml_log_loss is None
+    assert report["year:2025"].best_shrink_log_loss is None
+    assert report["league:39"].ml_log_loss is None
+    assert report["league:39"].best_shrink_log_loss is None

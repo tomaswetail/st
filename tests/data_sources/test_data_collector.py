@@ -5,10 +5,10 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
-from data_sources.api_football_leagues import ApiFootballLeagueEntry
-from data_sources.data_collector import DataCollector
-from objects.schema.data_classes.fixture import Fixture
-from objects.schema.db.fixture import FixtureCreate
+from src.data_sources.api_football_leagues import ApiFootballLeagueEntry
+from src.data_sources.data_collector import DataCollector
+from src.objects.schema.data_classes.fixture import Fixture
+from src.objects.schema.db.fixture import FixtureCreate
 
 
 def _api_fixture() -> Fixture:

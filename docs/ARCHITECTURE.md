@@ -9,7 +9,7 @@
 
 There is **no HTTP API layer**, **no authentication**, and **no job queue** in-repo.
 
-Application packages live under **`src/`**. Import names stay the same (`from calc...`); run with **`PYTHONPATH=src`**. Repo-root holds `tests/`, `config/`, `docs/`, `data/`, `models/`, `artifacts/`.
+Application packages live under **`src/`**. First-party imports are **`src.`-prefixed absolute imports** (`from src.calc...`), with the **repository root as the sole path root** — run from the repo root via `python -m`, no `PYTHONPATH` (see [DEC-013](DECISIONS.md)). Repo-root holds `tests/`, `config/`, `docs/`, `data/`, `models/`, `artifacts/`.
 
 ### Documentation layout
 
@@ -93,7 +93,7 @@ Business logic for features and probabilities (no DB writes in most modules).
 
 ## `src/scripts/`
 
-CLI entry points for batch jobs (DC optimize, ML train/backtest, missing stats). Historical phase docs may still say `scripts/`; prefer `src/scripts/` and `PYTHONPATH=src`.
+CLI entry points for batch jobs (DC optimize, ML train/backtest, missing stats). Invoke as modules from the repo root: `python -m src.scripts.<name>`. Historical phase docs may still say `scripts/` and set `PYTHONPATH` to `src`; both are outdated.
 
 ## `config/` (repo root)
 
@@ -261,13 +261,15 @@ Repositories use SQLAlchemy session; callers commit/close sessions. `session_sco
 
 ## Running tests
 
+From the repository root, with no `PYTHONPATH` set:
+
 ```bash
-PYTHONPATH=src python -m pytest tests/
-PYTHONPATH=src python -m pytest tests/test_calc/ -q
-PYTHONPATH=src python -m pytest tests/football_data/test_ingestion.py -q
+python -m pytest tests/
+python -m pytest tests/test_calc/ -q
+python -m pytest tests/football_data/test_ingestion.py -q
 ```
 
-Use `python -m pytest` (not bare `pytest`) for reliable imports of `scripts.*`.
+Use `python -m pytest` (not bare `pytest`) for reliable imports of `src.scripts.*`.
 
 ## Factories
 

@@ -174,6 +174,41 @@ Capture of patterns and choices evidenced in code, tests, and existing docs. Rat
 
 ---
 
+## DEC-013 — `src.`-prefixed absolute imports, repository root as sole path root
+
+**Decision:** All first-party imports in `src/` and `tests/` are `src.`-prefixed absolute imports (`from src.calc.strength_calculator import ...`). The repository root is the single `sys.path` root. Run everything from the repo root with `python -m` and no `PYTHONPATH`:
+
+```bash
+python -m pytest tests/
+python -m src.scripts.optimize_classic_dixon_coles --help
+```
+
+`config/` sits at the repo root, so `from config....` is already correct and stays bare.
+
+**Reason/rationale:** ~135 files were already in the `src.`-prefixed style after an IDE-wide refactor; only 27 modules and one test still used bare first-party imports. Reverting the majority to bare imports would have been pure churn for no benefit, so the minority was converted instead. A single path root also removes the previous mixed two-root setup, under which a module was importable under two names and produced duplicate module objects.
+
+**Evidence:** `rg "^\s*(from|import)\s+(database|calc|utils|objects|data_sources|scripts)\b" src tests` and `rg "[\"'](database|calc|utils|objects|data_sources|scripts)\." src tests` both return zero matches. No `pytest.ini`, `pyproject.toml`, `src/__init__.py`, or `config/__init__.py` is needed — implicit namespace packages (PEP 420) cover it on Python 3.10+.
+
+**Implications:** `unittest.mock.patch()` target strings must also be `src.`-prefixed, otherwise they patch a different module object than the one under test and fail silently. Do not document or reintroduce a `PYTHONPATH` pointing at `src`; `python -m src.scripts.<name>` is the one script invocation form. Dated write-ups under `docs/reports/` still show the old form and are deliberately left as-is.
+
+**Confidence:** HIGH
+
+---
+
+## DEC-014 — MLE ρ is the canonical Dixon–Coles
+
+**Decision:** Live scoring and official eval use MLE-fitted ρ. `config/classic_dc_league_params.json` is the live MLE params file. `config/classic_dc_league_params_grid_bck.json` is grid-ρ backup only and must not be used as production. Optimizer and live fit default to `fit_rho=True` (`CLASSIC_DC_FIT_RHO` / `DataSourceConfig.classic_dc_fit_rho`, and production `config/classic_dc_optimization_grid.json` `"fit_rho": true`).
+
+**Reason/rationale:** Grid ρ was selection noise on a small 1X2 log-loss slice. Product freeze: one canonical DC for live scoring and official eval.
+
+**Evidence:** `DataSourceConfig.classic_dc_fit_rho` default `"1"`, `config/classic_dc_league_params.json`, `src/scripts/optimize_classic_dixon_coles.py` (`resolve_optimize_fit_rho`).
+
+**Implications:** A bare `python -m src.scripts.optimize_classic_dixon_coles` must not overwrite live params with grid-searched ρ. Use `--no-fit-rho` only when deliberately grid-searching.
+
+**Confidence:** HIGH
+
+---
+
 # Decisions Requiring Confirmation
 
 ## DEC-U01 — SofaScore vs FotMob as production xG provider

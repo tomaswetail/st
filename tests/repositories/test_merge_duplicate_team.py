@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from objects.repositories.team_repository import TeamRepository
+from src.objects.repositories.team_repository import TeamRepository
 
 
 def _repo_with_teams(

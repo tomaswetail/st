@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from calc.residual_ml.blend_weights import (
+from src.calc.residual_ml.blend_weights import (
     BlendWeightRule,
     BlendWeightsConfig,
     select_blend_weights,
@@ -99,3 +99,30 @@ def test_explicit_zero_availability_bumps_market():
     )
     assert market == pytest.approx(0.8)
     assert dc == pytest.approx(0.2)
+
+
+def test_league_override_applies_below_market_only_default():
+    """Allowlist 0.7/0.3 must win over default 1.0/0.0 when other rules are off."""
+    config = BlendWeightsConfig(
+        enabled=True,
+        default_market_weight=1.0,
+        default_dc_weight=0.0,
+        league_overrides={"39": (0.7, 0.3)},
+        market_vs_dc=BlendWeightRule(enabled=False),
+        dc_quality=BlendWeightRule(enabled=False),
+        injury_uncertainty=BlendWeightRule(enabled=False),
+    )
+    allowlisted = select_blend_weights(
+        {},
+        config,
+        league_external_id="39",
+    )
+    other_league = select_blend_weights(
+        {},
+        config,
+        league_external_id="41",
+    )
+    missing_league = select_blend_weights({}, config)
+    assert allowlisted == pytest.approx((0.7, 0.3))
+    assert other_league == pytest.approx((1.0, 0.0))
+    assert missing_league == pytest.approx((1.0, 0.0))

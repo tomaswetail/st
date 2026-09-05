@@ -5,12 +5,12 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from data_sources.football_data.fotmob_entity_resolver import FotMobEntityResolver
-from data_sources.football_data.providers.fotmob import (
+from src.data_sources.football_data.fotmob_entity_resolver import FotMobEntityResolver
+from src.data_sources.football_data.providers.fotmob import (
     FotMobProvider,
     parse_fotmob_team_search,
 )
-from objects.schema.data_classes.provider_dtos import ProviderTeam
+from src.objects.schema.data_classes.provider_dtos import ProviderTeam
 
 
 def test_parse_fotmob_team_search_nested_suggestions():
@@ -80,10 +80,10 @@ def test_resolve_team_falls_back_to_search():
     )
 
     with patch(
-        "data_sources.football_data.fotmob_entity_resolver._get_team_names",
+        "src.data_sources.football_data.fotmob_entity_resolver._get_team_names",
         return_value=["Arsenal", "Chelsea"],
     ), patch(
-        "data_sources.football_data.fotmob_entity_resolver._load_aliases",
+        "src.data_sources.football_data.fotmob_entity_resolver._load_aliases",
         return_value={},
     ):
         resolver = FotMobEntityResolver(
@@ -107,13 +107,13 @@ def test_resolve_team_uses_static_api_to_fotmob_mapping():
     )
 
     with patch(
-        "data_sources.football_data.fotmob_entity_resolver._get_team_names",
+        "src.data_sources.football_data.fotmob_entity_resolver._get_team_names",
         return_value=["Arsenal", "Chelsea"],
     ), patch(
-        "data_sources.football_data.fotmob_entity_resolver._load_aliases",
+        "src.data_sources.football_data.fotmob_entity_resolver._load_aliases",
         return_value={},
     ), patch.dict(
-        "data_sources.football_data.fotmob_entity_resolver._API_FOOTBALL_TO_FOTMOB_TEAMS",
+        "src.data_sources.football_data.fotmob_entity_resolver._API_FOOTBALL_TO_FOTMOB_TEAMS",
         {46: 8197},
         clear=False,
     ):

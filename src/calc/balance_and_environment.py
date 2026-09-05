@@ -8,17 +8,17 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from calc.strength_calculator import StrengthCalculator
-from objects.models.fixture import FixtureModel
-from objects.models.st_match import STMatchModel
-from objects.schema.data_classes.balance_and_environment_features import (
+from src.calc.strength_calculator import StrengthCalculator
+from src.objects.models.fixture import FixtureModel
+from src.objects.models.st_match import STMatchModel
+from src.objects.schema.data_classes.balance_and_environment_features import (
     BalanceAndEnvironmentFeatures,
 )
-from objects.schema.data_classes.data_sources import DataSourceConfig
-from objects.schema.data_classes.team_strength_features import MatchStrengthFeatures
-from objects.schema.db.fixture import Fixture
-from utils.common import ensure_unit_probabilities
-from utils.fixture_fields import (
+from src.objects.schema.data_classes.data_sources import DataSourceConfig
+from src.objects.schema.data_classes.team_strength_features import MatchStrengthFeatures
+from src.objects.schema.db.fixture import Fixture
+from src.utils.common import ensure_unit_probabilities
+from src.utils.fixture_fields import (
     fixture_goals_away,
     fixture_goals_home,
     fixture_home_name,

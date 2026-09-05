@@ -4,8 +4,8 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from objects.schema.data_classes.data_sources import DISK_CACHE_TTL_ONE_YEAR
-from utils.repo_paths import repo_root
+from src.objects.schema.data_classes.data_sources import DISK_CACHE_TTL_ONE_YEAR
+from src.utils.repo_paths import repo_root
 
 
 @dataclass

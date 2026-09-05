@@ -10,7 +10,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from database import Base
+from src.database import Base
 
 
 class FixtureModel(Base):

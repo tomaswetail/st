@@ -5,8 +5,8 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from objects.models.player import PlayerModel
-from objects.repositories.base import BaseRepository
+from src.objects.models.player import PlayerModel
+from src.objects.repositories.base import BaseRepository
 
 
 class PlayerRepository(BaseRepository[PlayerModel]):

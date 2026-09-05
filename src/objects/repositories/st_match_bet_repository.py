@@ -2,11 +2,11 @@ from typing import Any
 
 from sqlalchemy import select
 
-from objects.models.st_match import STMatchModel
-from objects.models.st_match_bet import STMatchBetModel
+from src.objects.models.st_match import STMatchModel
+from src.objects.models.st_match_bet import STMatchBetModel
 
-from objects.repositories.base import BaseRepository
-from objects.repositories.utils import distribution_by_outcome
+from src.objects.repositories.base import BaseRepository
+from src.objects.repositories.utils import distribution_by_outcome
 
 
 class STMatchBetRepository(BaseRepository[STMatchBetModel]):

@@ -1,0 +1,25 @@
+{
+  "true_rho": -0.15,
+  "true_home_advantage": 1.35,
+  "seeds": 8,
+  "results": [
+    {
+      "n_matches": 1120,
+      "rho_mean": -0.1653,
+      "rho_sd": 0.0354,
+      "home_advantage_mean": 1.3616
+    },
+    {
+      "n_matches": 3360,
+      "rho_mean": -0.1629,
+      "rho_sd": 0.0247,
+      "home_advantage_mean": 1.3318
+    },
+    {
+      "n_matches": 16800,
+      "rho_mean": -0.1522,
+      "rho_sd": 0.0105,
+      "home_advantage_mean": 1.3431
+    }
+  ]
+}

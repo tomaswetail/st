@@ -11,7 +11,7 @@ from typing import Any
 
 import httpx
 
-from objects.schema.data_classes.data_sources import DISK_CACHE_TTL_ONE_YEAR
+from src.objects.schema.data_classes.data_sources import DISK_CACHE_TTL_ONE_YEAR
 
 logger = logging.getLogger(__name__)
 

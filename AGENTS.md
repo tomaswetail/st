@@ -2,7 +2,12 @@
 
 This repository is a **Python research and data pipeline** for Stryktipset coupon analysis: historical football ingestion, feature engineering, and 1X2 probability modeling. It is **not** a web application and has **no authentication layer**.
 
-Application Python packages live under **`src/`**. Import names are unchanged (`from calc...`, `from utils...`). Run with **`PYTHONPATH=src`**.
+Application Python packages live under **`src/`**. First-party imports are **`src.`-prefixed absolute imports** (`from src.calc...`, `from src.utils...`), with the **repository root as the sole path root**. Run everything from the repo root using `python -m` — **no `PYTHONPATH` needed** (see [DEC-013](docs/DECISIONS.md)):
+
+```bash
+python -m pytest tests/
+python -m src.scripts.optimize_classic_dixon_coles --help
+```
 
 Before implementing features, read the knowledge layer under `docs/`.
 
@@ -36,21 +41,21 @@ Also useful: [`docs/football_data_ingestion.md`](docs/product/football_data_inge
 - **Config:** use `DataSourceConfig` (`src/objects/schema/data_classes/data_sources.py`); avoid new magic numbers in scripts. Repo-root `config/` stays outside `src/`.
 - **DTOs:** Pydantic schemas in `src/objects/schema/` for I/O; dataclass feature objects in `src/objects/schema/data_classes/`.
 - **Providers:** xG via `ExtendedMatchDataService` + provider protocol; do not bypass entity resolution.
-- **Imports:** residual ML lives in `calc/residual_ml/` package (filesystem: `src/calc/residual_ml/`).
+- **Imports:** `src.`-prefixed absolute imports everywhere; residual ML is `from src.calc.residual_ml import ...`.
 - **Minimal diffs:** match surrounding style; avoid unrelated refactors.
 - **Do not commit secrets** — API keys belong in environment variables.
 
 ## Testing
 
-**Run tests from repo root:**
+**Run tests from repo root, with no `PYTHONPATH` set:**
 
 ```bash
-PYTHONPATH=src python -m pytest tests/
-PYTHONPATH=src python -m pytest tests/test_calc/ -q
-PYTHONPATH=src python -m pytest tests/football_data/ -q
+python -m pytest tests/
+python -m pytest tests/test_calc/ -q
+python -m pytest tests/football_data/ -q
 ```
 
-Use `python -m pytest` (not bare `pytest`) so `scripts.*` imports resolve.
+Use `python -m pytest` (not bare `pytest`) so `src.scripts.*` imports resolve.
 
 **Requires:** Python deps (SQLAlchemy, pydantic, numpy, scipy, pytest, httpx, requests; scikit-learn for ML tests).
 
@@ -71,7 +76,7 @@ An implementation is not complete until:
 - [ ] Acceptance criteria met
 - [ ] Documented business invariants still hold (especially leakage-safe features)
 - [ ] Relevant tests added or updated
-- [ ] `PYTHONPATH=src python -m pytest tests/<relevant>/` passes
+- [ ] `python -m pytest tests/<relevant>/` passes
 - [ ] No secrets committed
 
 ## Cursor rules

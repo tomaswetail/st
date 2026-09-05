@@ -10,41 +10,41 @@ from typing import Literal
 
 from sqlalchemy.orm import Session
 
-from data_sources.entity_resolver import EntityResolver, TeamResolution
-from data_sources.football_data.fotmob_entity_resolver import FotMobEntityResolver
-from data_sources.football_data.http_client import (
+from src.data_sources.entity_resolver import EntityResolver, TeamResolution
+from src.data_sources.football_data.fotmob_entity_resolver import FotMobEntityResolver
+from src.data_sources.football_data.http_client import (
     FootballDataHttpError,
     NotFoundError,
 )
-from data_sources.football_data.metrics import (
+from src.data_sources.football_data.metrics import (
     calculate_derived_metrics,
     shot_fingerprint,
 )
-from data_sources.football_data.protocol import FootballDataProvider
-from data_sources.football_data.providers.sofascore import SofaScoreProvider
-from data_sources.football_data.providers.fotmob import FotMobProvider
-from data_sources.football_data.results import BatchImportResult, MatchImportResult
-from database import SessionLocal
-from objects.models.fixture import FixtureModel
-from objects.repositories.fixture_repository import FixtureRepository
-from objects.repositories.league_repository import LeagueRepository
-from objects.repositories.match_advanced_stats_repository import (
+from src.data_sources.football_data.protocol import FootballDataProvider
+from src.data_sources.football_data.providers.sofascore import SofaScoreProvider
+from src.data_sources.football_data.providers.fotmob import FotMobProvider
+from src.data_sources.football_data.results import BatchImportResult, MatchImportResult
+from src.database import SessionLocal
+from src.objects.models.fixture import FixtureModel
+from src.objects.repositories.fixture_repository import FixtureRepository
+from src.objects.repositories.league_repository import LeagueRepository
+from src.objects.repositories.match_advanced_stats_repository import (
     MatchAdvancedStatsRepository,
 )
-from objects.repositories.match_shot_repository import MatchShotRepository
-from objects.repositories.team_repository import TeamRepository
-from objects.schema.data_classes.data_sources import DataSourceConfig
-from objects.schema.data_classes.provider_dtos import (
+from src.objects.repositories.match_shot_repository import MatchShotRepository
+from src.objects.repositories.team_repository import TeamRepository
+from src.objects.schema.data_classes.data_sources import DataSourceConfig
+from src.objects.schema.data_classes.provider_dtos import (
     ProviderMatch,
     ProviderMatchDetails,
 )
-from utils.common import (
+from src.utils.common import (
     API_FOOTBALL_TO_FOTMOB_LEAGUE_MAPPING,
     FOTMOBLEAGUE_EXTERNAL_ID_TO_CCODE,
 )
-from utils.team_mappings import FOTMOB_TO_API_FOOTBALL_TEAMS
-from utils.seasons import last_n_season_codes
-from utils.team_name_matcher import normalize_team_name
+from src.utils.team_mappings import FOTMOB_TO_API_FOOTBALL_TEAMS
+from src.utils.seasons import last_n_season_codes
+from src.utils.team_name_matcher import normalize_team_name
 
 logger = logging.getLogger(__name__)
 

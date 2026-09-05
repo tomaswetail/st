@@ -9,7 +9,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from database import Base
+from src.database import Base
 
 class STMatchModel(Base):
     __tablename__ = "stryktipset_matches"

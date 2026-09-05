@@ -7,8 +7,8 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Callable
 
-from calc.dixon_coles.metrics import mean_log_loss, mean_rps
-from calc.dixon_coles.model import DixonColesModel
+from src.calc.dixon_coles.metrics import mean_log_loss, mean_rps
+from src.calc.dixon_coles.model import DixonColesModel
 
 
 @dataclass(frozen=True)

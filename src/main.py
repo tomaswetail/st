@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import logging
 
-from calc.probability_manager import ProbabilityManager
-from data_sources.data_collector import DataCollector
-from data_sources.football_data import ExtendedMatchDataService
-from database import SessionLocal, init_db
-from objects.schema.data_classes.data_sources import DataSourceConfig
-from data_sources.draw_manager import STDrawManager
-from utils.common import API_FOOTBALL_TO_FOTMOB_LEAGUE_MAPPING
+from src.calc.probability_manager import ProbabilityManager
+from src.data_sources.data_collector import DataCollector
+from src.data_sources.football_data import ExtendedMatchDataService
+from src.database import SessionLocal, init_db
+from src.objects.schema.data_classes.data_sources import DataSourceConfig
+from src.data_sources.draw_manager import STDrawManager
+from src.utils.common import API_FOOTBALL_TO_FOTMOB_LEAGUE_MAPPING
 
 logging.basicConfig(
     level=logging.INFO,
@@ -114,7 +114,7 @@ def main_extra_data() -> None:
 
 
 def import_st():
-    from data_sources.draw_manager import STDrawManager
+    from src.data_sources.draw_manager import STDrawManager
     init_db()
     session = SessionLocal()
     d = STDrawManager(session)

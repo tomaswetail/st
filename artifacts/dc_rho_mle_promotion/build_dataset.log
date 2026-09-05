@@ -1,0 +1,44 @@
+Building residual ML dataset from 2589 finished matches (draws 4760–4960)
+DC engine: classic
+[1/2589] Assembling draw=4760 match_id=2 Tottenham vs Leicester [0.0s]
+Classic DC fit failed league=5 as_of=2022-09-24 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+Classic DC fit failed league=72 as_of=2022-12-03 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+Classic DC fit failed league=143 as_of=2023-05-06 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+Classic DC fit failed league=591 as_of=2023-05-06 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+Classic DC fit failed league=81 as_of=2023-06-03 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+Classic DC fit failed league=72 as_of=2023-06-03 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+[500/2589] Assembling draw=4799 match_id=510 Norway vs Scotland [309.6s]
+[1000/2589] Assembling draw=4837 match_id=1011 Millwall vs Watford [475.6s]
+Classic DC fit failed league=81 as_of=2024-05-25 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+Classic DC fit failed league=66 as_of=2024-05-25 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+Classic DC fit failed league=72 as_of=2024-05-25 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+Classic DC fit failed league=311 as_of=2024-06-01 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+Classic DC fit failed league=9 as_of=2024-06-24 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+Classic DC fit failed league=9 as_of=2024-06-30 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+Classic DC fit failed league=9 as_of=2024-07-07 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+Classic DC fit failed league=311 as_of=2024-07-20 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+Classic DC fit failed league=400 as_of=2024-07-20 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+Classic DC fit failed league=400 as_of=2024-07-27 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+Classic DC fit failed league=591 as_of=2024-07-27 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+Classic DC fit failed league=311 as_of=2024-07-27 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+Classic DC fit failed league=529 as_of=2024-08-03 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+Classic DC fit failed league=400 as_of=2024-08-03 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+Classic DC fit failed league=591 as_of=2024-08-03 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+Classic DC fit failed league=528 as_of=2024-08-10 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+Classic DC fit failed league=5 as_of=2024-09-07 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+Classic DC fit failed league=5 as_of=2024-10-12 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+Classic DC fit failed league=5 as_of=2024-11-16 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+[1500/2589] Assembling draw=4876 match_id=1512 Brentford vs Leicester [672.1s]
+Classic DC fit failed league=591 as_of=2025-05-17 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+Classic DC fit failed league=311 as_of=2025-05-31 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+Classic DC fit failed league=311 as_of=2025-06-14 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+Classic DC fit failed league=311 as_of=2025-06-28 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+Classic DC fit failed league=15 as_of=2025-07-05 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+Classic DC fit failed league=400 as_of=2025-07-26 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+[2000/2589] Assembling draw=4915 match_id=2019 Brentford vs Aston Villa [775.2s]
+Classic DC fit failed league=591 as_of=2025-12-27 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+Classic DC fit failed league=591 as_of=2026-04-04 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+[2500/2589] Assembling draw=4954 match_id=2524 Crystal Palace vs Arsenal [726.2s]
+Classic DC fit failed league=311 as_of=2026-07-04 (No matches left after lookback / min_team_matches filters); falling back to strength DC
+Dataset build finished: 2589 rows emitted [176.4s since last progress]
+Wrote 2589 rows to data/residual_ml/dataset.csv

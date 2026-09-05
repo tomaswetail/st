@@ -10,9 +10,8 @@ five stable discovery drivers. Writes ``artifacts/draw_adjustment_oos_gate.json`
 and optionally updates ``config/draw_adjustment.json`` (enabled only if OOS improves).
 
 ```bash
-export PYTHONPATH=src
-python src/scripts/eval_draw_adjustment_oos.py
-python src/scripts/eval_draw_adjustment_oos.py --write-config
+python -m src.scripts.eval_draw_adjustment_oos
+python -m src.scripts.eval_draw_adjustment_oos --write-config
 ```
 """
 
@@ -29,16 +28,16 @@ import numpy as np
 from scipy.optimize import minimize
 from sklearn.metrics import brier_score_loss, log_loss
 
-from calc.draw_adjustment import (
+from src.calc.draw_adjustment import (
     DrawAdjustmentConfig,
     apply_draw_adjustment,
     load_draw_adjustment_config,
 )
-from calc.draw_driver_analysis import filter_tuning_rows, load_dataset_rows
-from calc.probability_metrics import PROB_EPSILON
+from src.calc.draw_driver_analysis import filter_tuning_rows, load_dataset_rows
+from src.calc.probability_metrics import PROB_EPSILON
 from config.eval_protocol import HOLDOUT_DRAW_MIN, VALIDATION_FRACTION
-from utils.repo_paths import repo_root, resolve_repo_path
-from utils.time_split import time_split_dataset_rows
+from src.utils.repo_paths import repo_root, resolve_repo_path
+from src.utils.time_split import time_split_dataset_rows
 
 # Stable L1 drivers from docs/reports/ml_draw/draw_driver_analysis.md (train coefs).
 STABLE_L1_TRAIN_COEFS: dict[str, float] = {

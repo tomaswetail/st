@@ -8,15 +8,15 @@ from unittest.mock import MagicMock
 
 import httpx
 
-from data_sources.entity_resolver import TeamResolution
-from data_sources.football_data.http_client import ThrottledHttpClient
-from data_sources.football_data.providers.fotmob import (
+from src.data_sources.entity_resolver import TeamResolution
+from src.data_sources.football_data.http_client import ThrottledHttpClient
+from src.data_sources.football_data.providers.fotmob import (
     FotMobProvider,
     parse_fotmob_matches_by_date,
 )
-from data_sources.football_data.service import ExtendedMatchDataService
-from objects.schema.data_classes.data_sources import DataSourceConfig
-from objects.schema.data_classes.provider_dtos import ProviderMatch
+from src.data_sources.football_data.service import ExtendedMatchDataService
+from src.objects.schema.data_classes.data_sources import DataSourceConfig
+from src.objects.schema.data_classes.provider_dtos import ProviderMatch
 
 
 def test_parse_fotmob_matches_by_date() -> None:

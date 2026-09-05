@@ -6,8 +6,8 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-from calc.player_availability_calculator import PlayerAvailabilityCalculator
-from objects.schema.data_classes.data_sources import DataSourceConfig
+from src.calc.player_availability_calculator import PlayerAvailabilityCalculator
+from src.objects.schema.data_classes.data_sources import DataSourceConfig
 
 
 def _match(

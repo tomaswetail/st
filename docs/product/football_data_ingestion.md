@@ -85,8 +85,8 @@ SofaScore league IDs for xG import are resolved through the entity-resolution pa
 ## Example xG import
 
 ```python
-from database import SessionLocal
-from data_sources.football_data import ExtendedMatchDataService
+from src.database import SessionLocal
+from src.data_sources.football_data import ExtendedMatchDataService
 
 session = SessionLocal()
 service = ExtendedMatchDataService(provider="sofascore", session=session)

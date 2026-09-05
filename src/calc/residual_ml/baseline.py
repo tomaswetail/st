@@ -5,13 +5,13 @@ from __future__ import annotations
 import math
 from typing import Mapping
 
-from calc.draw_adjustment import (
+from src.calc.draw_adjustment import (
     DrawAdjustmentConfig,
     apply_draw_adjustment,
     load_draw_adjustment_config,
 )
-from utils.common import OUTCOMES, Outcome, ensure_unit_probabilities
-from calc.probability_metrics import PROB_EPSILON
+from src.utils.common import OUTCOMES, Outcome, ensure_unit_probabilities
+from src.calc.probability_metrics import PROB_EPSILON
 
 __all__ = [
     "DrawAdjustmentConfig",

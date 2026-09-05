@@ -7,7 +7,7 @@ Holdout draws (4951–4960) are reserved for Phase 5 final evaluation only.
 from __future__ import annotations
 
 from config.stryktipset import STRYKETIPSET_DRAW_MAX, STRYKETIPSET_DRAW_MIN
-from utils.time_split import DEFAULT_VALIDATION_FRACTION
+from src.utils.time_split import DEFAULT_VALIDATION_FRACTION
 
 VALIDATION_FRACTION = DEFAULT_VALIDATION_FRACTION
 

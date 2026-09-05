@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from objects.models.match_advanced_stats import MatchAdvancedStatsModel
+from src.objects.models.match_advanced_stats import MatchAdvancedStatsModel
 
 # (metric_value, recency_weight) pairs, newest match first.
 WeightedObservation = tuple[float, float]

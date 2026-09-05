@@ -3,7 +3,7 @@
 Legacy aliases keep older imports loading during the HistoricalMatch → Fixture migration.
 """
 
-from objects.schema.db.fixture import Fixture, FixtureCreate
+from src.objects.schema.db.fixture import Fixture, FixtureCreate
 
 HistoricalMatch = Fixture
 HistoricalMatchCreate = FixtureCreate

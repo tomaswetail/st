@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Any
 
-from objects.repositories.fixture_repository import fixture_result
+from src.objects.repositories.fixture_repository import fixture_result
 
 
 def fixture_match_date(row: Any) -> date:

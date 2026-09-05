@@ -1,0 +1,28 @@
+{
+  "draw_number": 4950,
+  "row_count": 13,
+  "baselines": {
+    "market": {
+      "log_loss": 0.9288697269005748,
+      "row_count": 13
+    },
+    "dc": {
+      "log_loss": 0.9037512041921268,
+      "row_count": 13
+    },
+    "blend": {
+      "log_loss": 0.9176014209622776,
+      "row_count": 13
+    }
+  },
+  "blend_outcome": {
+    "row_count": 13,
+    "metric_definition": "binary one-vs-rest: draw uses y=(label==X); home uses y=(label==1); away uses y=(label==2)",
+    "draw_log_loss": 0.5154891757557478,
+    "draw_brier": 0.16897135387971474,
+    "home_log_loss": 0.5811749435444895,
+    "away_log_loss": 0.51840367200688,
+    "pooled_multiclass_log_loss": 0.9176014209622776
+  },
+  "notes": "Scores settled labels in dataset.csv for this draw_number. Market probs are ST odds stored on the match (often start odds). Injury features use snapshot_at <= kickoff when present."
+}

@@ -8,12 +8,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from data_sources.svenskaspel_api_client import (
+from src.data_sources.svenskaspel_api_client import (
     DrawNotFoundError,
     SvenskaSpelClient,
 )
-from objects.schema.data_classes.data_sources import DISK_CACHE_TTL_ONE_YEAR
-from objects.schema.data_classes.svenska_spel_config import SvenskaSpelConfig
+from src.objects.schema.data_classes.data_sources import DISK_CACHE_TTL_ONE_YEAR
+from src.objects.schema.data_classes.svenska_spel_config import SvenskaSpelConfig
 
 
 def _config(tmp_path: Path, **overrides: Any) -> SvenskaSpelConfig:
@@ -84,7 +84,7 @@ def test_cache_hit_skips_http(tmp_path: Path) -> None:
     payload = _open_draw_payload()
     response = _http_response(payload=payload)
 
-    with patch("data_sources.svenskaspel_api_client.httpx.get", return_value=response) as get_mock:
+    with patch("src.data_sources.svenskaspel_api_client.httpx.get", return_value=response) as get_mock:
         first = client.fetch_draw_raw(4750)
         second = client.fetch_draw_raw(4750)
 
@@ -107,7 +107,7 @@ def test_expired_open_draw_cache_refetches(tmp_path: Path) -> None:
     cache_path.write_text(json.dumps(envelope), encoding="utf-8")
 
     response = _http_response(payload=payload)
-    with patch("data_sources.svenskaspel_api_client.httpx.get", return_value=response) as get_mock:
+    with patch("src.data_sources.svenskaspel_api_client.httpx.get", return_value=response) as get_mock:
         result = client.fetch_draw_raw(4750)
 
     assert result == payload
@@ -119,7 +119,7 @@ def test_finalized_draw_uses_long_ttl(tmp_path: Path) -> None:
     payload = _finalized_draw_payload()
     response = _http_response(payload=payload)
 
-    with patch("data_sources.svenskaspel_api_client.httpx.get", return_value=response):
+    with patch("src.data_sources.svenskaspel_api_client.httpx.get", return_value=response):
         client.fetch_draw_raw(4740)
 
     envelope = json.loads(
@@ -132,7 +132,7 @@ def test_not_found_cached_without_second_http(tmp_path: Path) -> None:
     client = SvenskaSpelClient(_config(tmp_path))
     response = _http_response(status_code=404)
 
-    with patch("data_sources.svenskaspel_api_client.httpx.get", return_value=response) as get_mock:
+    with patch("src.data_sources.svenskaspel_api_client.httpx.get", return_value=response) as get_mock:
         with pytest.raises(DrawNotFoundError):
             client.fetch_draw_raw(9999)
         with pytest.raises(DrawNotFoundError):
@@ -154,7 +154,7 @@ def test_use_cache_false_bypasses_cache(tmp_path: Path) -> None:
     cache_path.write_text(json.dumps(envelope), encoding="utf-8")
 
     response = _http_response(payload=payload)
-    with patch("data_sources.svenskaspel_api_client.httpx.get", return_value=response) as get_mock:
+    with patch("src.data_sources.svenskaspel_api_client.httpx.get", return_value=response) as get_mock:
         result = client.fetch_draw_raw(4750, use_cache=False)
 
     assert result == payload
@@ -166,7 +166,7 @@ def test_enable_cache_false_always_hits_http(tmp_path: Path) -> None:
     payload = _open_draw_payload()
     response = _http_response(payload=payload)
 
-    with patch("data_sources.svenskaspel_api_client.httpx.get", return_value=response) as get_mock:
+    with patch("src.data_sources.svenskaspel_api_client.httpx.get", return_value=response) as get_mock:
         client.fetch_draw_raw(4750)
         client.fetch_draw_raw(4750)
 

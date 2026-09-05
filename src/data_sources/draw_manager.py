@@ -4,15 +4,15 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from data_sources.entity_resolver import EntityResolver
-from data_sources.svenskaspel_api_client import SvenskaSpelClient
-from objects.repositories.league_repository import LeagueRepository
-from objects.repositories.st_match_bet_repository import STMatchBetRepository
-from objects.repositories.st_match_odds_repository import STMatchOddsRepository
-from objects.repositories.st_match_repository import STMatchRepository
-from objects.repositories.st_round_repository import STRoundRepository
-from objects.repositories.team_repository import TeamRepository
-from objects.schema.db.st_round import STRound
+from src.data_sources.entity_resolver import EntityResolver
+from src.data_sources.svenskaspel_api_client import SvenskaSpelClient
+from src.objects.repositories.league_repository import LeagueRepository
+from src.objects.repositories.st_match_bet_repository import STMatchBetRepository
+from src.objects.repositories.st_match_odds_repository import STMatchOddsRepository
+from src.objects.repositories.st_match_repository import STMatchRepository
+from src.objects.repositories.st_round_repository import STRoundRepository
+from src.objects.repositories.team_repository import TeamRepository
+from src.objects.schema.db.st_round import STRound
 
 
 

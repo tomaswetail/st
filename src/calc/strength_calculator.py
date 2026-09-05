@@ -14,21 +14,21 @@ from typing import TYPE_CHECKING, Literal
 
 from sqlalchemy.orm import Session
 
-from objects.models.fixture import FixtureModel
-from objects.models.match_advanced_stats import MatchAdvancedStatsModel
-from objects.models.team import TeamModel
-from objects.repositories.fixture_repository import FixtureRepository
-from objects.repositories.match_advanced_stats_repository import (
+from src.objects.models.fixture import FixtureModel
+from src.objects.models.match_advanced_stats import MatchAdvancedStatsModel
+from src.objects.models.team import TeamModel
+from src.objects.repositories.fixture_repository import FixtureRepository
+from src.objects.repositories.match_advanced_stats_repository import (
     MatchAdvancedStatsRepository,
 )
-from objects.repositories.team_repository import TeamRepository
-from objects.schema.data_classes.data_sources import DataSourceConfig
-from objects.schema.data_classes.team_strength_features import (
+from src.objects.repositories.team_repository import TeamRepository
+from src.objects.schema.data_classes.data_sources import DataSourceConfig
+from src.objects.schema.data_classes.team_strength_features import (
     MatchStrengthFeatures,
     TeamStrengthFeatures,
 )
-from objects.schema.db.team import Team
-from utils.fixture_fields import (
+from src.objects.schema.db.team import Team
+from src.utils.fixture_fields import (
     fixture_away_name,
     fixture_goals_away,
     fixture_goals_home,
@@ -37,8 +37,8 @@ from utils.fixture_fields import (
 )
 
 if TYPE_CHECKING:
-    from calc.home_advantage_calculator import HomeAdvantageCalculator
-from calc.strength_helpers import (
+    from src.calc.home_advantage_calculator import HomeAdvantageCalculator
+from src.calc.strength_helpers import (
     WeightedObservation,
     append_observation,
     baselines_from_stats,
@@ -299,7 +299,7 @@ class StrengthCalculator:
         """Wire DB session, config, and repositories used for history loads."""
         self._owns_session = session is None
         if session is None:
-            from database import SessionLocal
+            from src.database import SessionLocal
 
             session = SessionLocal()
         self.session = session
@@ -540,7 +540,7 @@ class StrengthCalculator:
     def _home_advantage_calculator_instance(self) -> HomeAdvantageCalculator:
         """Lazy HomeAdvantageCalculator sharing this StrengthCalculator instance."""
         if self._home_advantage_calculator is None:
-            from calc.home_advantage_calculator import HomeAdvantageCalculator
+            from src.calc.home_advantage_calculator import HomeAdvantageCalculator
 
             self._home_advantage_calculator = HomeAdvantageCalculator(
                 session=self.session,

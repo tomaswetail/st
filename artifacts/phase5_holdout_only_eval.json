@@ -1,0 +1,264 @@
+{
+  "slice": "holdout_draws_4951_4960",
+  "row_count": 129,
+  "draws": [
+    4951,
+    4952,
+    4953,
+    4954,
+    4955,
+    4956,
+    4957,
+    4958,
+    4959,
+    4960
+  ],
+  "baselines": {
+    "market": {
+      "log_loss": 0.982585140938047,
+      "row_count": 129
+    },
+    "dc": {
+      "log_loss": 1.0914756793727405,
+      "row_count": 80
+    },
+    "blend": {
+      "log_loss": 0.990809134892062,
+      "row_count": 129
+    }
+  },
+  "ml_raw_log_loss": 1.02203285957447,
+  "market_on_ml_rows": 0.982585140938047,
+  "shrink_results": [
+    {
+      "alpha": 0.0,
+      "log_loss": 1.02203285957447
+    },
+    {
+      "alpha": 0.1,
+      "log_loss": 1.0153514749331882
+    },
+    {
+      "alpha": 0.2,
+      "log_loss": 1.0093848137143058
+    },
+    {
+      "alpha": 0.3,
+      "log_loss": 1.0040762605628875
+    },
+    {
+      "alpha": 0.4,
+      "log_loss": 0.9993814928787771
+    },
+    {
+      "alpha": 0.5,
+      "log_loss": 0.9952654597952633
+    },
+    {
+      "alpha": 0.6,
+      "log_loss": 0.9917003979812312
+    },
+    {
+      "alpha": 0.7,
+      "log_loss": 0.9886644874537952
+    },
+    {
+      "alpha": 0.8,
+      "log_loss": 0.9861409264229972
+    },
+    {
+      "alpha": 0.9,
+      "log_loss": 0.9841172964353995
+    },
+    {
+      "alpha": 1.0,
+      "log_loss": 0.982585140938047
+    }
+  ],
+  "best_shrink_alpha": 1.0,
+  "best_shrink_log_loss": 0.982585140938047,
+  "blend_outcome": {
+    "row_count": 129,
+    "metric_definition": "binary one-vs-rest: draw uses y=(label==X); home uses y=(label==1); away uses y=(label==2)",
+    "draw_log_loss": 0.5917980642474105,
+    "draw_brier": 0.20009899127711975,
+    "home_log_loss": 0.6007558745527211,
+    "away_log_loss": 0.5487360493791816,
+    "pooled_multiclass_log_loss": 0.990809134892062
+  },
+  "ablation": {
+    "metric_definition": "draw/home/away LL are binary one-vs-rest; pooled_log_loss is multiclass 1X2",
+    "calibration_deciles_A": [
+      {
+        "decile": 1,
+        "n": 12,
+        "mean_predicted_p_draw": 0.14627054878302784,
+        "actual_draw_rate": 0.25
+      },
+      {
+        "decile": 2,
+        "n": 12,
+        "mean_predicted_p_draw": 0.21052719685556429,
+        "actual_draw_rate": 0.16666666666666666
+      },
+      {
+        "decile": 3,
+        "n": 12,
+        "mean_predicted_p_draw": 0.23463492088701965,
+        "actual_draw_rate": 0.3333333333333333
+      },
+      {
+        "decile": 4,
+        "n": 12,
+        "mean_predicted_p_draw": 0.24608153121399787,
+        "actual_draw_rate": 0.16666666666666666
+      },
+      {
+        "decile": 5,
+        "n": 12,
+        "mean_predicted_p_draw": 0.25175248605157935,
+        "actual_draw_rate": 0.16666666666666666
+      },
+      {
+        "decile": 6,
+        "n": 12,
+        "mean_predicted_p_draw": 0.25776622634832475,
+        "actual_draw_rate": 0.4166666666666667
+      },
+      {
+        "decile": 7,
+        "n": 12,
+        "mean_predicted_p_draw": 0.2654668923948348,
+        "actual_draw_rate": 0.16666666666666666
+      },
+      {
+        "decile": 8,
+        "n": 12,
+        "mean_predicted_p_draw": 0.2719408028779004,
+        "actual_draw_rate": 0.25
+      },
+      {
+        "decile": 9,
+        "n": 12,
+        "mean_predicted_p_draw": 0.27783851012181354,
+        "actual_draw_rate": 0.4166666666666667
+      },
+      {
+        "decile": 10,
+        "n": 21,
+        "mean_predicted_p_draw": 0.2959182800808823,
+        "actual_draw_rate": 0.38095238095238093
+      }
+    ],
+    "calibration_deciles_B": [
+      {
+        "decile": 1,
+        "n": 12,
+        "mean_predicted_p_draw": 0.15207279315959774,
+        "actual_draw_rate": 0.25
+      },
+      {
+        "decile": 2,
+        "n": 12,
+        "mean_predicted_p_draw": 0.20415666548834377,
+        "actual_draw_rate": 0.3333333333333333
+      },
+      {
+        "decile": 3,
+        "n": 12,
+        "mean_predicted_p_draw": 0.2268721727988866,
+        "actual_draw_rate": 0.16666666666666666
+      },
+      {
+        "decile": 4,
+        "n": 12,
+        "mean_predicted_p_draw": 0.23852385438568854,
+        "actual_draw_rate": 0.16666666666666666
+      },
+      {
+        "decile": 5,
+        "n": 12,
+        "mean_predicted_p_draw": 0.2519602238971989,
+        "actual_draw_rate": 0.25
+      },
+      {
+        "decile": 6,
+        "n": 12,
+        "mean_predicted_p_draw": 0.2625426649859365,
+        "actual_draw_rate": 0.25
+      },
+      {
+        "decile": 7,
+        "n": 12,
+        "mean_predicted_p_draw": 0.2685580357199435,
+        "actual_draw_rate": 0.3333333333333333
+      },
+      {
+        "decile": 8,
+        "n": 12,
+        "mean_predicted_p_draw": 0.27526548894246805,
+        "actual_draw_rate": 0.25
+      },
+      {
+        "decile": 9,
+        "n": 12,
+        "mean_predicted_p_draw": 0.2857649343697512,
+        "actual_draw_rate": 0.25
+      },
+      {
+        "decile": 10,
+        "n": 21,
+        "mean_predicted_p_draw": 0.3059183389412471,
+        "actual_draw_rate": 0.42857142857142855
+      }
+    ],
+    "rows": {
+      "A": {
+        "name": "A",
+        "description": "Blend as stored in dataset (fixed or conditional; may lack draw adj)",
+        "row_count": 129,
+        "pooled_log_loss": 0.990809134892062,
+        "draw_log_loss": 0.5917980642474105,
+        "draw_brier": 0.20009899127711975,
+        "home_log_loss": 0.6007558745527211,
+        "away_log_loss": 0.5487360493791816,
+        "shrink_alpha": null
+      },
+      "B": {
+        "name": "B",
+        "description": "Blend + explicit draw adjustment (offline)",
+        "row_count": 129,
+        "pooled_log_loss": 0.9920809276094773,
+        "draw_log_loss": 0.5930698569648264,
+        "draw_brier": 0.20054007151770753,
+        "home_log_loss": 0.6038608077844565,
+        "away_log_loss": 0.5462032409101762,
+        "shrink_alpha": null
+      },
+      "C": {
+        "name": "C",
+        "description": "Blend + draw adj + HGB (predict on draw-adjusted blend columns)",
+        "row_count": 129,
+        "pooled_log_loss": 1.023408369259625,
+        "draw_log_loss": 0.6160681439162743,
+        "draw_brier": 0.2075336352209368,
+        "home_log_loss": 0.6177010396087015,
+        "away_log_loss": 0.5556190971397293,
+        "shrink_alpha": null
+      },
+      "D": {
+        "name": "D",
+        "description": "C + shrink toward market (alpha=0.5)",
+        "row_count": 129,
+        "pooled_log_loss": 0.9957470118184727,
+        "draw_log_loss": 0.6014540186956002,
+        "draw_brier": 0.20333575704547782,
+        "home_log_loss": 0.6003681570751268,
+        "away_log_loss": 0.5453689388185619,
+        "shrink_alpha": 0.5
+      }
+    }
+  },
+  "gate_note": "Primary Phase 5 include-holdout time-split (518 rows) best shrink LL=1.0022 > 0.99 \u2192 MISSED. Holdout-only market LL=0.9826 \u22640.99 but ML does not beat market; shrink \u03b1\u21921 recovers market.",
+  "league_slices": "N/A \u2014 league_external_id absent from current dataset.csv"
+}

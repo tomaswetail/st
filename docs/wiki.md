@@ -81,7 +81,7 @@ p^{\text{final}}_i = (1-\alpha)\,p^{\text{ml}}_i + \alpha\,p^{\text{market}}_i
 
 **Config:** `RESIDUAL_ML_FINAL_SHRINK_TO_MARKET` / `DataSourceConfig.residual_ml_final_shrink_to_market`.
 
-**Current production α = 0.5** (Phase 6.1). Do not use older report wording that cites α=0.9 as current production.
+**Current production α = 0.7** (MLE-ρ freeze). See [`production_profile.md`](production_profile.md). Do not use older report wording that cites α=0.5 or α=0.9 as current production.
 
 **Not the same as:** [Blend](#blend) (market+DC **before** ML). Shrink is ML+market **after** ML.
 

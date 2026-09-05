@@ -5,16 +5,16 @@ Classic DC engine (default) + fast HA rebuild example:
 
     RESIDUAL_ML_HOME_ADVANTAGE_MODE=fast \\
     RESIDUAL_ML_DC_ENGINE=classic \\
-    PYTHONPATH=src python src/scripts/build_residual_ml_dataset.py
+    python -m src.scripts.build_residual_ml_dataset
 
 Per-league DC hyperparameters (run before rebuild when tuning):
 
-    PYTHONPATH=src python src/scripts/optimize_classic_dixon_coles.py \\
+    python -m src.scripts.optimize_classic_dixon_coles \\
       --validation-fraction 0.15 \\
       --output config/classic_dc_league_params.json
 
-    PYTHONPATH=src python src/scripts/train_residual_ml.py --sweep
-    PYTHONPATH=src python src/scripts/backtest_residual_ml.py \\
+    python -m src.scripts.train_residual_ml --sweep
+    python -m src.scripts.backtest_residual_ml \\
       --model models/residual_ml/sweep_best/model.pkl
 """
 
@@ -23,8 +23,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from config.stryktipset import STRYKETIPSET_DRAW_MAX, STRYKETIPSET_DRAW_MIN
-from calc.residual_ml import ResidualMLDatasetBuilder
-from database import SessionLocal, init_db
+from src.calc.residual_ml import ResidualMLDatasetBuilder
+from src.database import SessionLocal, init_db
 
 CSV_OUTPUT = Path("data/residual_ml/dataset.csv")
 

@@ -225,7 +225,7 @@ p^{\text{final}}_i=(1-\alpha)\,p^{\text{ml}}_i+\alpha\,p^{\text{mkt}}_i
 | 0.9 | **0.51** | **0.272** | **0.218** |
 | 1.0 | 0.50 | 0.28 | 0.22 |
 
-Production currently recommends **α = 0.5** (Phase 6.1; see [`production_profile.md`](../production_profile.md)). Raw ML still loses to market on the 518-row include-holdout slice; α=0.5 is the shipped shrink.
+Production currently recommends **α = 0.7** (MLE-ρ freeze; see [`production_profile.md`](../production_profile.md)). Raw ML still loses to market on the 518-row include-holdout slice; α=0.7 is the shipped shrink.
 
 ---
 
@@ -295,5 +295,5 @@ Feature *inputs* (xG rolling windows, rest days, league rates, availability coun
 ## Verification
 
 ```bash
-PYTHONPATH=src python -m pytest tests/test_calc/test_probability_calculations.py -q
+python -m pytest tests/test_calc/test_probability_calculations.py -q
 ```

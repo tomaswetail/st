@@ -1,0 +1,1025 @@
+
+=== Ablation B0 ===
++ /home/tomas/.pyenv/versions/3.11.4/bin/python scripts/reblend_residual_ml_dataset.py --input /home/tomas/wetail/git/st/data/residual_ml/dataset.csv --output /home/tomas/wetail/git/st/data/residual_ml/ablation/B0/dataset.csv --blend-config /home/tomas/wetail/git/st/config/injury_ablation/B0_blend_weights.json
+Reblended 2589 rows → /home/tomas/wetail/git/st/data/residual_ml/ablation/B0/dataset.csv
++ /home/tomas/.pyenv/versions/3.11.4/bin/python -u scripts/train_residual_ml.py --dataset /home/tomas/wetail/git/st/data/residual_ml/ablation/B0/dataset.csv --sweep --output-dir /home/tomas/wetail/git/st/models/residual_ml/ablation/B0
+Loaded 2589 rows from /home/tomas/wetail/git/st/data/residual_ml/ablation/B0/dataset.csv
+[1/81] depth=3 lr=0.03 iter=100 smooth=0.0 val_frac=0.2 val_ll=5.7258 train_ll=4.0441
+[2/81] depth=3 lr=0.03 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0167 train_ll=0.9026
+[3/81] depth=3 lr=0.03 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0136 train_ll=0.9348
+[4/81] depth=3 lr=0.03 iter=300 smooth=0.0 val_frac=0.2 val_ll=6.3847 train_ll=2.4172
+[5/81] depth=3 lr=0.03 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.0422 train_ll=0.7516
+[6/81] depth=3 lr=0.03 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0224 train_ll=0.8217
+[7/81] depth=3 lr=0.03 iter=500 smooth=0.0 val_frac=0.2 val_ll=6.7889 train_ll=1.4962
+[8/81] depth=3 lr=0.03 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.0607 train_ll=0.6381
+[9/81] depth=3 lr=0.03 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0342 train_ll=0.7391
+[10/81] depth=3 lr=0.05 iter=100 smooth=0.0 val_frac=0.2 val_ll=5.9088 train_ll=3.3716
+[11/81] depth=3 lr=0.05 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0257 train_ll=0.8447
+[12/81] depth=3 lr=0.05 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0161 train_ll=0.8945
+[13/81] depth=3 lr=0.05 iter=300 smooth=0.0 val_frac=0.2 val_ll=6.7230 train_ll=1.4446
+[14/81] depth=3 lr=0.05 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.0647 train_ll=0.6343
+[15/81] depth=3 lr=0.05 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0339 train_ll=0.7379
+[16/81] depth=3 lr=0.05 iter=500 smooth=0.0 val_frac=0.2 val_ll=7.1967 train_ll=0.6939
+[17/81] depth=3 lr=0.05 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.0837 train_ll=0.5060
+[18/81] depth=3 lr=0.05 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0452 train_ll=0.6287
+[19/81] depth=3 lr=0.1 iter=100 smooth=0.0 val_frac=0.2 val_ll=6.4224 train_ll=2.1965
+[20/81] depth=3 lr=0.1 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0448 train_ll=0.7257
+[21/81] depth=3 lr=0.1 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0301 train_ll=0.8044
+[22/81] depth=3 lr=0.1 iter=300 smooth=0.0 val_frac=0.2 val_ll=7.5121 train_ll=0.5003
+[23/81] depth=3 lr=0.1 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.0966 train_ll=0.4545
+[24/81] depth=3 lr=0.1 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0504 train_ll=0.5860
+[25/81] depth=3 lr=0.1 iter=500 smooth=0.0 val_frac=0.2 val_ll=8.0673 train_ll=0.2461
+[26/81] depth=3 lr=0.1 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.1254 train_ll=0.3306
+[27/81] depth=3 lr=0.1 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0695 train_ll=0.4708
+[28/81] depth=4 lr=0.03 iter=100 smooth=0.0 val_frac=0.2 val_ll=5.9633 train_ll=2.9704
+[29/81] depth=4 lr=0.03 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0234 train_ll=0.8311
+[30/81] depth=4 lr=0.03 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0189 train_ll=0.8833
+[31/81] depth=4 lr=0.03 iter=300 smooth=0.0 val_frac=0.2 val_ll=6.5567 train_ll=1.2038
+[32/81] depth=4 lr=0.03 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.0480 train_ll=0.6115
+[33/81] depth=4 lr=0.03 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0335 train_ll=0.7200
+[34/81] depth=4 lr=0.03 iter=500 smooth=0.0 val_frac=0.2 val_ll=7.0520 train_ll=0.5599
+[35/81] depth=4 lr=0.03 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.0624 train_ll=0.4760
+[36/81] depth=4 lr=0.03 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0436 train_ll=0.6111
+[37/81] depth=4 lr=0.05 iter=100 smooth=0.0 val_frac=0.2 val_ll=6.0391 train_ll=2.1918
+[38/81] depth=4 lr=0.05 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0315 train_ll=0.7465
+[39/81] depth=4 lr=0.05 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0241 train_ll=0.8200
+[40/81] depth=4 lr=0.05 iter=300 smooth=0.0 val_frac=0.2 val_ll=7.0370 train_ll=0.5678
+[41/81] depth=4 lr=0.05 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.0700 train_ll=0.4716
+[42/81] depth=4 lr=0.05 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0361 train_ll=0.6081
+[43/81] depth=4 lr=0.05 iter=500 smooth=0.0 val_frac=0.2 val_ll=7.5867 train_ll=0.2618
+[44/81] depth=4 lr=0.05 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.0927 train_ll=0.3417
+[45/81] depth=4 lr=0.05 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0490 train_ll=0.4907
+[46/81] depth=4 lr=0.1 iter=100 smooth=0.0 val_frac=0.2 val_ll=6.7467 train_ll=0.9907
+[47/81] depth=4 lr=0.1 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0547 train_ll=0.5820
+[48/81] depth=4 lr=0.1 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0334 train_ll=0.6917
+[49/81] depth=4 lr=0.1 iter=300 smooth=0.0 val_frac=0.2 val_ll=7.9712 train_ll=0.1998
+[50/81] depth=4 lr=0.1 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.1050 train_ll=0.2965
+[51/81] depth=4 lr=0.1 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0535 train_ll=0.4397
+[52/81] depth=4 lr=0.1 iter=500 smooth=0.0 val_frac=0.2 val_ll=8.3066 train_ll=0.0734
+[53/81] depth=4 lr=0.1 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.1286 train_ll=0.2096
+[54/81] depth=4 lr=0.1 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0614 train_ll=0.3500
+[55/81] depth=6 lr=0.03 iter=100 smooth=0.0 val_frac=0.2 val_ll=5.9146 train_ll=1.2030
+[56/81] depth=6 lr=0.03 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0271 train_ll=0.6821
+[57/81] depth=6 lr=0.03 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0225 train_ll=0.7734
+[58/81] depth=6 lr=0.03 iter=300 smooth=0.0 val_frac=0.2 val_ll=6.8960 train_ll=0.3383
+[59/81] depth=6 lr=0.03 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.0734 train_ll=0.4082
+[60/81] depth=6 lr=0.03 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0443 train_ll=0.5435
+[61/81] depth=6 lr=0.03 iter=500 smooth=0.0 val_frac=0.2 val_ll=7.3476 train_ll=0.1484
+[62/81] depth=6 lr=0.03 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.0975 train_ll=0.2847
+[63/81] depth=6 lr=0.03 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0510 train_ll=0.4317
+[64/81] depth=6 lr=0.05 iter=100 smooth=0.0 val_frac=0.2 val_ll=6.3448 train_ll=0.6964
+[65/81] depth=6 lr=0.05 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0451 train_ll=0.5563
+[66/81] depth=6 lr=0.05 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0255 train_ll=0.6768
+[67/81] depth=6 lr=0.05 iter=300 smooth=0.0 val_frac=0.2 val_ll=7.5226 train_ll=0.1559
+[68/81] depth=6 lr=0.05 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.1006 train_ll=0.2809
+[69/81] depth=6 lr=0.05 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0400 train_ll=0.4242
+[70/81] depth=6 lr=0.05 iter=500 smooth=0.0 val_frac=0.2 val_ll=7.9461 train_ll=0.0505
+[71/81] depth=6 lr=0.05 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.1159 train_ll=0.1997
+[72/81] depth=6 lr=0.05 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0518 train_ll=0.3367
+[73/81] depth=6 lr=0.1 iter=100 smooth=0.0 val_frac=0.2 val_ll=7.2107 train_ll=0.3032
+[74/81] depth=6 lr=0.1 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0941 train_ll=0.3679
+[75/81] depth=6 lr=0.1 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0467 train_ll=0.5085
+[76/81] depth=6 lr=0.1 iter=300 smooth=0.0 val_frac=0.2 val_ll=7.9267 train_ll=0.0255
+[77/81] depth=6 lr=0.1 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.1416 train_ll=0.1729
+[78/81] depth=6 lr=0.1 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0666 train_ll=0.3085
+[79/81] depth=6 lr=0.1 iter=500 smooth=0.0 val_frac=0.2 val_ll=8.2781 train_ll=0.0014
+[80/81] depth=6 lr=0.1 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.1508 train_ll=0.1333
+[81/81] depth=6 lr=0.1 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0727 train_ll=0.2617
+Best params: {'max_depth': 3, 'learning_rate': 0.03, 'max_iter': 100, 'label_smoothing': 0.1, 'validation_fraction': 0.2, 'train_rows': 2071, 'validation_rows': 518, 'train_log_loss': 0.9347762146458375, 'validation_log_loss': 1.0135662964447059, 'market_validation_log_loss': 1.0067856568672326, 'blend_validation_log_loss': 1.0068294637288926, 'model_path': '/home/tomas/wetail/git/st/models/residual_ml/ablation/B0/model.pkl'}
+Wrote sweep results to /home/tomas/wetail/git/st/models/residual_ml/ablation/B0/sweep_results.json
+Model saved to /home/tomas/wetail/git/st/models/residual_ml/ablation/B0/model.pkl
++ /home/tomas/.pyenv/versions/3.11.4/bin/python scripts/eval_residual_ml.py --dataset /home/tomas/wetail/git/st/data/residual_ml/ablation/B0/dataset.csv --model /home/tomas/wetail/git/st/models/residual_ml/ablation/B0/model.pkl --include-holdout --ablation --json /home/tomas/wetail/git/st/artifacts/injury_ablation_B0.json
+Eval filter: time-split validation fraction=0.2 (518/2589 rows)
+
+[pooled] rows=518
+  market: log_loss=1.0068 (518 rows) top_pick=50.8% (518 rows)
+  dc: log_loss=1.0418 (465 rows) top_pick=46.9% (465 rows)
+  blend: log_loss=1.0068 (518 rows) top_pick=51.2% (518 rows)
+  ml: log_loss=1.0136 market_on_ml_rows=1.0068
+  ml_best_shrink: alpha=0.9 log_loss=1.0066
+
+[availability:0] rows=185
+  market: log_loss=0.9996 (185 rows) top_pick=50.3% (185 rows)
+  dc: log_loss=1.0696 (132 rows) top_pick=44.7% (132 rows)
+  blend: log_loss=0.9996 (185 rows) top_pick=51.4% (185 rows)
+
+[availability:1] rows=333
+  market: log_loss=1.0108 (333 rows) top_pick=51.1% (333 rows)
+  dc: log_loss=1.0307 (333 rows) top_pick=47.7% (333 rows)
+  blend: log_loss=1.0109 (333 rows) top_pick=51.1% (333 rows)
+
+[draw_quarter:Q1] rows=0
+  market: log_loss=— (0 rows) top_pick=— (0 rows)
+  dc: log_loss=— (0 rows) top_pick=— (0 rows)
+  blend: log_loss=— (0 rows) top_pick=— (0 rows)
+
+[draw_quarter:Q2] rows=0
+  market: log_loss=— (0 rows) top_pick=— (0 rows)
+  dc: log_loss=— (0 rows) top_pick=— (0 rows)
+  blend: log_loss=— (0 rows) top_pick=— (0 rows)
+
+[draw_quarter:Q3] rows=0
+  market: log_loss=— (0 rows) top_pick=— (0 rows)
+  dc: log_loss=— (0 rows) top_pick=— (0 rows)
+  blend: log_loss=— (0 rows) top_pick=— (0 rows)
+
+[draw_quarter:Q4] rows=518
+  market: log_loss=1.0068 (518 rows) top_pick=50.8% (518 rows)
+  dc: log_loss=1.0418 (465 rows) top_pick=46.9% (465 rows)
+  blend: log_loss=1.0068 (518 rows) top_pick=51.2% (518 rows)
+
+[injury_heavy:<=0.0] rows=39
+  market: log_loss=1.0291 (39 rows) top_pick=43.6% (39 rows)
+  dc: log_loss=1.0279 (39 rows) top_pick=41.0% (39 rows)
+  blend: log_loss=1.0257 (39 rows) top_pick=46.2% (39 rows)
+
+[injury_heavy:>0.0] rows=294
+  market: log_loss=1.0084 (294 rows) top_pick=52.0% (294 rows)
+  dc: log_loss=1.0311 (294 rows) top_pick=48.6% (294 rows)
+  blend: log_loss=1.0089 (294 rows) top_pick=51.7% (294 rows)
+
+[league:103] rows=1
+  market: log_loss=0.5827 (1 rows) top_pick=100.0% (1 rows)
+  dc: log_loss=0.7276 (1 rows) top_pick=100.0% (1 rows)
+  blend: log_loss=0.6240 (1 rows) top_pick=100.0% (1 rows)
+
+[league:113] rows=5
+  market: log_loss=1.0053 (5 rows) top_pick=40.0% (5 rows)
+  dc: log_loss=1.2884 (5 rows) top_pick=20.0% (5 rows)
+  blend: log_loss=1.0599 (5 rows) top_pick=40.0% (5 rows)
+
+[league:114] rows=10
+  market: log_loss=0.9973 (10 rows) top_pick=50.0% (10 rows)
+  dc: log_loss=1.0819 (10 rows) top_pick=50.0% (10 rows)
+  blend: log_loss=1.0112 (10 rows) top_pick=60.0% (10 rows)
+
+[league:140] rows=11
+  market: log_loss=1.1653 (11 rows) top_pick=45.5% (11 rows)
+  dc: log_loss=1.2646 (11 rows) top_pick=36.4% (11 rows)
+  blend: log_loss=1.1915 (11 rows) top_pick=36.4% (11 rows)
+
+[league:179] rows=4
+  market: log_loss=1.0776 (4 rows) top_pick=25.0% (4 rows)
+  dc: log_loss=0.9819 (4 rows) top_pick=50.0% (4 rows)
+  blend: log_loss=1.0476 (4 rows) top_pick=25.0% (4 rows)
+
+[league:180] rows=158
+  market: log_loss=1.0529 (158 rows) top_pick=46.2% (158 rows)
+  dc: log_loss=1.0653 (158 rows) top_pick=46.2% (158 rows)
+  blend: log_loss=1.0508 (158 rows) top_pick=46.8% (158 rows)
+
+[league:244] rows=11
+  market: log_loss=0.9503 (11 rows) top_pick=45.5% (11 rows)
+  dc: log_loss=1.0790 (11 rows) top_pick=54.5% (11 rows)
+  blend: log_loss=0.9693 (11 rows) top_pick=54.5% (11 rows)
+
+[league:311] rows=2
+  market: log_loss=1.6008 (2 rows) top_pick=0.0% (2 rows)
+  dc: log_loss=— (0 rows) top_pick=— (0 rows)
+  blend: log_loss=1.6008 (2 rows) top_pick=0.0% (2 rows)
+
+[league:39] rows=135
+  market: log_loss=0.9580 (135 rows) top_pick=56.3% (135 rows)
+  dc: log_loss=0.9596 (135 rows) top_pick=52.6% (135 rows)
+  blend: log_loss=0.9544 (135 rows) top_pick=57.0% (135 rows)
+
+[league:41] rows=67
+  market: log_loss=1.0401 (67 rows) top_pick=47.8% (67 rows)
+  dc: log_loss=1.0499 (67 rows) top_pick=46.3% (67 rows)
+  blend: log_loss=1.0396 (67 rows) top_pick=46.3% (67 rows)
+
+[league:42] rows=22
+  market: log_loss=1.0660 (22 rows) top_pick=45.5% (22 rows)
+  dc: log_loss=1.1306 (22 rows) top_pick=45.5% (22 rows)
+  blend: log_loss=1.0765 (22 rows) top_pick=45.5% (22 rows)
+
+[league:45] rows=19
+  market: log_loss=0.9820 (19 rows) top_pick=57.9% (19 rows)
+  dc: log_loss=0.9193 (19 rows) top_pick=47.4% (19 rows)
+  blend: log_loss=0.9141 (19 rows) top_pick=57.9% (19 rows)
+
+[league:564] rows=1
+  market: log_loss=1.3138 (1 rows) top_pick=0.0% (1 rows)
+  dc: log_loss=1.3075 (1 rows) top_pick=0.0% (1 rows)
+  blend: log_loss=1.3119 (1 rows) top_pick=0.0% (1 rows)
+
+[league:591] rows=2
+  market: log_loss=1.2289 (2 rows) top_pick=0.0% (2 rows)
+  dc: log_loss=1.4069 (2 rows) top_pick=0.0% (2 rows)
+  blend: log_loss=1.2777 (2 rows) top_pick=0.0% (2 rows)
+
+[league:61] rows=4
+  market: log_loss=0.8045 (4 rows) top_pick=100.0% (4 rows)
+  dc: log_loss=0.8303 (4 rows) top_pick=75.0% (4 rows)
+  blend: log_loss=0.8110 (4 rows) top_pick=100.0% (4 rows)
+
+[league:71] rows=8
+  market: log_loss=0.8545 (8 rows) top_pick=62.5% (8 rows)
+  dc: log_loss=1.3572 (8 rows) top_pick=0.0% (8 rows)
+  blend: log_loss=0.9573 (8 rows) top_pick=62.5% (8 rows)
+
+[league:78] rows=1
+  market: log_loss=1.0415 (1 rows) top_pick=0.0% (1 rows)
+  dc: log_loss=0.9789 (1 rows) top_pick=0.0% (1 rows)
+  blend: log_loss=1.0223 (1 rows) top_pick=0.0% (1 rows)
+
+[league:88] rows=1
+  market: log_loss=1.0898 (1 rows) top_pick=0.0% (1 rows)
+  dc: log_loss=1.4419 (1 rows) top_pick=0.0% (1 rows)
+  blend: log_loss=1.1830 (1 rows) top_pick=0.0% (1 rows)
+
+[year:2025] rows=173
+  market: log_loss=0.9647 (173 rows) top_pick=56.1% (173 rows)
+  dc: log_loss=1.0011 (169 rows) top_pick=57.4% (169 rows)
+  blend: log_loss=0.9692 (173 rows) top_pick=58.4% (173 rows)
+
+[year:2026] rows=345
+  market: log_loss=1.0279 (345 rows) top_pick=48.1% (345 rows)
+  dc: log_loss=1.0650 (296 rows) top_pick=40.9% (296 rows)
+  blend: log_loss=1.0257 (345 rows) top_pick=47.5% (345 rows)
+
+[outcome:market] rows=518
+  draw_ll=0.5636 draw_brier=0.1879 home_ll=0.6434 away_ll=0.5588 pooled_ll=1.0068
+
+[outcome:dc] rows=465
+  draw_ll=0.5592 draw_brier=0.1864 home_ll=0.6690 away_ll=0.5912 pooled_ll=1.0418
+
+[outcome:blend] rows=518
+  draw_ll=0.5622 draw_brier=0.1874 home_ll=0.6431 away_ll=0.5603 pooled_ll=1.0068
+
+[ablation A–D]
+  A: pooled_ll=1.0068 draw_ll=0.5622 draw_brier=0.1874 home_ll=0.6431 away_ll=0.5603 n=518
+  B: pooled_ll=1.0068 draw_ll=0.5622 draw_brier=0.1874 home_ll=0.6431 away_ll=0.5603 n=518
+  C: pooled_ll=1.0136 draw_ll=0.5638 draw_brier=0.1880 home_ll=0.6484 away_ll=0.5643 n=518
+  D: pooled_ll=1.0096 draw_ll=0.5633 draw_brier=0.1877 home_ll=0.6454 away_ll=0.5616 n=518
+
+Wrote JSON report to /home/tomas/wetail/git/st/artifacts/injury_ablation_B0.json
+
+=== Ablation B1 ===
+Reused dataset from B0: /home/tomas/wetail/git/st/data/residual_ml/ablation/B1/dataset.csv
++ /home/tomas/.pyenv/versions/3.11.4/bin/python -u scripts/train_residual_ml.py --dataset /home/tomas/wetail/git/st/data/residual_ml/ablation/B1/dataset.csv --sweep --output-dir /home/tomas/wetail/git/st/models/residual_ml/ablation/B1 --exclude-injury-features
+Loaded 2589 rows from /home/tomas/wetail/git/st/data/residual_ml/ablation/B1/dataset.csv
+[1/81] depth=3 lr=0.03 iter=100 smooth=0.0 val_frac=0.2 val_ll=5.7550 train_ll=4.0824
+[2/81] depth=3 lr=0.03 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0152 train_ll=0.9079
+[3/81] depth=3 lr=0.03 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0141 train_ll=0.9359
+[4/81] depth=3 lr=0.03 iter=300 smooth=0.0 val_frac=0.2 val_ll=6.4940 train_ll=2.4337
+[5/81] depth=3 lr=0.03 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.0397 train_ll=0.7528
+[6/81] depth=3 lr=0.03 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0253 train_ll=0.8228
+[7/81] depth=3 lr=0.03 iter=500 smooth=0.0 val_frac=0.2 val_ll=7.0568 train_ll=1.4873
+[8/81] depth=3 lr=0.03 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.0569 train_ll=0.6398
+[9/81] depth=3 lr=0.03 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0357 train_ll=0.7374
+[10/81] depth=3 lr=0.05 iter=100 smooth=0.0 val_frac=0.2 val_ll=6.0730 train_ll=3.4787
+[11/81] depth=3 lr=0.05 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0246 train_ll=0.8484
+[12/81] depth=3 lr=0.05 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0179 train_ll=0.8941
+[13/81] depth=3 lr=0.05 iter=300 smooth=0.0 val_frac=0.2 val_ll=6.9606 train_ll=1.5069
+[14/81] depth=3 lr=0.05 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.0554 train_ll=0.6384
+[15/81] depth=3 lr=0.05 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0370 train_ll=0.7367
+[16/81] depth=3 lr=0.05 iter=500 smooth=0.0 val_frac=0.2 val_ll=7.5866 train_ll=0.7246
+[17/81] depth=3 lr=0.05 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.0782 train_ll=0.5075
+[18/81] depth=3 lr=0.05 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0500 train_ll=0.6340
+[19/81] depth=3 lr=0.1 iter=100 smooth=0.0 val_frac=0.2 val_ll=6.6275 train_ll=2.1710
+[20/81] depth=3 lr=0.1 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0505 train_ll=0.7250
+[21/81] depth=3 lr=0.1 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0243 train_ll=0.8035
+[22/81] depth=3 lr=0.1 iter=300 smooth=0.0 val_frac=0.2 val_ll=7.6892 train_ll=0.5327
+[23/81] depth=3 lr=0.1 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.0906 train_ll=0.4587
+[24/81] depth=3 lr=0.1 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0576 train_ll=0.5877
+[25/81] depth=3 lr=0.1 iter=500 smooth=0.0 val_frac=0.2 val_ll=8.2825 train_ll=0.2474
+[26/81] depth=3 lr=0.1 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.1247 train_ll=0.3326
+[27/81] depth=3 lr=0.1 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0765 train_ll=0.4755
+[28/81] depth=4 lr=0.03 iter=100 smooth=0.0 val_frac=0.2 val_ll=5.8296 train_ll=3.0331
+[29/81] depth=4 lr=0.03 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0194 train_ll=0.8341
+[30/81] depth=4 lr=0.03 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0173 train_ll=0.8861
+[31/81] depth=4 lr=0.03 iter=300 smooth=0.0 val_frac=0.2 val_ll=6.6333 train_ll=1.2100
+[32/81] depth=4 lr=0.03 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.0491 train_ll=0.6182
+[33/81] depth=4 lr=0.03 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0311 train_ll=0.7236
+[34/81] depth=4 lr=0.03 iter=500 smooth=0.0 val_frac=0.2 val_ll=7.1906 train_ll=0.5672
+[35/81] depth=4 lr=0.03 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.0745 train_ll=0.4837
+[36/81] depth=4 lr=0.03 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0423 train_ll=0.6139
+[37/81] depth=4 lr=0.05 iter=100 smooth=0.0 val_frac=0.2 val_ll=6.1073 train_ll=2.1633
+[38/81] depth=4 lr=0.05 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0310 train_ll=0.7439
+[39/81] depth=4 lr=0.05 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0217 train_ll=0.8196
+[40/81] depth=4 lr=0.05 iter=300 smooth=0.0 val_frac=0.2 val_ll=7.0562 train_ll=0.5354
+[41/81] depth=4 lr=0.05 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.0768 train_ll=0.4720
+[42/81] depth=4 lr=0.05 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0381 train_ll=0.6075
+[43/81] depth=4 lr=0.05 iter=500 smooth=0.0 val_frac=0.2 val_ll=7.5294 train_ll=0.2561
+[44/81] depth=4 lr=0.05 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.1006 train_ll=0.3423
+[45/81] depth=4 lr=0.05 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0474 train_ll=0.4913
+[46/81] depth=4 lr=0.1 iter=100 smooth=0.0 val_frac=0.2 val_ll=6.8229 train_ll=1.0091
+[47/81] depth=4 lr=0.1 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0586 train_ll=0.5826
+[48/81] depth=4 lr=0.1 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0440 train_ll=0.6958
+[49/81] depth=4 lr=0.1 iter=300 smooth=0.0 val_frac=0.2 val_ll=7.5343 train_ll=0.2060
+[50/81] depth=4 lr=0.1 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.1049 train_ll=0.2993
+[51/81] depth=4 lr=0.1 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0732 train_ll=0.4456
+[52/81] depth=4 lr=0.1 iter=500 smooth=0.0 val_frac=0.2 val_ll=7.7871 train_ll=0.0782
+[53/81] depth=4 lr=0.1 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.1347 train_ll=0.2106
+[54/81] depth=4 lr=0.1 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0880 train_ll=0.3513
+[55/81] depth=6 lr=0.03 iter=100 smooth=0.0 val_frac=0.2 val_ll=6.0392 train_ll=1.2662
+[56/81] depth=6 lr=0.03 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0200 train_ll=0.6892
+[57/81] depth=6 lr=0.03 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0206 train_ll=0.7774
+[58/81] depth=6 lr=0.03 iter=300 smooth=0.0 val_frac=0.2 val_ll=6.9852 train_ll=0.3054
+[59/81] depth=6 lr=0.03 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.0643 train_ll=0.4036
+[60/81] depth=6 lr=0.03 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0352 train_ll=0.5458
+[61/81] depth=6 lr=0.03 iter=500 smooth=0.0 val_frac=0.2 val_ll=7.3318 train_ll=0.1454
+[62/81] depth=6 lr=0.03 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.0837 train_ll=0.2840
+[63/81] depth=6 lr=0.03 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0420 train_ll=0.4310
+[64/81] depth=6 lr=0.05 iter=100 smooth=0.0 val_frac=0.2 val_ll=6.3135 train_ll=0.7450
+[65/81] depth=6 lr=0.05 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0358 train_ll=0.5682
+[66/81] depth=6 lr=0.05 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0250 train_ll=0.6773
+[67/81] depth=6 lr=0.05 iter=300 smooth=0.0 val_frac=0.2 val_ll=7.1698 train_ll=0.1403
+[68/81] depth=6 lr=0.05 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.0859 train_ll=0.2851
+[69/81] depth=6 lr=0.05 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0547 train_ll=0.4245
+[70/81] depth=6 lr=0.05 iter=500 smooth=0.0 val_frac=0.2 val_ll=7.5140 train_ll=0.0485
+[71/81] depth=6 lr=0.05 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.1073 train_ll=0.1995
+[72/81] depth=6 lr=0.05 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0655 train_ll=0.3360
+[73/81] depth=6 lr=0.1 iter=100 smooth=0.0 val_frac=0.2 val_ll=7.2304 train_ll=0.2696
+[74/81] depth=6 lr=0.1 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0531 train_ll=0.3723
+[75/81] depth=6 lr=0.1 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0506 train_ll=0.5130
+[76/81] depth=6 lr=0.1 iter=300 smooth=0.0 val_frac=0.2 val_ll=7.7244 train_ll=0.0291
+[77/81] depth=6 lr=0.1 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.1035 train_ll=0.1752
+[78/81] depth=6 lr=0.1 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0770 train_ll=0.3114
+[79/81] depth=6 lr=0.1 iter=500 smooth=0.0 val_frac=0.2 val_ll=7.8685 train_ll=0.0014
+[80/81] depth=6 lr=0.1 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.1195 train_ll=0.1349
+[81/81] depth=6 lr=0.1 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0803 train_ll=0.2642
+Best params: {'max_depth': 3, 'learning_rate': 0.03, 'max_iter': 100, 'label_smoothing': 0.1, 'validation_fraction': 0.2, 'train_rows': 2071, 'validation_rows': 518, 'train_log_loss': 0.9359056647697204, 'validation_log_loss': 1.0140521003591125, 'market_validation_log_loss': 1.0067856568672326, 'blend_validation_log_loss': 1.0068294637288926, 'model_path': '/home/tomas/wetail/git/st/models/residual_ml/ablation/B1/model.pkl'}
+Wrote sweep results to /home/tomas/wetail/git/st/models/residual_ml/ablation/B1/sweep_results.json
+Model saved to /home/tomas/wetail/git/st/models/residual_ml/ablation/B1/model.pkl
++ /home/tomas/.pyenv/versions/3.11.4/bin/python scripts/eval_residual_ml.py --dataset /home/tomas/wetail/git/st/data/residual_ml/ablation/B1/dataset.csv --model /home/tomas/wetail/git/st/models/residual_ml/ablation/B1/model.pkl --include-holdout --ablation --json /home/tomas/wetail/git/st/artifacts/injury_ablation_B1.json
+Eval filter: time-split validation fraction=0.2 (518/2589 rows)
+
+[pooled] rows=518
+  market: log_loss=1.0068 (518 rows) top_pick=50.8% (518 rows)
+  dc: log_loss=1.0418 (465 rows) top_pick=46.9% (465 rows)
+  blend: log_loss=1.0068 (518 rows) top_pick=51.2% (518 rows)
+  ml: log_loss=1.0141 market_on_ml_rows=1.0068
+  ml_best_shrink: alpha=0.9 log_loss=1.0067
+
+[availability:0] rows=185
+  market: log_loss=0.9996 (185 rows) top_pick=50.3% (185 rows)
+  dc: log_loss=1.0696 (132 rows) top_pick=44.7% (132 rows)
+  blend: log_loss=0.9996 (185 rows) top_pick=51.4% (185 rows)
+
+[availability:1] rows=333
+  market: log_loss=1.0108 (333 rows) top_pick=51.1% (333 rows)
+  dc: log_loss=1.0307 (333 rows) top_pick=47.7% (333 rows)
+  blend: log_loss=1.0109 (333 rows) top_pick=51.1% (333 rows)
+
+[draw_quarter:Q1] rows=0
+  market: log_loss=— (0 rows) top_pick=— (0 rows)
+  dc: log_loss=— (0 rows) top_pick=— (0 rows)
+  blend: log_loss=— (0 rows) top_pick=— (0 rows)
+
+[draw_quarter:Q2] rows=0
+  market: log_loss=— (0 rows) top_pick=— (0 rows)
+  dc: log_loss=— (0 rows) top_pick=— (0 rows)
+  blend: log_loss=— (0 rows) top_pick=— (0 rows)
+
+[draw_quarter:Q3] rows=0
+  market: log_loss=— (0 rows) top_pick=— (0 rows)
+  dc: log_loss=— (0 rows) top_pick=— (0 rows)
+  blend: log_loss=— (0 rows) top_pick=— (0 rows)
+
+[draw_quarter:Q4] rows=518
+  market: log_loss=1.0068 (518 rows) top_pick=50.8% (518 rows)
+  dc: log_loss=1.0418 (465 rows) top_pick=46.9% (465 rows)
+  blend: log_loss=1.0068 (518 rows) top_pick=51.2% (518 rows)
+
+[injury_heavy:<=0.0] rows=39
+  market: log_loss=1.0291 (39 rows) top_pick=43.6% (39 rows)
+  dc: log_loss=1.0279 (39 rows) top_pick=41.0% (39 rows)
+  blend: log_loss=1.0257 (39 rows) top_pick=46.2% (39 rows)
+
+[injury_heavy:>0.0] rows=294
+  market: log_loss=1.0084 (294 rows) top_pick=52.0% (294 rows)
+  dc: log_loss=1.0311 (294 rows) top_pick=48.6% (294 rows)
+  blend: log_loss=1.0089 (294 rows) top_pick=51.7% (294 rows)
+
+[league:103] rows=1
+  market: log_loss=0.5827 (1 rows) top_pick=100.0% (1 rows)
+  dc: log_loss=0.7276 (1 rows) top_pick=100.0% (1 rows)
+  blend: log_loss=0.6240 (1 rows) top_pick=100.0% (1 rows)
+
+[league:113] rows=5
+  market: log_loss=1.0053 (5 rows) top_pick=40.0% (5 rows)
+  dc: log_loss=1.2884 (5 rows) top_pick=20.0% (5 rows)
+  blend: log_loss=1.0599 (5 rows) top_pick=40.0% (5 rows)
+
+[league:114] rows=10
+  market: log_loss=0.9973 (10 rows) top_pick=50.0% (10 rows)
+  dc: log_loss=1.0819 (10 rows) top_pick=50.0% (10 rows)
+  blend: log_loss=1.0112 (10 rows) top_pick=60.0% (10 rows)
+
+[league:140] rows=11
+  market: log_loss=1.1653 (11 rows) top_pick=45.5% (11 rows)
+  dc: log_loss=1.2646 (11 rows) top_pick=36.4% (11 rows)
+  blend: log_loss=1.1915 (11 rows) top_pick=36.4% (11 rows)
+
+[league:179] rows=4
+  market: log_loss=1.0776 (4 rows) top_pick=25.0% (4 rows)
+  dc: log_loss=0.9819 (4 rows) top_pick=50.0% (4 rows)
+  blend: log_loss=1.0476 (4 rows) top_pick=25.0% (4 rows)
+
+[league:180] rows=158
+  market: log_loss=1.0529 (158 rows) top_pick=46.2% (158 rows)
+  dc: log_loss=1.0653 (158 rows) top_pick=46.2% (158 rows)
+  blend: log_loss=1.0508 (158 rows) top_pick=46.8% (158 rows)
+
+[league:244] rows=11
+  market: log_loss=0.9503 (11 rows) top_pick=45.5% (11 rows)
+  dc: log_loss=1.0790 (11 rows) top_pick=54.5% (11 rows)
+  blend: log_loss=0.9693 (11 rows) top_pick=54.5% (11 rows)
+
+[league:311] rows=2
+  market: log_loss=1.6008 (2 rows) top_pick=0.0% (2 rows)
+  dc: log_loss=— (0 rows) top_pick=— (0 rows)
+  blend: log_loss=1.6008 (2 rows) top_pick=0.0% (2 rows)
+
+[league:39] rows=135
+  market: log_loss=0.9580 (135 rows) top_pick=56.3% (135 rows)
+  dc: log_loss=0.9596 (135 rows) top_pick=52.6% (135 rows)
+  blend: log_loss=0.9544 (135 rows) top_pick=57.0% (135 rows)
+
+[league:41] rows=67
+  market: log_loss=1.0401 (67 rows) top_pick=47.8% (67 rows)
+  dc: log_loss=1.0499 (67 rows) top_pick=46.3% (67 rows)
+  blend: log_loss=1.0396 (67 rows) top_pick=46.3% (67 rows)
+
+[league:42] rows=22
+  market: log_loss=1.0660 (22 rows) top_pick=45.5% (22 rows)
+  dc: log_loss=1.1306 (22 rows) top_pick=45.5% (22 rows)
+  blend: log_loss=1.0765 (22 rows) top_pick=45.5% (22 rows)
+
+[league:45] rows=19
+  market: log_loss=0.9820 (19 rows) top_pick=57.9% (19 rows)
+  dc: log_loss=0.9193 (19 rows) top_pick=47.4% (19 rows)
+  blend: log_loss=0.9141 (19 rows) top_pick=57.9% (19 rows)
+
+[league:564] rows=1
+  market: log_loss=1.3138 (1 rows) top_pick=0.0% (1 rows)
+  dc: log_loss=1.3075 (1 rows) top_pick=0.0% (1 rows)
+  blend: log_loss=1.3119 (1 rows) top_pick=0.0% (1 rows)
+
+[league:591] rows=2
+  market: log_loss=1.2289 (2 rows) top_pick=0.0% (2 rows)
+  dc: log_loss=1.4069 (2 rows) top_pick=0.0% (2 rows)
+  blend: log_loss=1.2777 (2 rows) top_pick=0.0% (2 rows)
+
+[league:61] rows=4
+  market: log_loss=0.8045 (4 rows) top_pick=100.0% (4 rows)
+  dc: log_loss=0.8303 (4 rows) top_pick=75.0% (4 rows)
+  blend: log_loss=0.8110 (4 rows) top_pick=100.0% (4 rows)
+
+[league:71] rows=8
+  market: log_loss=0.8545 (8 rows) top_pick=62.5% (8 rows)
+  dc: log_loss=1.3572 (8 rows) top_pick=0.0% (8 rows)
+  blend: log_loss=0.9573 (8 rows) top_pick=62.5% (8 rows)
+
+[league:78] rows=1
+  market: log_loss=1.0415 (1 rows) top_pick=0.0% (1 rows)
+  dc: log_loss=0.9789 (1 rows) top_pick=0.0% (1 rows)
+  blend: log_loss=1.0223 (1 rows) top_pick=0.0% (1 rows)
+
+[league:88] rows=1
+  market: log_loss=1.0898 (1 rows) top_pick=0.0% (1 rows)
+  dc: log_loss=1.4419 (1 rows) top_pick=0.0% (1 rows)
+  blend: log_loss=1.1830 (1 rows) top_pick=0.0% (1 rows)
+
+[year:2025] rows=173
+  market: log_loss=0.9647 (173 rows) top_pick=56.1% (173 rows)
+  dc: log_loss=1.0011 (169 rows) top_pick=57.4% (169 rows)
+  blend: log_loss=0.9692 (173 rows) top_pick=58.4% (173 rows)
+
+[year:2026] rows=345
+  market: log_loss=1.0279 (345 rows) top_pick=48.1% (345 rows)
+  dc: log_loss=1.0650 (296 rows) top_pick=40.9% (296 rows)
+  blend: log_loss=1.0257 (345 rows) top_pick=47.5% (345 rows)
+
+[outcome:market] rows=518
+  draw_ll=0.5636 draw_brier=0.1879 home_ll=0.6434 away_ll=0.5588 pooled_ll=1.0068
+
+[outcome:dc] rows=465
+  draw_ll=0.5592 draw_brier=0.1864 home_ll=0.6690 away_ll=0.5912 pooled_ll=1.0418
+
+[outcome:blend] rows=518
+  draw_ll=0.5622 draw_brier=0.1874 home_ll=0.6431 away_ll=0.5603 pooled_ll=1.0068
+
+[ablation A–D]
+  A: pooled_ll=1.0068 draw_ll=0.5622 draw_brier=0.1874 home_ll=0.6431 away_ll=0.5603 n=518
+  B: pooled_ll=1.0068 draw_ll=0.5622 draw_brier=0.1874 home_ll=0.6431 away_ll=0.5603 n=518
+  C: pooled_ll=1.0141 draw_ll=0.5643 draw_brier=0.1882 home_ll=0.6493 away_ll=0.5635 n=518
+  D: pooled_ll=1.0099 draw_ll=0.5637 draw_brier=0.1879 home_ll=0.6460 away_ll=0.5610 n=518
+
+Wrote JSON report to /home/tomas/wetail/git/st/artifacts/injury_ablation_B1.json
+
+=== Ablation B2 ===
++ /home/tomas/.pyenv/versions/3.11.4/bin/python scripts/reblend_residual_ml_dataset.py --input /home/tomas/wetail/git/st/data/residual_ml/dataset.csv --output /home/tomas/wetail/git/st/data/residual_ml/ablation/B2/dataset.csv --blend-config /home/tomas/wetail/git/st/config/injury_ablation/B2_blend_weights.json
+Reblended 2589 rows → /home/tomas/wetail/git/st/data/residual_ml/ablation/B2/dataset.csv
++ /home/tomas/.pyenv/versions/3.11.4/bin/python -u scripts/train_residual_ml.py --dataset /home/tomas/wetail/git/st/data/residual_ml/ablation/B2/dataset.csv --sweep --output-dir /home/tomas/wetail/git/st/models/residual_ml/ablation/B2
+Loaded 2589 rows from /home/tomas/wetail/git/st/data/residual_ml/ablation/B2/dataset.csv
+[1/81] depth=3 lr=0.03 iter=100 smooth=0.0 val_frac=0.2 val_ll=5.6269 train_ll=4.0267
+[2/81] depth=3 lr=0.03 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0185 train_ll=0.9031
+[3/81] depth=3 lr=0.03 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0169 train_ll=0.9358
+[4/81] depth=3 lr=0.03 iter=300 smooth=0.0 val_frac=0.2 val_ll=6.2990 train_ll=2.4064
+[5/81] depth=3 lr=0.03 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.0447 train_ll=0.7497
+[6/81] depth=3 lr=0.03 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0277 train_ll=0.8245
+[7/81] depth=3 lr=0.03 iter=500 smooth=0.0 val_frac=0.2 val_ll=6.7239 train_ll=1.4530
+[8/81] depth=3 lr=0.03 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.0616 train_ll=0.6414
+[9/81] depth=3 lr=0.03 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0365 train_ll=0.7408
+[10/81] depth=3 lr=0.05 iter=100 smooth=0.0 val_frac=0.2 val_ll=5.9206 train_ll=3.3899
+[11/81] depth=3 lr=0.05 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0284 train_ll=0.8431
+[12/81] depth=3 lr=0.05 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0180 train_ll=0.8965
+[13/81] depth=3 lr=0.05 iter=300 smooth=0.0 val_frac=0.2 val_ll=6.7787 train_ll=1.4969
+[14/81] depth=3 lr=0.05 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.0560 train_ll=0.6338
+[15/81] depth=3 lr=0.05 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0410 train_ll=0.7409
+[16/81] depth=3 lr=0.05 iter=500 smooth=0.0 val_frac=0.2 val_ll=7.2487 train_ll=0.6969
+[17/81] depth=3 lr=0.05 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.0747 train_ll=0.5051
+[18/81] depth=3 lr=0.05 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0488 train_ll=0.6353
+[19/81] depth=3 lr=0.1 iter=100 smooth=0.0 val_frac=0.2 val_ll=6.4573 train_ll=2.1901
+[20/81] depth=3 lr=0.1 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0532 train_ll=0.7261
+[21/81] depth=3 lr=0.1 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0319 train_ll=0.8028
+[22/81] depth=3 lr=0.1 iter=300 smooth=0.0 val_frac=0.2 val_ll=7.6372 train_ll=0.5082
+[23/81] depth=3 lr=0.1 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.1055 train_ll=0.4563
+[24/81] depth=3 lr=0.1 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0580 train_ll=0.5858
+[25/81] depth=3 lr=0.1 iter=500 smooth=0.0 val_frac=0.2 val_ll=8.1877 train_ll=0.2420
+[26/81] depth=3 lr=0.1 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.1401 train_ll=0.3309
+[27/81] depth=3 lr=0.1 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0744 train_ll=0.4727
+[28/81] depth=4 lr=0.03 iter=100 smooth=0.0 val_frac=0.2 val_ll=5.8863 train_ll=2.9871
+[29/81] depth=4 lr=0.03 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0216 train_ll=0.8306
+[30/81] depth=4 lr=0.03 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0206 train_ll=0.8843
+[31/81] depth=4 lr=0.03 iter=300 smooth=0.0 val_frac=0.2 val_ll=6.5879 train_ll=1.2087
+[32/81] depth=4 lr=0.03 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.0526 train_ll=0.6129
+[33/81] depth=4 lr=0.03 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0381 train_ll=0.7262
+[34/81] depth=4 lr=0.03 iter=500 smooth=0.0 val_frac=0.2 val_ll=7.0256 train_ll=0.5570
+[35/81] depth=4 lr=0.03 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.0707 train_ll=0.4755
+[36/81] depth=4 lr=0.03 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0470 train_ll=0.6139
+[37/81] depth=4 lr=0.05 iter=100 smooth=0.0 val_frac=0.2 val_ll=6.1695 train_ll=2.2086
+[38/81] depth=4 lr=0.05 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0306 train_ll=0.7420
+[39/81] depth=4 lr=0.05 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0255 train_ll=0.8262
+[40/81] depth=4 lr=0.05 iter=300 smooth=0.0 val_frac=0.2 val_ll=7.0843 train_ll=0.5366
+[41/81] depth=4 lr=0.05 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.0702 train_ll=0.4690
+[42/81] depth=4 lr=0.05 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0469 train_ll=0.6109
+[43/81] depth=4 lr=0.05 iter=500 smooth=0.0 val_frac=0.2 val_ll=7.6569 train_ll=0.2507
+[44/81] depth=4 lr=0.05 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.0959 train_ll=0.3413
+[45/81] depth=4 lr=0.05 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0600 train_ll=0.4901
+[46/81] depth=4 lr=0.1 iter=100 smooth=0.0 val_frac=0.2 val_ll=6.7950 train_ll=0.9891
+[47/81] depth=4 lr=0.1 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0643 train_ll=0.5729
+[48/81] depth=4 lr=0.1 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0454 train_ll=0.6948
+[49/81] depth=4 lr=0.1 iter=300 smooth=0.0 val_frac=0.2 val_ll=7.7579 train_ll=0.2028
+[50/81] depth=4 lr=0.1 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.1106 train_ll=0.3041
+[51/81] depth=4 lr=0.1 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0662 train_ll=0.4427
+[52/81] depth=4 lr=0.1 iter=500 smooth=0.0 val_frac=0.2 val_ll=8.1491 train_ll=0.0710
+[53/81] depth=4 lr=0.1 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.1329 train_ll=0.2134
+[54/81] depth=4 lr=0.1 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0813 train_ll=0.3496
+[55/81] depth=6 lr=0.03 iter=100 smooth=0.0 val_frac=0.2 val_ll=5.9832 train_ll=1.1753
+[56/81] depth=6 lr=0.03 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0269 train_ll=0.6726
+[57/81] depth=6 lr=0.03 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0213 train_ll=0.7705
+[58/81] depth=6 lr=0.03 iter=300 smooth=0.0 val_frac=0.2 val_ll=6.9449 train_ll=0.3345
+[59/81] depth=6 lr=0.03 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.0642 train_ll=0.4034
+[60/81] depth=6 lr=0.03 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0423 train_ll=0.5427
+[61/81] depth=6 lr=0.03 iter=500 smooth=0.0 val_frac=0.2 val_ll=7.3398 train_ll=0.1609
+[62/81] depth=6 lr=0.03 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.0847 train_ll=0.2835
+[63/81] depth=6 lr=0.03 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0517 train_ll=0.4282
+[64/81] depth=6 lr=0.05 iter=100 smooth=0.0 val_frac=0.2 val_ll=6.4198 train_ll=0.6709
+[65/81] depth=6 lr=0.05 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0345 train_ll=0.5498
+[66/81] depth=6 lr=0.05 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0306 train_ll=0.6752
+[67/81] depth=6 lr=0.05 iter=300 smooth=0.0 val_frac=0.2 val_ll=7.2623 train_ll=0.1408
+[68/81] depth=6 lr=0.05 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.0865 train_ll=0.2814
+[69/81] depth=6 lr=0.05 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0537 train_ll=0.4285
+[70/81] depth=6 lr=0.05 iter=500 smooth=0.0 val_frac=0.2 val_ll=7.6028 train_ll=0.0473
+[71/81] depth=6 lr=0.05 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.1071 train_ll=0.1997
+[72/81] depth=6 lr=0.05 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0621 train_ll=0.3377
+[73/81] depth=6 lr=0.1 iter=100 smooth=0.0 val_frac=0.2 val_ll=7.2649 train_ll=0.2909
+[74/81] depth=6 lr=0.1 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0704 train_ll=0.3705
+[75/81] depth=6 lr=0.1 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0575 train_ll=0.5088
+[76/81] depth=6 lr=0.1 iter=300 smooth=0.0 val_frac=0.2 val_ll=7.8372 train_ll=0.0256
+[77/81] depth=6 lr=0.1 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.1313 train_ll=0.1731
+[78/81] depth=6 lr=0.1 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0760 train_ll=0.3090
+[79/81] depth=6 lr=0.1 iter=500 smooth=0.0 val_frac=0.2 val_ll=8.0518 train_ll=0.0014
+[80/81] depth=6 lr=0.1 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.1440 train_ll=0.1331
+[81/81] depth=6 lr=0.1 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0797 train_ll=0.2617
+Best params: {'max_depth': 3, 'learning_rate': 0.03, 'max_iter': 100, 'label_smoothing': 0.1, 'validation_fraction': 0.2, 'train_rows': 2071, 'validation_rows': 518, 'train_log_loss': 0.935751674857715, 'validation_log_loss': 1.016894506024083, 'market_validation_log_loss': 1.0067856568672326, 'blend_validation_log_loss': 1.00559209190886, 'model_path': '/home/tomas/wetail/git/st/models/residual_ml/ablation/B2/model.pkl'}
+Wrote sweep results to /home/tomas/wetail/git/st/models/residual_ml/ablation/B2/sweep_results.json
+Model saved to /home/tomas/wetail/git/st/models/residual_ml/ablation/B2/model.pkl
++ /home/tomas/.pyenv/versions/3.11.4/bin/python scripts/eval_residual_ml.py --dataset /home/tomas/wetail/git/st/data/residual_ml/ablation/B2/dataset.csv --model /home/tomas/wetail/git/st/models/residual_ml/ablation/B2/model.pkl --include-holdout --ablation --json /home/tomas/wetail/git/st/artifacts/injury_ablation_B2.json
+Eval filter: time-split validation fraction=0.2 (518/2589 rows)
+
+[pooled] rows=518
+  market: log_loss=1.0068 (518 rows) top_pick=50.8% (518 rows)
+  dc: log_loss=1.0418 (465 rows) top_pick=46.9% (465 rows)
+  blend: log_loss=1.0056 (518 rows) top_pick=50.6% (518 rows)
+  ml: log_loss=1.0169 market_on_ml_rows=1.0068
+  ml_best_shrink: alpha=1.0 log_loss=1.0068
+
+[availability:0] rows=185
+  market: log_loss=0.9996 (185 rows) top_pick=50.3% (185 rows)
+  dc: log_loss=1.0696 (132 rows) top_pick=44.7% (132 rows)
+  blend: log_loss=0.9979 (185 rows) top_pick=50.8% (185 rows)
+
+[availability:1] rows=333
+  market: log_loss=1.0108 (333 rows) top_pick=51.1% (333 rows)
+  dc: log_loss=1.0307 (333 rows) top_pick=47.7% (333 rows)
+  blend: log_loss=1.0099 (333 rows) top_pick=50.5% (333 rows)
+
+[draw_quarter:Q1] rows=0
+  market: log_loss=— (0 rows) top_pick=— (0 rows)
+  dc: log_loss=— (0 rows) top_pick=— (0 rows)
+  blend: log_loss=— (0 rows) top_pick=— (0 rows)
+
+[draw_quarter:Q2] rows=0
+  market: log_loss=— (0 rows) top_pick=— (0 rows)
+  dc: log_loss=— (0 rows) top_pick=— (0 rows)
+  blend: log_loss=— (0 rows) top_pick=— (0 rows)
+
+[draw_quarter:Q3] rows=0
+  market: log_loss=— (0 rows) top_pick=— (0 rows)
+  dc: log_loss=— (0 rows) top_pick=— (0 rows)
+  blend: log_loss=— (0 rows) top_pick=— (0 rows)
+
+[draw_quarter:Q4] rows=518
+  market: log_loss=1.0068 (518 rows) top_pick=50.8% (518 rows)
+  dc: log_loss=1.0418 (465 rows) top_pick=46.9% (465 rows)
+  blend: log_loss=1.0056 (518 rows) top_pick=50.6% (518 rows)
+
+[injury_heavy:<=0.0] rows=39
+  market: log_loss=1.0291 (39 rows) top_pick=43.6% (39 rows)
+  dc: log_loss=1.0279 (39 rows) top_pick=41.0% (39 rows)
+  blend: log_loss=1.0223 (39 rows) top_pick=46.2% (39 rows)
+
+[injury_heavy:>0.0] rows=294
+  market: log_loss=1.0084 (294 rows) top_pick=52.0% (294 rows)
+  dc: log_loss=1.0311 (294 rows) top_pick=48.6% (294 rows)
+  blend: log_loss=1.0082 (294 rows) top_pick=51.0% (294 rows)
+
+[league:103] rows=1
+  market: log_loss=0.5827 (1 rows) top_pick=100.0% (1 rows)
+  dc: log_loss=0.7276 (1 rows) top_pick=100.0% (1 rows)
+  blend: log_loss=0.6032 (1 rows) top_pick=100.0% (1 rows)
+
+[league:113] rows=5
+  market: log_loss=1.0053 (5 rows) top_pick=40.0% (5 rows)
+  dc: log_loss=1.2884 (5 rows) top_pick=20.0% (5 rows)
+  blend: log_loss=1.0305 (5 rows) top_pick=40.0% (5 rows)
+
+[league:114] rows=10
+  market: log_loss=0.9973 (10 rows) top_pick=50.0% (10 rows)
+  dc: log_loss=1.0819 (10 rows) top_pick=50.0% (10 rows)
+  blend: log_loss=1.0034 (10 rows) top_pick=60.0% (10 rows)
+
+[league:140] rows=11
+  market: log_loss=1.1653 (11 rows) top_pick=45.5% (11 rows)
+  dc: log_loss=1.2646 (11 rows) top_pick=36.4% (11 rows)
+  blend: log_loss=1.1781 (11 rows) top_pick=45.5% (11 rows)
+
+[league:179] rows=4
+  market: log_loss=1.0776 (4 rows) top_pick=25.0% (4 rows)
+  dc: log_loss=0.9819 (4 rows) top_pick=50.0% (4 rows)
+  blend: log_loss=1.0625 (4 rows) top_pick=25.0% (4 rows)
+
+[league:180] rows=158
+  market: log_loss=1.0529 (158 rows) top_pick=46.2% (158 rows)
+  dc: log_loss=1.0653 (158 rows) top_pick=46.2% (158 rows)
+  blend: log_loss=1.0512 (158 rows) top_pick=45.6% (158 rows)
+
+[league:244] rows=11
+  market: log_loss=0.9503 (11 rows) top_pick=45.5% (11 rows)
+  dc: log_loss=1.0790 (11 rows) top_pick=54.5% (11 rows)
+  blend: log_loss=0.9580 (11 rows) top_pick=45.5% (11 rows)
+
+[league:311] rows=2
+  market: log_loss=1.6008 (2 rows) top_pick=0.0% (2 rows)
+  dc: log_loss=— (0 rows) top_pick=— (0 rows)
+  blend: log_loss=1.6008 (2 rows) top_pick=0.0% (2 rows)
+
+[league:39] rows=135
+  market: log_loss=0.9580 (135 rows) top_pick=56.3% (135 rows)
+  dc: log_loss=0.9596 (135 rows) top_pick=52.6% (135 rows)
+  blend: log_loss=0.9554 (135 rows) top_pick=56.3% (135 rows)
+
+[league:41] rows=67
+  market: log_loss=1.0401 (67 rows) top_pick=47.8% (67 rows)
+  dc: log_loss=1.0499 (67 rows) top_pick=46.3% (67 rows)
+  blend: log_loss=1.0385 (67 rows) top_pick=46.3% (67 rows)
+
+[league:42] rows=22
+  market: log_loss=1.0660 (22 rows) top_pick=45.5% (22 rows)
+  dc: log_loss=1.1306 (22 rows) top_pick=45.5% (22 rows)
+  blend: log_loss=1.0705 (22 rows) top_pick=45.5% (22 rows)
+
+[league:45] rows=19
+  market: log_loss=0.9820 (19 rows) top_pick=57.9% (19 rows)
+  dc: log_loss=0.9193 (19 rows) top_pick=47.4% (19 rows)
+  blend: log_loss=0.9332 (19 rows) top_pick=57.9% (19 rows)
+
+[league:564] rows=1
+  market: log_loss=1.3138 (1 rows) top_pick=0.0% (1 rows)
+  dc: log_loss=1.3075 (1 rows) top_pick=0.0% (1 rows)
+  blend: log_loss=1.3129 (1 rows) top_pick=0.0% (1 rows)
+
+[league:591] rows=2
+  market: log_loss=1.2289 (2 rows) top_pick=0.0% (2 rows)
+  dc: log_loss=1.4069 (2 rows) top_pick=0.0% (2 rows)
+  blend: log_loss=1.2529 (2 rows) top_pick=0.0% (2 rows)
+
+[league:61] rows=4
+  market: log_loss=0.8045 (4 rows) top_pick=100.0% (4 rows)
+  dc: log_loss=0.8303 (4 rows) top_pick=75.0% (4 rows)
+  blend: log_loss=0.8076 (4 rows) top_pick=100.0% (4 rows)
+
+[league:71] rows=8
+  market: log_loss=0.8545 (8 rows) top_pick=62.5% (8 rows)
+  dc: log_loss=1.3572 (8 rows) top_pick=0.0% (8 rows)
+  blend: log_loss=0.9026 (8 rows) top_pick=62.5% (8 rows)
+
+[league:78] rows=1
+  market: log_loss=1.0415 (1 rows) top_pick=0.0% (1 rows)
+  dc: log_loss=0.9789 (1 rows) top_pick=0.0% (1 rows)
+  blend: log_loss=1.0318 (1 rows) top_pick=0.0% (1 rows)
+
+[league:88] rows=1
+  market: log_loss=1.0898 (1 rows) top_pick=0.0% (1 rows)
+  dc: log_loss=1.4419 (1 rows) top_pick=0.0% (1 rows)
+  blend: log_loss=1.1353 (1 rows) top_pick=0.0% (1 rows)
+
+[year:2025] rows=173
+  market: log_loss=0.9647 (173 rows) top_pick=56.1% (173 rows)
+  dc: log_loss=1.0011 (169 rows) top_pick=57.4% (169 rows)
+  blend: log_loss=0.9671 (173 rows) top_pick=56.1% (173 rows)
+
+[year:2026] rows=345
+  market: log_loss=1.0279 (345 rows) top_pick=48.1% (345 rows)
+  dc: log_loss=1.0650 (296 rows) top_pick=40.9% (296 rows)
+  blend: log_loss=1.0249 (345 rows) top_pick=47.8% (345 rows)
+
+[outcome:market] rows=518
+  draw_ll=0.5636 draw_brier=0.1879 home_ll=0.6434 away_ll=0.5588 pooled_ll=1.0068
+
+[outcome:dc] rows=465
+  draw_ll=0.5592 draw_brier=0.1864 home_ll=0.6690 away_ll=0.5912 pooled_ll=1.0418
+
+[outcome:blend] rows=518
+  draw_ll=0.5629 draw_brier=0.1877 home_ll=0.6421 away_ll=0.5587 pooled_ll=1.0056
+
+[ablation A–D]
+  A: pooled_ll=1.0056 draw_ll=0.5629 draw_brier=0.1877 home_ll=0.6421 away_ll=0.5587 n=518
+  B: pooled_ll=1.0056 draw_ll=0.5629 draw_brier=0.1877 home_ll=0.6421 away_ll=0.5587 n=518
+  C: pooled_ll=1.0169 draw_ll=0.5653 draw_brier=0.1886 home_ll=0.6500 away_ll=0.5660 n=518
+  D: pooled_ll=1.0118 draw_ll=0.5643 draw_brier=0.1882 home_ll=0.6465 away_ll=0.5627 n=518
+
+Wrote JSON report to /home/tomas/wetail/git/st/artifacts/injury_ablation_B2.json
+
+=== Ablation B3 ===
++ /home/tomas/.pyenv/versions/3.11.4/bin/python scripts/reblend_residual_ml_dataset.py --input /home/tomas/wetail/git/st/data/residual_ml/dataset.csv --output /home/tomas/wetail/git/st/data/residual_ml/ablation/B3/dataset.csv --blend-config /home/tomas/wetail/git/st/config/injury_ablation/B3_blend_weights.json
+Reblended 2589 rows → /home/tomas/wetail/git/st/data/residual_ml/ablation/B3/dataset.csv
++ /home/tomas/.pyenv/versions/3.11.4/bin/python -u scripts/train_residual_ml.py --dataset /home/tomas/wetail/git/st/data/residual_ml/ablation/B3/dataset.csv --sweep --output-dir /home/tomas/wetail/git/st/models/residual_ml/ablation/B3
+Loaded 2589 rows from /home/tomas/wetail/git/st/data/residual_ml/ablation/B3/dataset.csv
+[1/81] depth=3 lr=0.03 iter=100 smooth=0.0 val_frac=0.2 val_ll=5.6785 train_ll=4.0538
+[2/81] depth=3 lr=0.03 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0145 train_ll=0.9044
+[3/81] depth=3 lr=0.03 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0160 train_ll=0.9356
+[4/81] depth=3 lr=0.03 iter=300 smooth=0.0 val_frac=0.2 val_ll=6.2371 train_ll=2.4026
+[5/81] depth=3 lr=0.03 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.0360 train_ll=0.7513
+[6/81] depth=3 lr=0.03 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0255 train_ll=0.8262
+[7/81] depth=3 lr=0.03 iter=500 smooth=0.0 val_frac=0.2 val_ll=6.8252 train_ll=1.4668
+[8/81] depth=3 lr=0.03 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.0544 train_ll=0.6399
+[9/81] depth=3 lr=0.03 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0359 train_ll=0.7424
+[10/81] depth=3 lr=0.05 iter=100 smooth=0.0 val_frac=0.2 val_ll=5.8861 train_ll=3.4446
+[11/81] depth=3 lr=0.05 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0242 train_ll=0.8449
+[12/81] depth=3 lr=0.05 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0184 train_ll=0.8936
+[13/81] depth=3 lr=0.05 iter=300 smooth=0.0 val_frac=0.2 val_ll=6.8390 train_ll=1.4557
+[14/81] depth=3 lr=0.05 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.0575 train_ll=0.6391
+[15/81] depth=3 lr=0.05 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0324 train_ll=0.7369
+[16/81] depth=3 lr=0.05 iter=500 smooth=0.0 val_frac=0.2 val_ll=7.2678 train_ll=0.6756
+[17/81] depth=3 lr=0.05 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.0884 train_ll=0.5063
+[18/81] depth=3 lr=0.05 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0460 train_ll=0.6283
+[19/81] depth=3 lr=0.1 iter=100 smooth=0.0 val_frac=0.2 val_ll=6.5399 train_ll=2.1713
+[20/81] depth=3 lr=0.1 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0543 train_ll=0.7191
+[21/81] depth=3 lr=0.1 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0250 train_ll=0.8065
+[22/81] depth=3 lr=0.1 iter=300 smooth=0.0 val_frac=0.2 val_ll=7.5589 train_ll=0.4931
+[23/81] depth=3 lr=0.1 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.1005 train_ll=0.4525
+[24/81] depth=3 lr=0.1 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0460 train_ll=0.5882
+[25/81] depth=3 lr=0.1 iter=500 smooth=0.0 val_frac=0.2 val_ll=8.2440 train_ll=0.2449
+[26/81] depth=3 lr=0.1 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.1289 train_ll=0.3285
+[27/81] depth=3 lr=0.1 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0706 train_ll=0.4774
+[28/81] depth=4 lr=0.03 iter=100 smooth=0.0 val_frac=0.2 val_ll=5.9436 train_ll=2.9748
+[29/81] depth=4 lr=0.03 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0223 train_ll=0.8321
+[30/81] depth=4 lr=0.03 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0206 train_ll=0.8866
+[31/81] depth=4 lr=0.03 iter=300 smooth=0.0 val_frac=0.2 val_ll=6.6821 train_ll=1.2005
+[32/81] depth=4 lr=0.03 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.0569 train_ll=0.6103
+[33/81] depth=4 lr=0.03 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0348 train_ll=0.7220
+[34/81] depth=4 lr=0.03 iter=500 smooth=0.0 val_frac=0.2 val_ll=7.1812 train_ll=0.5554
+[35/81] depth=4 lr=0.03 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.0807 train_ll=0.4773
+[36/81] depth=4 lr=0.03 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0431 train_ll=0.6142
+[37/81] depth=4 lr=0.05 iter=100 smooth=0.0 val_frac=0.2 val_ll=6.2328 train_ll=2.2384
+[38/81] depth=4 lr=0.05 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0307 train_ll=0.7446
+[39/81] depth=4 lr=0.05 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0253 train_ll=0.8235
+[40/81] depth=4 lr=0.05 iter=300 smooth=0.0 val_frac=0.2 val_ll=7.3417 train_ll=0.5767
+[41/81] depth=4 lr=0.05 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.0649 train_ll=0.4726
+[42/81] depth=4 lr=0.05 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0431 train_ll=0.6029
+[43/81] depth=4 lr=0.05 iter=500 smooth=0.0 val_frac=0.2 val_ll=7.7858 train_ll=0.2563
+[44/81] depth=4 lr=0.05 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.0952 train_ll=0.3410
+[45/81] depth=4 lr=0.05 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0580 train_ll=0.4842
+[46/81] depth=4 lr=0.1 iter=100 smooth=0.0 val_frac=0.2 val_ll=6.6176 train_ll=1.0421
+[47/81] depth=4 lr=0.1 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0558 train_ll=0.5772
+[48/81] depth=4 lr=0.1 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0399 train_ll=0.6936
+[49/81] depth=4 lr=0.1 iter=300 smooth=0.0 val_frac=0.2 val_ll=7.7873 train_ll=0.1790
+[50/81] depth=4 lr=0.1 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.1096 train_ll=0.2991
+[51/81] depth=4 lr=0.1 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0707 train_ll=0.4430
+[52/81] depth=4 lr=0.1 iter=500 smooth=0.0 val_frac=0.2 val_ll=8.0898 train_ll=0.0655
+[53/81] depth=4 lr=0.1 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.1378 train_ll=0.2095
+[54/81] depth=4 lr=0.1 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0836 train_ll=0.3517
+[55/81] depth=6 lr=0.03 iter=100 smooth=0.0 val_frac=0.2 val_ll=5.9964 train_ll=1.2099
+[56/81] depth=6 lr=0.03 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0333 train_ll=0.6819
+[57/81] depth=6 lr=0.03 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0211 train_ll=0.7758
+[58/81] depth=6 lr=0.03 iter=300 smooth=0.0 val_frac=0.2 val_ll=6.8937 train_ll=0.3403
+[59/81] depth=6 lr=0.03 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.0797 train_ll=0.4042
+[60/81] depth=6 lr=0.03 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0405 train_ll=0.5452
+[61/81] depth=6 lr=0.03 iter=500 smooth=0.0 val_frac=0.2 val_ll=7.2452 train_ll=0.1456
+[62/81] depth=6 lr=0.03 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.0961 train_ll=0.2845
+[63/81] depth=6 lr=0.03 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0493 train_ll=0.4255
+[64/81] depth=6 lr=0.05 iter=100 smooth=0.0 val_frac=0.2 val_ll=6.4535 train_ll=0.7362
+[65/81] depth=6 lr=0.05 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0498 train_ll=0.5569
+[66/81] depth=6 lr=0.05 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0318 train_ll=0.6706
+[67/81] depth=6 lr=0.05 iter=300 smooth=0.0 val_frac=0.2 val_ll=7.4001 train_ll=0.1545
+[68/81] depth=6 lr=0.05 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.0974 train_ll=0.2847
+[69/81] depth=6 lr=0.05 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0543 train_ll=0.4268
+[70/81] depth=6 lr=0.05 iter=500 smooth=0.0 val_frac=0.2 val_ll=7.7051 train_ll=0.0519
+[71/81] depth=6 lr=0.05 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.1122 train_ll=0.1978
+[72/81] depth=6 lr=0.05 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0677 train_ll=0.3379
+[73/81] depth=6 lr=0.1 iter=100 smooth=0.0 val_frac=0.2 val_ll=7.3778 train_ll=0.2880
+[74/81] depth=6 lr=0.1 iter=100 smooth=0.05 val_frac=0.2 val_ll=1.0772 train_ll=0.3632
+[75/81] depth=6 lr=0.1 iter=100 smooth=0.1 val_frac=0.2 val_ll=1.0514 train_ll=0.5056
+[76/81] depth=6 lr=0.1 iter=300 smooth=0.0 val_frac=0.2 val_ll=8.3619 train_ll=0.0290
+[77/81] depth=6 lr=0.1 iter=300 smooth=0.05 val_frac=0.2 val_ll=1.1216 train_ll=0.1741
+[78/81] depth=6 lr=0.1 iter=300 smooth=0.1 val_frac=0.2 val_ll=1.0833 train_ll=0.3101
+[79/81] depth=6 lr=0.1 iter=500 smooth=0.0 val_frac=0.2 val_ll=8.4896 train_ll=0.0007
+[80/81] depth=6 lr=0.1 iter=500 smooth=0.05 val_frac=0.2 val_ll=1.1394 train_ll=0.1352
+[81/81] depth=6 lr=0.1 iter=500 smooth=0.1 val_frac=0.2 val_ll=1.0887 train_ll=0.2628
+Best params: {'max_depth': 3, 'learning_rate': 0.03, 'max_iter': 100, 'label_smoothing': 0.05, 'validation_fraction': 0.2, 'train_rows': 2071, 'validation_rows': 518, 'train_log_loss': 0.9044219314109246, 'validation_log_loss': 1.0145395037215645, 'market_validation_log_loss': 1.0067856568672326, 'blend_validation_log_loss': 1.0056620067202338, 'model_path': '/home/tomas/wetail/git/st/models/residual_ml/ablation/B3/model.pkl'}
+Wrote sweep results to /home/tomas/wetail/git/st/models/residual_ml/ablation/B3/sweep_results.json
+Model saved to /home/tomas/wetail/git/st/models/residual_ml/ablation/B3/model.pkl
++ /home/tomas/.pyenv/versions/3.11.4/bin/python scripts/eval_residual_ml.py --dataset /home/tomas/wetail/git/st/data/residual_ml/ablation/B3/dataset.csv --model /home/tomas/wetail/git/st/models/residual_ml/ablation/B3/model.pkl --include-holdout --ablation --json /home/tomas/wetail/git/st/artifacts/injury_ablation_B3.json
+Eval filter: time-split validation fraction=0.2 (518/2589 rows)
+
+[pooled] rows=518
+  market: log_loss=1.0068 (518 rows) top_pick=50.8% (518 rows)
+  dc: log_loss=1.0418 (465 rows) top_pick=46.9% (465 rows)
+  blend: log_loss=1.0057 (518 rows) top_pick=50.6% (518 rows)
+  ml: log_loss=1.0145 market_on_ml_rows=1.0068
+  ml_best_shrink: alpha=0.7 log_loss=1.0054
+
+[availability:0] rows=185
+  market: log_loss=0.9996 (185 rows) top_pick=50.3% (185 rows)
+  dc: log_loss=1.0696 (132 rows) top_pick=44.7% (132 rows)
+  blend: log_loss=0.9981 (185 rows) top_pick=50.8% (185 rows)
+
+[availability:1] rows=333
+  market: log_loss=1.0108 (333 rows) top_pick=51.1% (333 rows)
+  dc: log_loss=1.0307 (333 rows) top_pick=47.7% (333 rows)
+  blend: log_loss=1.0099 (333 rows) top_pick=50.5% (333 rows)
+
+[draw_quarter:Q1] rows=0
+  market: log_loss=— (0 rows) top_pick=— (0 rows)
+  dc: log_loss=— (0 rows) top_pick=— (0 rows)
+  blend: log_loss=— (0 rows) top_pick=— (0 rows)
+
+[draw_quarter:Q2] rows=0
+  market: log_loss=— (0 rows) top_pick=— (0 rows)
+  dc: log_loss=— (0 rows) top_pick=— (0 rows)
+  blend: log_loss=— (0 rows) top_pick=— (0 rows)
+
+[draw_quarter:Q3] rows=0
+  market: log_loss=— (0 rows) top_pick=— (0 rows)
+  dc: log_loss=— (0 rows) top_pick=— (0 rows)
+  blend: log_loss=— (0 rows) top_pick=— (0 rows)
+
+[draw_quarter:Q4] rows=518
+  market: log_loss=1.0068 (518 rows) top_pick=50.8% (518 rows)
+  dc: log_loss=1.0418 (465 rows) top_pick=46.9% (465 rows)
+  blend: log_loss=1.0057 (518 rows) top_pick=50.6% (518 rows)
+
+[injury_heavy:<=0.0] rows=333
+  market: log_loss=1.0108 (333 rows) top_pick=51.1% (333 rows)
+  dc: log_loss=1.0307 (333 rows) top_pick=47.7% (333 rows)
+  blend: log_loss=1.0099 (333 rows) top_pick=50.5% (333 rows)
+
+[injury_heavy:>0.0] rows=0
+  market: log_loss=— (0 rows) top_pick=— (0 rows)
+  dc: log_loss=— (0 rows) top_pick=— (0 rows)
+  blend: log_loss=— (0 rows) top_pick=— (0 rows)
+
+[league:103] rows=1
+  market: log_loss=0.5827 (1 rows) top_pick=100.0% (1 rows)
+  dc: log_loss=0.7276 (1 rows) top_pick=100.0% (1 rows)
+  blend: log_loss=0.6032 (1 rows) top_pick=100.0% (1 rows)
+
+[league:113] rows=5
+  market: log_loss=1.0053 (5 rows) top_pick=40.0% (5 rows)
+  dc: log_loss=1.2884 (5 rows) top_pick=20.0% (5 rows)
+  blend: log_loss=1.0305 (5 rows) top_pick=40.0% (5 rows)
+
+[league:114] rows=10
+  market: log_loss=0.9973 (10 rows) top_pick=50.0% (10 rows)
+  dc: log_loss=1.0819 (10 rows) top_pick=50.0% (10 rows)
+  blend: log_loss=1.0034 (10 rows) top_pick=60.0% (10 rows)
+
+[league:140] rows=11
+  market: log_loss=1.1653 (11 rows) top_pick=45.5% (11 rows)
+  dc: log_loss=1.2646 (11 rows) top_pick=36.4% (11 rows)
+  blend: log_loss=1.1781 (11 rows) top_pick=45.5% (11 rows)
+
+[league:179] rows=4
+  market: log_loss=1.0776 (4 rows) top_pick=25.0% (4 rows)
+  dc: log_loss=0.9819 (4 rows) top_pick=50.0% (4 rows)
+  blend: log_loss=1.0625 (4 rows) top_pick=25.0% (4 rows)
+
+[league:180] rows=158
+  market: log_loss=1.0529 (158 rows) top_pick=46.2% (158 rows)
+  dc: log_loss=1.0653 (158 rows) top_pick=46.2% (158 rows)
+  blend: log_loss=1.0512 (158 rows) top_pick=45.6% (158 rows)
+
+[league:244] rows=11
+  market: log_loss=0.9503 (11 rows) top_pick=45.5% (11 rows)
+  dc: log_loss=1.0790 (11 rows) top_pick=54.5% (11 rows)
+  blend: log_loss=0.9580 (11 rows) top_pick=45.5% (11 rows)
+
+[league:311] rows=2
+  market: log_loss=1.6008 (2 rows) top_pick=0.0% (2 rows)
+  dc: log_loss=— (0 rows) top_pick=— (0 rows)
+  blend: log_loss=1.6008 (2 rows) top_pick=0.0% (2 rows)
+
+[league:39] rows=135
+  market: log_loss=0.9580 (135 rows) top_pick=56.3% (135 rows)
+  dc: log_loss=0.9596 (135 rows) top_pick=52.6% (135 rows)
+  blend: log_loss=0.9554 (135 rows) top_pick=56.3% (135 rows)
+
+[league:41] rows=67
+  market: log_loss=1.0401 (67 rows) top_pick=47.8% (67 rows)
+  dc: log_loss=1.0499 (67 rows) top_pick=46.3% (67 rows)
+  blend: log_loss=1.0385 (67 rows) top_pick=46.3% (67 rows)
+
+[league:42] rows=22
+  market: log_loss=1.0660 (22 rows) top_pick=45.5% (22 rows)
+  dc: log_loss=1.1306 (22 rows) top_pick=45.5% (22 rows)
+  blend: log_loss=1.0705 (22 rows) top_pick=45.5% (22 rows)
+
+[league:45] rows=19
+  market: log_loss=0.9820 (19 rows) top_pick=57.9% (19 rows)
+  dc: log_loss=0.9193 (19 rows) top_pick=47.4% (19 rows)
+  blend: log_loss=0.9370 (19 rows) top_pick=57.9% (19 rows)
+
+[league:564] rows=1
+  market: log_loss=1.3138 (1 rows) top_pick=0.0% (1 rows)
+  dc: log_loss=1.3075 (1 rows) top_pick=0.0% (1 rows)
+  blend: log_loss=1.3129 (1 rows) top_pick=0.0% (1 rows)
+
+[league:591] rows=2
+  market: log_loss=1.2289 (2 rows) top_pick=0.0% (2 rows)
+  dc: log_loss=1.4069 (2 rows) top_pick=0.0% (2 rows)
+  blend: log_loss=1.2529 (2 rows) top_pick=0.0% (2 rows)
+
+[league:61] rows=4
+  market: log_loss=0.8045 (4 rows) top_pick=100.0% (4 rows)
+  dc: log_loss=0.8303 (4 rows) top_pick=75.0% (4 rows)
+  blend: log_loss=0.8076 (4 rows) top_pick=100.0% (4 rows)
+
+[league:71] rows=8
+  market: log_loss=0.8545 (8 rows) top_pick=62.5% (8 rows)
+  dc: log_loss=1.3572 (8 rows) top_pick=0.0% (8 rows)
+  blend: log_loss=0.9026 (8 rows) top_pick=62.5% (8 rows)
+
+[league:78] rows=1
+  market: log_loss=1.0415 (1 rows) top_pick=0.0% (1 rows)
+  dc: log_loss=0.9789 (1 rows) top_pick=0.0% (1 rows)
+  blend: log_loss=1.0318 (1 rows) top_pick=0.0% (1 rows)
+
+[league:88] rows=1
+  market: log_loss=1.0898 (1 rows) top_pick=0.0% (1 rows)
+  dc: log_loss=1.4419 (1 rows) top_pick=0.0% (1 rows)
+  blend: log_loss=1.1353 (1 rows) top_pick=0.0% (1 rows)
+
+[year:2025] rows=173
+  market: log_loss=0.9647 (173 rows) top_pick=56.1% (173 rows)
+  dc: log_loss=1.0011 (169 rows) top_pick=57.4% (169 rows)
+  blend: log_loss=0.9670 (173 rows) top_pick=56.1% (173 rows)
+
+[year:2026] rows=345
+  market: log_loss=1.0279 (345 rows) top_pick=48.1% (345 rows)
+  dc: log_loss=1.0650 (296 rows) top_pick=40.9% (296 rows)
+  blend: log_loss=1.0251 (345 rows) top_pick=47.8% (345 rows)
+
+[outcome:market] rows=518
+  draw_ll=0.5636 draw_brier=0.1879 home_ll=0.6434 away_ll=0.5588 pooled_ll=1.0068
+
+[outcome:dc] rows=465
+  draw_ll=0.5592 draw_brier=0.1864 home_ll=0.6690 away_ll=0.5912 pooled_ll=1.0418
+
+[outcome:blend] rows=518
+  draw_ll=0.5629 draw_brier=0.1876 home_ll=0.6423 away_ll=0.5587 pooled_ll=1.0057
+
+[ablation A–D]
+  A: pooled_ll=1.0057 draw_ll=0.5629 draw_brier=0.1876 home_ll=0.6423 away_ll=0.5587 n=518
+  B: pooled_ll=1.0057 draw_ll=0.5629 draw_brier=0.1876 home_ll=0.6423 away_ll=0.5587 n=518
+  C: pooled_ll=1.0145 draw_ll=0.5687 draw_brier=0.1895 home_ll=0.6465 away_ll=0.5641 n=518
+  D: pooled_ll=1.0084 draw_ll=0.5657 draw_brier=0.1886 home_ll=0.6431 away_ll=0.5603 n=518
+
+Wrote JSON report to /home/tomas/wetail/git/st/artifacts/injury_ablation_B3.json
+
+Wrote summary to /home/tomas/wetail/git/st/artifacts/injury_ablation_summary.json

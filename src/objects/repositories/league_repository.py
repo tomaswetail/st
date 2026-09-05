@@ -4,8 +4,8 @@ import logging
 from sqlalchemy import select
 
 
-from objects.models.league import LeagueModel
-from objects.repositories.base import BaseRepository
+from src.objects.models.league import LeagueModel
+from src.objects.repositories.base import BaseRepository
 
 logger = logging.getLogger(__name__)
 

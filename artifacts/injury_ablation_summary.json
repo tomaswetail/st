@@ -1,0 +1,30 @@
+{
+  "B0": {
+    "best_shrink_log_loss": 1.0066172448464816,
+    "best_shrink_alpha": 0.9,
+    "ml_log_loss": 1.0135662964447059,
+    "blend_log_loss": 1.0068294637288926,
+    "market_log_loss": 1.0067856568672326
+  },
+  "B1": {
+    "best_shrink_log_loss": 1.0066652626498267,
+    "best_shrink_alpha": 0.9,
+    "ml_log_loss": 1.0140521003591125,
+    "blend_log_loss": 1.0068294637288926,
+    "market_log_loss": 1.0067856568672326
+  },
+  "B2": {
+    "best_shrink_log_loss": 1.0067856568672326,
+    "best_shrink_alpha": 1.0,
+    "ml_log_loss": 1.016894506024083,
+    "blend_log_loss": 1.00559209190886,
+    "market_log_loss": 1.0067856568672326
+  },
+  "B3": {
+    "best_shrink_log_loss": 1.00540928268042,
+    "best_shrink_alpha": 0.7,
+    "ml_log_loss": 1.0145395037215645,
+    "blend_log_loss": 1.0056620067202338,
+    "market_log_loss": 1.0067856568672326
+  }
+}

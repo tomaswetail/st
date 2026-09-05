@@ -7,15 +7,15 @@ from datetime import date, timedelta
 
 import pytest
 
-from calc.dixon_coles.metrics import log_loss_one
-from calc.dixon_coles.model import DixonColesModel, filter_matches_by_lookback
-from calc.dixon_coles.optimizer import (
+from src.calc.dixon_coles.metrics import log_loss_one
+from src.calc.dixon_coles.model import DixonColesModel, filter_matches_by_lookback
+from src.calc.dixon_coles.optimizer import (
     DixonColesOptimizer,
     group_eval_matches_by_league,
     optimize_single_league,
 )
-from calc.dixon_coles.types import DixonColesMatch
-from calc.dixon_coles.walk_forward import EvalMatch
+from src.calc.dixon_coles.types import DixonColesMatch
+from src.calc.dixon_coles.walk_forward import EvalMatch
 
 
 def _fixture_match(

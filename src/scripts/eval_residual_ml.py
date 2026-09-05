@@ -15,15 +15,14 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from calc.residual_ml import (
+from src.calc.residual_ml import (
     ResidualMLModel,
     is_market_only_weights,
     load_dataset_rows,
     resolve_validation_fraction,
-    run_backtest_scoring,
     select_backtest_rows,
 )
-from calc.residual_ml.evaluation import (
+from src.calc.residual_ml.evaluation import (
     BASELINE_KEY_GROUPS,
     SliceMetrics,
     build_multi_slice_report,
@@ -31,8 +30,8 @@ from calc.residual_ml.evaluation import (
     score_outcome_metrics,
 )
 from config.eval_protocol import TUNING_DRAW_MAX, VALIDATION_FRACTION
-from objects.schema.data_classes.data_sources import DataSourceConfig
-from utils.repo_paths import resolve_repo_path
+from src.objects.schema.data_classes.data_sources import DataSourceConfig
+from src.utils.repo_paths import resolve_repo_path
 
 
 def _format_loss(value: float | None) -> str:
@@ -62,6 +61,12 @@ def _print_slice_metrics(metrics: SliceMetrics) -> None:
         print(
             f"  ml_best_shrink: alpha={metrics.best_shrink_alpha:.1f} "
             f"log_loss={metrics.best_shrink_log_loss:.4f}",
+            flush=True,
+        )
+    if metrics.production_shrink_log_loss is not None:
+        print(
+            f"  ml_production_shrink: alpha={metrics.production_shrink_alpha:.1f} "
+            f"log_loss={metrics.production_shrink_log_loss:.4f}",
             flush=True,
         )
 
@@ -162,23 +167,23 @@ def main() -> None:
         residual_ml_model_path=model_path,
     )
     model = ResidualMLModel.load(model_path, config=config)
-    scoring = None
     trainer = None
+    use_market_only = False
     if model is not None:
         trainer = model.trainer
         use_market_only = is_market_only_weights(
             model.trainer.market_weight,
             model.trainer.dc_weight,
         )
-        scoring = run_backtest_scoring(
-            rows,
-            model.trainer,
-            use_market_only_baseline=use_market_only,
-        )
     else:
         print("ML model not found; reporting baseline slices only", flush=True)
 
-    report = build_multi_slice_report(rows, scoring)
+    report = build_multi_slice_report(
+        rows,
+        trainer=trainer,
+        production_shrink_alpha=config.residual_ml_final_shrink_to_market,
+        use_market_only_baseline=use_market_only,
+    )
     for key in sorted(report.keys(), key=lambda name: (name != "pooled", name)):
         _print_slice_metrics(report[key])
 

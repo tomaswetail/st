@@ -6,8 +6,8 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from calc.dixon_coles.service import DixonColesService
-from objects.schema.data_classes.data_sources import DataSourceConfig
+from src.calc.dixon_coles.service import DixonColesService
+from src.objects.schema.data_classes.data_sources import DataSourceConfig
 
 
 def test_params_for_league_uses_json_override(tmp_path: Path):

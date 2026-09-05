@@ -4,5 +4,6 @@
   "rho_values": [-0.20, -0.15, -0.10, -0.05, 0.0, 0.05],
   "min_eval_matches_per_league": 15,
   "min_training_matches": 50,
-  "min_team_matches": 5
+  "min_team_matches": 5,
+  "fit_rho": true
 }

@@ -8,7 +8,7 @@ from typing import Any
 
 import numpy as np
 
-from objects.schema.data_classes.residual_ml_features import ResidualMLFeatures
+from src.objects.schema.data_classes.residual_ml_features import ResidualMLFeatures
 
 
 def _is_nan(value: Any) -> bool:

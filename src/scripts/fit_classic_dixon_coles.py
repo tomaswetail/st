@@ -6,9 +6,9 @@ from __future__ import annotations
 import argparse
 from datetime import date
 
-from calc.dixon_coles import DixonColesService
-from database import SessionLocal, init_db
-from objects.schema.data_classes.data_sources import DataSourceConfig
+from src.calc.dixon_coles import DixonColesService
+from src.database import SessionLocal, init_db
+from src.objects.schema.data_classes.data_sources import DataSourceConfig
 
 
 def main() -> None:

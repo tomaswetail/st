@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from calc.probability_metrics import multiclass_log_loss
+from src.calc.probability_metrics import multiclass_log_loss
 
 
 def test_multiclass_log_loss_matches_sklearn_on_fixed_rows():

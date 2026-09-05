@@ -9,30 +9,30 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 
-from data_sources.entity_resolver import EntityResolver, MatchResolution, TeamResolution
-from data_sources.football_data.http_client import (
+from src.data_sources.entity_resolver import EntityResolver, MatchResolution, TeamResolution
+from src.data_sources.football_data.http_client import (
     NotFoundError,
     ThrottledHttpClient,
 )
-from data_sources.football_data.metrics import (
+from src.data_sources.football_data.metrics import (
     calculate_derived_metrics,
     shot_fingerprint,
 )
-from data_sources.football_data.providers.sofascore import (
+from src.data_sources.football_data.providers.sofascore import (
     parse_sofascore_available_leagues,
     parse_sofascore_match_details,
     parse_sofascore_matches,
 )
-from data_sources.football_data.results import MatchImportResult
-from data_sources.football_data.service import ExtendedMatchDataService
-from objects.schema.data_classes.data_sources import DataSourceConfig
-from objects.schema.data_classes.provider_dtos import (
+from src.data_sources.football_data.results import MatchImportResult
+from src.data_sources.football_data.service import ExtendedMatchDataService
+from src.objects.schema.data_classes.data_sources import DataSourceConfig
+from src.objects.schema.data_classes.provider_dtos import (
     ProviderMatch,
     ProviderMatchDetails,
     ProviderShot,
     ProviderTeam,
 )
-from calc.strength_calculator import StrengthCalculator
+from src.calc.strength_calculator import StrengthCalculator
 from tests.football_data.conftest import load_fixture
 
 
@@ -365,7 +365,7 @@ def test_retry_and_rate_limit_handling(tmp_path):
 
     transport = httpx.MockTransport(handler)
     client._client = httpx.Client(transport=transport, base_url="https://example.test")
-    with patch("data_sources.football_data.http_client.time.sleep"):
+    with patch("src.data_sources.football_data.http_client.time.sleep"):
         data = client.get_json("/path")
     assert data == {"ok": True}
 

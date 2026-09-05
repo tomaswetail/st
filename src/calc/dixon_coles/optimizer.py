@@ -4,16 +4,18 @@ from __future__ import annotations
 
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import date
 from itertools import product
+from statistics import median
 from time import perf_counter
 
 import numpy as np
 
-from calc.dixon_coles.model import DixonColesModel, FixtureDateIndex
-from calc.dixon_coles.types import DixonColesMatch
-from calc.dixon_coles.walk_forward import (
+from src.calc.dixon_coles.model import DixonColesModel, FixtureDateIndex
+from src.calc.dixon_coles.types import DixonColesMatch
+from src.calc.dixon_coles.walk_forward import (
     EvalMatch,
     WalkForwardResult,
     run_walk_forward_per_league,
@@ -41,6 +43,30 @@ def _team_ids_for_window(
 
 
 @dataclass(frozen=True)
+class RhoFitDiagnostics:
+    """Spread of MLE-fitted rho across walk-forward fits for one parameter set."""
+
+    n_fits: int = 0
+    median: float | None = None
+    minimum: float | None = None
+    maximum: float | None = None
+    at_bound_count: int = 0
+
+    @property
+    def at_bound_fraction(self) -> float:
+        return self.at_bound_count / self.n_fits if self.n_fits else 0.0
+
+    def summary(self) -> str:
+        if not self.n_fits or self.median is None:
+            return "rho_fitted=n/a"
+        return (
+            f"rho_fitted median={self.median:+.4f} "
+            f"[{self.minimum:+.4f}, {self.maximum:+.4f}] "
+            f"at_bound={self.at_bound_count}/{self.n_fits}"
+        )
+
+
+@dataclass(frozen=True)
 class DixonColesParameterResult:
     league_id: int
     xi: float
@@ -51,6 +77,7 @@ class DixonColesParameterResult:
     num_predictions: int
     skipped_matches: int
     avg_training_matches: float
+    rho_diagnostics: RhoFitDiagnostics = field(default_factory=RhoFitDiagnostics)
 
 
 @dataclass
@@ -66,6 +93,7 @@ class DixonColesLeagueOptimizationResult:
     validation_start: date | None
     validation_end: date | None
     parameter_results: list[DixonColesParameterResult] = field(default_factory=list)
+    rho_diagnostics: RhoFitDiagnostics = field(default_factory=RhoFitDiagnostics)
 
     def top_parameter_results(self, n: int = 3) -> list[DixonColesParameterResult]:
         return sorted(self.parameter_results, key=lambda row: row.log_loss)[:n]
@@ -114,6 +142,9 @@ class _LeagueOptimizationJob:
     min_team_matches: int
     max_goals: int
     log_progress: bool
+    fit_rho: bool = False
+    rho_min: float = -0.2
+    rho_max: float = 0.2
 
 
 def _average_training_size(
@@ -159,7 +190,10 @@ def _evaluate_parameter_set(
     max_goals: int,
     window_cache: WindowCache,
     use_warm_start: bool = True,
-) -> WalkForwardResult:
+    fit_rho: bool = False,
+    rho_min: float = -0.2,
+    rho_max: float = 0.2,
+) -> tuple[WalkForwardResult, RhoFitDiagnostics]:
     fit_cache: dict[date, DixonColesModel | None] = {}
     last_theta: np.ndarray | None = None
     last_team_ids: tuple[int, ...] | None = None
@@ -206,6 +240,9 @@ def _evaluate_parameter_set(
                 lookback_days=lookback,
                 min_team_matches=min_team_matches,
                 as_of=day,
+                fit_rho=fit_rho,
+                rho_min=rho_min,
+                rho_max=rho_max,
             ).fit(matches, as_of=day, initial_theta=initial_theta)
             if use_warm_start and model.fitted_theta is not None:
                 last_theta = model.fitted_theta
@@ -215,7 +252,25 @@ def _evaluate_parameter_set(
         fit_cache[day] = model
         return model
 
-    return run_walk_forward_per_league(eval_matches, fit_for_league_and_date)
+    walk_forward = run_walk_forward_per_league(eval_matches, fit_for_league_and_date)
+    return walk_forward, _rho_diagnostics(fit_cache.values())
+
+
+def _rho_diagnostics(models: Iterable[DixonColesModel | None]) -> RhoFitDiagnostics:
+    fitted_models = [
+        model for model in models if model is not None and model.fitted_rho is not None
+    ]
+    if not fitted_models:
+        return RhoFitDiagnostics()
+    fitted = [float(model.fitted_rho) for model in fitted_models]
+    at_bound = sum(1 for model in fitted_models if model.rho_at_bound)
+    return RhoFitDiagnostics(
+        n_fits=len(fitted),
+        median=float(median(fitted)),
+        minimum=min(fitted),
+        maximum=max(fitted),
+        at_bound_count=at_bound,
+    )
 
 
 def optimize_single_league(
@@ -233,8 +288,16 @@ def optimize_single_league(
     max_goals: int,
     log_progress: bool = True,
     use_warm_start: bool = True,
+    fit_rho: bool = False,
+    rho_min: float = -0.2,
+    rho_max: float = 0.2,
+    default_rho: float = -0.13,
 ) -> DixonColesLeagueOptimizationResult:
-    """Grid-search walk-forward hyperparameters for one league."""
+    """Grid-search walk-forward hyperparameters for one league.
+
+    With ``fit_rho`` the rho dimension is dropped from the grid and rho is
+    estimated by MLE inside each walk-forward fit instead.
+    """
     if log_progress:
         print(
             f"Optimizing league={league_id} "
@@ -246,7 +309,14 @@ def optimize_single_league(
     fixture_index = FixtureDateIndex.from_matches(league_fixtures)
     avg_training_by_lookback: dict[int, float] = {}
     parameter_results: list[DixonColesParameterResult] = []
-    grid_combos = list(product(xi_values, lookback_values, rho_values))
+    if fit_rho:
+        # Rho comes from the likelihood, so it must not also be swept.
+        grid_combos = [
+            (xi, lookback, None)
+            for xi, lookback in product(xi_values, lookback_values)
+        ]
+    else:
+        grid_combos = list(product(xi_values, lookback_values, rho_values))
     total_combos = len(grid_combos)
     league_started = perf_counter()
 
@@ -258,22 +328,26 @@ def optimize_single_league(
         ):
             print(
                 f"  league={league_id} grid {combo_index}/{total_combos} "
-                f"xi={xi} lookback={lookback} rho={rho}",
+                f"xi={xi} lookback={lookback} "
+                f"rho={'mle' if rho is None else rho}",
                 flush=True,
             )
 
-        walk_forward = _evaluate_parameter_set(
+        walk_forward, rho_diagnostics = _evaluate_parameter_set(
             league_id=league_id,
             eval_matches=eval_matches,
             fixture_index=fixture_index,
             xi=xi,
             lookback=lookback,
-            rho=rho,
+            rho=default_rho if rho is None else rho,
             min_team_matches=min_team_matches,
             min_training_matches=min_training_matches,
             max_goals=max_goals,
             window_cache=league_window_cache,
             use_warm_start=use_warm_start,
+            fit_rho=fit_rho,
+            rho_min=rho_min,
+            rho_max=rho_max,
         )
 
         if lookback not in avg_training_by_lookback:
@@ -291,12 +365,18 @@ def optimize_single_league(
                 league_id=league_id,
                 xi=xi,
                 lookback=lookback,
-                rho=rho,
+                # With fit_rho the representative rho is the median MLE fit.
+                rho=(
+                    rho_diagnostics.median
+                    if rho is None and rho_diagnostics.median is not None
+                    else (default_rho if rho is None else rho)
+                ),
                 log_loss=walk_forward.dc_log_loss,
                 rps=walk_forward.dc_rps,
                 num_predictions=walk_forward.n_scored,
                 skipped_matches=walk_forward.n_skipped,
                 avg_training_matches=avg_training,
+                rho_diagnostics=rho_diagnostics,
             )
         )
 
@@ -305,7 +385,8 @@ def optimize_single_league(
         elapsed = perf_counter() - league_started
         print(
             f"Finished league={league_id} in {elapsed:.1f}s "
-            f"(best log_loss={best.log_loss:.4f})",
+            f"(best log_loss={best.log_loss:.4f}) "
+            f"{best.rho_diagnostics.summary()}",
             flush=True,
         )
 
@@ -321,6 +402,7 @@ def optimize_single_league(
         validation_start=validation_start,
         validation_end=validation_end,
         parameter_results=parameter_results,
+        rho_diagnostics=best.rho_diagnostics,
     )
 
 
@@ -340,6 +422,9 @@ def _run_league_optimization_job(
         min_team_matches=job.min_team_matches,
         max_goals=job.max_goals,
         log_progress=job.log_progress,
+        fit_rho=job.fit_rho,
+        rho_min=job.rho_min,
+        rho_max=job.rho_max,
     )
 
 
@@ -356,6 +441,11 @@ def _format_league_result_summary(
         f"lookback={league_result.best_lookback} "
         f"rho={league_result.best_rho} "
         f"scored={league_result.evaluated_matches}"
+        + (
+            f" {league_result.rho_diagnostics.summary()}"
+            if league_result.rho_diagnostics.n_fits
+            else ""
+        )
     )
 
 
@@ -377,6 +467,9 @@ class DixonColesOptimizer:
         min_eval_matches_per_league: int,
         max_goals: int = 10,
         jobs: int = 1,
+        fit_rho: bool = False,
+        rho_min: float = -0.2,
+        rho_max: float = 0.2,
     ) -> DixonColesOptimizationResult:
         league_results: dict[int, DixonColesLeagueOptimizationResult] = {}
         skipped_leagues: dict[int, str] = {}
@@ -393,14 +486,15 @@ class DixonColesOptimizer:
             eligible_leagues.append((league_id, eval_matches))
 
         total_leagues = len(eligible_leagues)
-        grid_combos_per_league = (
-            len(xi_values) * len(lookback_values) * len(rho_values)
-        )
+        grid_combos_per_league = len(xi_values) * len(lookback_values)
+        if not fit_rho:
+            grid_combos_per_league *= len(rho_values)
         parallel_workers = min(jobs, total_leagues) if total_leagues else jobs
         print(
             f"League optimization: {total_leagues} leagues, "
             f"{grid_combos_per_league} grid combos/league, "
-            f"{parallel_workers} worker(s)",
+            f"{parallel_workers} worker(s), "
+            f"rho={'MLE' if fit_rho else 'grid'}",
             flush=True,
         )
         if skipped_leagues:
@@ -441,6 +535,9 @@ class DixonColesOptimizer:
                     min_team_matches=min_team_matches,
                     max_goals=max_goals,
                     log_progress=worker_log_progress,
+                    fit_rho=fit_rho,
+                    rho_min=rho_min,
+                    rho_max=rho_max,
                 )
                 elapsed = perf_counter() - league_started
                 print(
@@ -473,6 +570,9 @@ class DixonColesOptimizer:
                     min_team_matches=min_team_matches,
                     max_goals=max_goals,
                     log_progress=worker_log_progress,
+                    fit_rho=fit_rho,
+                    rho_min=rho_min,
+                    rho_max=rho_max,
                 )
                 for league_id, eval_matches in eligible_leagues
             ]

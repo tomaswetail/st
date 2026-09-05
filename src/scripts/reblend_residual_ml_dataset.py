@@ -11,15 +11,15 @@ import csv
 from pathlib import Path
 from typing import Any
 
-from calc.draw_adjustment import load_draw_adjustment_config
-from calc.residual_ml.baseline import apply_draw_adjustment, blend_baselines
-from calc.residual_ml.blend_weights import (
+from src.calc.draw_adjustment import load_draw_adjustment_config
+from src.calc.residual_ml.baseline import apply_draw_adjustment, blend_baselines
+from src.calc.residual_ml.blend_weights import (
     load_blend_weights_config,
     load_dc_league_quality,
     select_blend_weights,
 )
-from objects.schema.data_classes.data_sources import DataSourceConfig
-from utils.repo_paths import resolve_repo_path
+from src.objects.schema.data_classes.data_sources import DataSourceConfig
+from src.utils.repo_paths import resolve_repo_path
 
 
 def _float(row: dict[str, str], key: str) -> float | None:
@@ -74,10 +74,19 @@ def reblend_rows(
             continue
 
         engine_missing = any(engine[outcome] is None for outcome in engine)
-        if engine_missing and not blend_config.enabled:
+        if engine_missing:
+            # No DC engine: market-only. Enabled gated policy uses 1.0/0.0;
+            # disabled config keeps DataSourceConfig fallback weights.
+            if blend_config.enabled:
+                market_weight, dc_weight = 1.0, 0.0
+            else:
+                market_weight, dc_weight = (
+                    fallback_market_weight,
+                    fallback_dc_weight,
+                )
             new_row = dict(row)
-            new_row["blend_market_weight"] = str(fallback_market_weight)
-            new_row["blend_dc_weight"] = str(fallback_dc_weight)
+            new_row["blend_market_weight"] = str(market_weight)
+            new_row["blend_dc_weight"] = str(dc_weight)
             new_row["p_home_blend_pre_draw"] = str(market["1"])
             new_row["p_draw_blend_pre_draw"] = str(market["X"])
             new_row["p_away_blend_pre_draw"] = str(market["2"])
@@ -85,9 +94,6 @@ def reblend_rows(
             new_row["p_draw_blend"] = str(market["X"])
             new_row["p_away_blend"] = str(market["2"])
             updated.append(new_row)
-            continue
-        if engine_missing:
-            updated.append(row)
             continue
 
         market_weight, dc_weight = select_blend_weights(

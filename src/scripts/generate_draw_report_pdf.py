@@ -2,7 +2,7 @@
 """Generate PDF report: how draw (X) probability is calculated in this repo.
 
 ```bash
-PYTHONPATH=src python src/scripts/generate_draw_report_pdf.py
+python -m src.scripts.generate_draw_report_pdf
 # default output: docs/draw_calculation_report.pdf
 ```
 """
@@ -13,7 +13,7 @@ from pathlib import Path
 
 from fpdf import FPDF
 
-from utils.repo_paths import repo_root, resolve_repo_path
+from src.utils.repo_paths import repo_root, resolve_repo_path
 
 DEFAULT_OUTPUT = repo_root() / "docs" / "draw_calculation_report.pdf"
 
@@ -223,7 +223,7 @@ def build_report() -> FPDF:
     pdf.body(
         "After ML, final probabilities can be pulled toward market odds: "
         "p_final = (1-alpha)*p_ML + alpha*p_market (per outcome). "
-        "Typical production alpha is 0.5 (RESIDUAL_ML_FINAL_SHRINK_TO_MARKET). "
+        "Typical production alpha is 0.7 (RESIDUAL_ML_FINAL_SHRINK_TO_MARKET). "
         "This affects draw as well as home/away."
     )
 
@@ -247,15 +247,15 @@ def build_report() -> FPDF:
     pdf.section_title("10. Quick reference commands")
     pdf.mono(
         "# Discover drivers (analysis only)\n"
-        "PYTHONPATH=src python src/scripts/analyze_draw_drivers.py \\\n"
+        "python -m src.scripts.analyze_draw_drivers \\\n"
         "  --dataset data/residual_ml/dataset.csv \\\n"
         "  --write-doc docs/reports/ml_draw/draw_driver_analysis.md\n"
         "\n"
         "# OOS gate + optional config update\n"
-        "PYTHONPATH=src python src/scripts/eval_draw_adjustment_oos.py --write-config\n"
+        "python -m src.scripts.eval_draw_adjustment_oos --write-config\n"
         "\n"
         "# Rebuild CSV with draw layer baked in\n"
-        "PYTHONPATH=src python -u src/scripts/build_residual_ml_dataset.py\n"
+        "python -u -m src.scripts.build_residual_ml_dataset\n"
         "\n"
         "# Disable draw adj: set enabled=false in config/draw_adjustment.json, then rebuild"
     )

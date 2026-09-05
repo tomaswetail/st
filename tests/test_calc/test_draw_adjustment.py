@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import pytest
 
-from calc.draw_adjustment import (
+from src.calc.draw_adjustment import (
     DrawAdjustmentConfig,
     apply_draw_adjustment,
 )
-from calc.residual_ml.baseline import apply_draw_adjustment as baseline_apply
+from src.calc.residual_ml.baseline import apply_draw_adjustment as baseline_apply
 
 
 def test_enabled_adjust_changes_draw_and_renormalizes():

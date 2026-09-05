@@ -6,13 +6,13 @@ import json
 from pathlib import Path
 from typing import Any
 
-from calc.residual_ml.trainer import ResidualMLTrainer
-from utils.time_split import DEFAULT_VALIDATION_FRACTION, time_split_dataset_rows
+from src.calc.residual_ml.trainer import ResidualMLTrainer
+from src.utils.time_split import DEFAULT_VALIDATION_FRACTION, time_split_dataset_rows
 
 MAX_DEPTHS = [3, 4, 6]
 LEARNING_RATES = [0.03, 0.05, 0.1]
 MAX_ITERS = [100, 300, 500]
-LABEL_SMOOTHINGS = [0.0, 0.05, 0.1]
+LABEL_SMOOTHINGS = [0.0, 0.05, 0.1, 0.12, 0.15]
 
 
 def _is_better_trial(candidate: dict[str, Any], best: dict[str, Any] | None) -> bool:

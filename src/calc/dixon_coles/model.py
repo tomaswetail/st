@@ -12,8 +12,8 @@ import numpy as np
 from scipy.optimize import minimize
 from scipy.special import gammaln
 
-from calc.dixon_coles.types import DixonColesMatch
-from calc.strength_calculator import (
+from src.calc.dixon_coles.types import DixonColesMatch
+from src.calc.strength_calculator import (
     _scoreline_probability,
     dixon_coles_matrix,
 )
@@ -172,7 +172,15 @@ def _vectorized_neg_log_likelihood(
 
 
 class DixonColesModel:
-    """Goals-based Dixon–Coles with fixed rho and exponential time weights."""
+    """Goals-based Dixon–Coles with exponential time weights.
+
+    ``rho`` is a fixed hyperparameter by default. With ``fit_rho=True`` it
+    becomes a free MLE parameter estimated from scorelines alongside attack,
+    defence and home advantage, bounded to ``[rho_min, rho_max]`` so the
+    Dixon–Coles tau correction stays positive. Note that a fitting run
+    overwrites ``self.rho``, so re-calling ``fit`` on the same instance starts
+    from the previously fitted value rather than the configured one.
+    """
 
     def __init__(
         self,
@@ -183,6 +191,9 @@ class DixonColesModel:
         lookback_days: int = 730,
         min_team_matches: int = 5,
         as_of: date | None = None,
+        fit_rho: bool = False,
+        rho_min: float = -0.2,
+        rho_max: float = 0.2,
     ) -> None:
         self.xi = xi
         self.rho = rho
@@ -190,6 +201,10 @@ class DixonColesModel:
         self.lookback_days = lookback_days
         self.min_team_matches = min_team_matches
         self.as_of = as_of
+        self.fit_rho = fit_rho
+        self.rho_min = rho_min
+        self.rho_max = rho_max
+        self._fitted_rho: float | None = None
         self.team_ids: list[int] = []
         self.attack: dict[int, float] = {}
         self.defence: dict[int, float] = {}
@@ -207,6 +222,21 @@ class DixonColesModel:
     def last_fit_iterations(self) -> int | None:
         return self._last_fit_iterations
 
+    @property
+    def fitted_rho(self) -> float | None:
+        """Rho estimated by the last fit, or ``None`` when rho was held fixed."""
+        return self._fitted_rho
+
+    @property
+    def rho_at_bound(self) -> bool:
+        """True when the fitted rho landed on either feasibility bound."""
+        if self._fitted_rho is None:
+            return False
+        return (
+            math.isclose(self._fitted_rho, self.rho_min, abs_tol=1e-6)
+            or math.isclose(self._fitted_rho, self.rho_max, abs_tol=1e-6)
+        )
+
     def fit(
         self,
         matches: list[DixonColesMatch],
@@ -214,7 +244,7 @@ class DixonColesModel:
         as_of: date | None = None,
         initial_theta: np.ndarray | None = None,
     ) -> DixonColesModel:
-        """Fit attack, defence, and home advantage on lookback-filtered matches."""
+        """Fit attack, defence, home advantage (and rho if ``fit_rho``)."""
         cutoff = as_of or self.as_of
         if cutoff is None:
             if not matches:
@@ -242,9 +272,12 @@ class DixonColesModel:
         team_index = {team_id: index for index, team_id in enumerate(team_ids)}
         n_teams = len(team_ids)
 
-        # Parameters: log(attack[0..n-2]), log(defence[0..n-1]), log(home_advantage)
+        # Parameters: log(attack[0..n-2]), log(defence[0..n-1]), log(home_advantage),
+        # then rho when fit_rho is set.
         # Attack of last team is set so geometric mean of attack is 1.
-        n_params = (n_teams - 1) + n_teams + 1
+        home_advantage_index = (n_teams - 1) + n_teams
+        rho_index = home_advantage_index + 1
+        n_params = rho_index + 1 if self.fit_rho else rho_index
         if (
             initial_theta is not None
             and len(initial_theta) == n_params
@@ -252,11 +285,13 @@ class DixonColesModel:
             x0 = np.asarray(initial_theta, dtype=float)
         else:
             x0 = np.zeros(n_params, dtype=float)
+            if self.fit_rho:
+                x0[rho_index] = self.rho
 
         def unpack(theta: np.ndarray) -> tuple[np.ndarray, np.ndarray, float]:
             log_attack_free = theta[: n_teams - 1]
             log_defence = theta[n_teams - 1 : n_teams - 1 + n_teams]
-            log_home_advantage = float(theta[-1])
+            log_home_advantage = float(theta[home_advantage_index])
             # Pin geometric mean of attack to 1 => sum(log attack) = 0.
             log_attack_last = -float(np.sum(log_attack_free))
             log_attack = np.concatenate([log_attack_free, [log_attack_last]])
@@ -304,17 +339,27 @@ class DixonColesModel:
                 goals_home=goals_home,
                 goals_away=goals_away,
                 weights=weights,
-                rho=self.rho,
+                rho=float(theta[rho_index]) if self.fit_rho else self.rho,
             )
 
+        minimize_kwargs = {}
+        if self.fit_rho:
+            minimize_kwargs["bounds"] = [(None, None)] * rho_index + [
+                (self.rho_min, self.rho_max)
+            ]
         result = minimize(
             neg_log_likelihood,
             x0,
             method="L-BFGS-B",
             options={"maxiter": 500, "ftol": 1e-8},
+            **minimize_kwargs,
         )
         if not result.success and result.nit == 0:
             raise RuntimeError(f"Dixon–Coles fit failed: {result.message}")
+
+        if self.fit_rho:
+            self.rho = float(result.x[rho_index])
+            self._fitted_rho = self.rho
 
         attack_arr, defence_arr, home_advantage = unpack(result.x)
         self.attack = {

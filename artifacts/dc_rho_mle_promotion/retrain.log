@@ -1,0 +1,9 @@
+Loaded 2589 rows from /home/tomas/wetail/git/st/artifacts/dc_rho_mle_promotion/dataset.csv
+Fitting model on 2071 train / 518 validation rows
+Excluded injury feature columns from training
+Train rows: 2071, validation rows: 518
+Train log loss: 0.8372
+Validation log loss: 1.0149
+Market validation log loss: 1.0068
+Blend validation log loss: 1.0083
+Model saved to /home/tomas/wetail/git/st/models/residual_ml/dc_rho_mle_retrain/model.pkl

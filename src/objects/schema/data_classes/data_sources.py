@@ -8,14 +8,14 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from utils.repo_paths import repo_root
+from src.utils.repo_paths import repo_root
 
 
 def _classic_dc_league_params_path() -> Path:
     env_path = os.environ.get("CLASSIC_DC_LEAGUE_PARAMS_PATH")
     if env_path:
         return Path(env_path)
-    from data_sources.classic_dc_config import default_league_params_path
+    from src.data_sources.classic_dc_config import default_league_params_path
 
     return default_league_params_path()
 
@@ -165,6 +165,16 @@ class DataSourceConfig(BaseModel):
     )
     dixon_coles_rho: float = Field(
         default_factory=lambda: float(os.environ.get("DIXON_COLES_RHO", "-0.13")),
+    )
+    classic_dc_fit_rho: bool = Field(
+        default_factory=lambda: os.environ.get("CLASSIC_DC_FIT_RHO", "1")
+        not in ("0", "", "false", "False"),
+    )
+    classic_dc_rho_min: float = Field(
+        default_factory=lambda: float(os.environ.get("CLASSIC_DC_RHO_MIN", "-0.2")),
+    )
+    classic_dc_rho_max: float = Field(
+        default_factory=lambda: float(os.environ.get("CLASSIC_DC_RHO_MAX", "0.2")),
     )
     classic_dc_xi: float = Field(
         default_factory=lambda: float(os.environ.get("CLASSIC_DC_XI", "0.0018")),
@@ -319,7 +329,7 @@ class DataSourceConfig(BaseModel):
     )
     residual_ml_final_shrink_to_market: float = Field(
         default_factory=lambda: float(
-            os.environ.get("RESIDUAL_ML_FINAL_SHRINK_TO_MARKET", "0.5")
+            os.environ.get("RESIDUAL_ML_FINAL_SHRINK_TO_MARKET", "0.7")
         ),
         ge=0.0,
         le=1.0,

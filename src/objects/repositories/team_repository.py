@@ -2,13 +2,13 @@ from typing import Any
 
 from sqlalchemy import select, text, update
 
-from objects.models.fixture import FixtureModel
-from objects.models.match_shot import MatchShotModel
-from objects.models.st_match import STMatchModel
-from objects.models.team import TeamModel
-from objects.repositories.base import BaseRepository
-from utils.common import sanitize_string
-from utils.team_name_matcher import to_football_data_name
+from src.objects.models.fixture import FixtureModel
+from src.objects.models.match_shot import MatchShotModel
+from src.objects.models.st_match import STMatchModel
+from src.objects.models.team import TeamModel
+from src.objects.repositories.base import BaseRepository
+from src.utils.common import sanitize_string
+from src.utils.team_name_matcher import to_football_data_name
 
 
 class TeamRepository(BaseRepository[TeamModel]):
@@ -198,7 +198,7 @@ class TeamRepository(BaseRepository[TeamModel]):
 
     def to_football_data_name(self, svenska_spel_name: str) -> str | None:
         if not hasattr(self, "_football_data_names"):
-            from objects.repositories.fixture_repository import FixtureRepository
+            from src.objects.repositories.fixture_repository import FixtureRepository
 
             fixture_repo = FixtureRepository(self.session)
             self._football_data_names = fixture_repo.get_distinct_home_teams()

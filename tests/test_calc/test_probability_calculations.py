@@ -12,12 +12,12 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from calc.dixon_coles.metrics import ranked_probability_score
-from calc.dixon_coles.model import match_weight
-from calc.draw_adjustment import DrawAdjustmentConfig, apply_draw_adjustment
-from calc.probability_manager import ProbabilityManager
-from calc.probability_metrics import log_loss_one, mean_log_loss, multiclass_log_loss
-from calc.residual_ml.baseline import (
+from src.calc.dixon_coles.metrics import ranked_probability_score
+from src.calc.dixon_coles.model import match_weight
+from src.calc.draw_adjustment import DrawAdjustmentConfig, apply_draw_adjustment
+from src.calc.probability_manager import ProbabilityManager
+from src.calc.probability_metrics import log_loss_one, mean_log_loss, multiclass_log_loss
+from src.calc.residual_ml.baseline import (
     apply_residual_deltas,
     blend_baselines,
     inv_logit,
@@ -26,21 +26,21 @@ from calc.residual_ml.baseline import (
     shrink_toward_market,
     target_logit_deltas,
 )
-from calc.residual_ml.blend_weights import (
+from src.calc.residual_ml.blend_weights import (
     BlendWeightRule,
     BlendWeightsConfig,
     market_vs_dc_magnitude,
     select_blend_weights,
 )
-from calc.strength_calculator import (
+from src.calc.strength_calculator import (
     _dixon_coles_tau,
     _poisson_pmf,
     _scoreline_probability,
     dixon_coles_matrix,
 )
-from objects.schema.data_classes.data_sources import DataSourceConfig
-from objects.schema.data_classes.residual_ml_features import ResidualMLFeatures
-from utils.common import odds_to_probabilities
+from src.objects.schema.data_classes.data_sources import DataSourceConfig
+from src.objects.schema.data_classes.residual_ml_features import ResidualMLFeatures
+from src.utils.common import odds_to_probabilities
 
 
 def test_odds_to_probabilities_example():

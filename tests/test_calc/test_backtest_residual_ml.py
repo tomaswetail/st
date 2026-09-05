@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from calc.residual_ml.filters import filter_rows_by_draw, select_backtest_rows
+from src.calc.residual_ml.filters import filter_rows_by_draw, select_backtest_rows
 
 
 def _row(match_id: int, match_date: str, draw_number: int, label: str = "1") -> dict:

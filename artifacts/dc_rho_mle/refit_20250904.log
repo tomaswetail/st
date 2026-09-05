@@ -1,0 +1,44 @@
+Optimizing 12 leagues on 441 validation matches (time-split validation fraction=0.2)
+League optimization: 5 leagues, 35 grid combos/league, 4 worker(s), rho=MLE
+Skipping 7 league(s): 61, 71, 78, 88, 140, 179, 591
+  [1/5] queued league=39 (133 validation matches, 1473 fixtures)
+  [2/5] queued league=41 (69 validation matches, 2196 fixtures)
+  [3/5] queued league=42 (23 validation matches, 2200 fixtures)
+  [4/5] queued league=45 (19 validation matches, 3503 fixtures)
+  [5/5] queued league=180 (179 validation matches, 729 fixtures)
+[1/5] finished league=42 log_loss=1.0744 xi=0.0001 lookback=1095 rho=-0.017246666185181038 scored=23 rho_fitted median=-0.0172 [-0.0218, +0.0107] at_bound=0/4 (elapsed 255s, ETA ~255s)
+[2/5] finished league=39 log_loss=0.9683 xi=0.00025 lookback=1460 rho=-0.01445160079447759 scored=133 rho_fitted median=-0.0145 [-0.0466, -0.0012] at_bound=0/27 (elapsed 487s, ETA ~183s)
+[3/5] finished league=180 log_loss=1.0850 xi=0.0001 lookback=1460 rho=-0.10860520619720072 scored=179 rho_fitted median=-0.1086 [-0.1251, -0.0756] at_bound=0/28 (elapsed 641s, ETA ~107s)
+[4/5] finished league=45 log_loss=0.9645 xi=0.005 lookback=730 rho=-0.14055178460900375 scored=19 rho_fitted median=-0.1406 [-0.1834, -0.0294] at_bound=0/5 (elapsed 768s, ETA ~48s)
+[5/5] finished league=41 log_loss=1.0808 xi=0.0001 lookback=1460 rho=0.006328979967030618 scored=69 rho_fitted median=+0.0063 [-0.0131, +0.0131] at_bound=0/23 (elapsed 842s)
+League optimization complete: 5 leagues in 841.6s
+Wrote per-league params to /home/tomas/wetail/git/st/artifacts/dc_rho_mle/params_refit_20250904.json
+Pooled weighted DC log loss: 1.0416
+league=39 best xi=0.00025 lookback=1460 rho=-0.01445160079447759 log_loss=0.9683 rps=0.1951 scored=133 skipped=0 rho_fitted median=-0.0145 [-0.0466, -0.0012] at_bound=0/27
+  top1: xi=0.00025 lookback=1460 rho=-0.01445160079447759 log_loss=0.9683 rps=0.1951
+  top2: xi=0.00025 lookback=1825 rho=-0.01445160079447759 log_loss=0.9683 rps=0.1951
+  top3: xi=0.0005 lookback=1460 rho=-0.016771081452748252 log_loss=0.9683 rps=0.1951
+league=41 best xi=0.0001 lookback=1460 rho=0.006328979967030618 log_loss=1.0808 rps=0.2159 scored=69 skipped=0 rho_fitted median=+0.0063 [-0.0131, +0.0131] at_bound=0/23
+  top1: xi=0.0001 lookback=1460 rho=0.006328979967030618 log_loss=1.0808 rps=0.2159
+  top2: xi=0.0001 lookback=1825 rho=0.006328979967030618 log_loss=1.0808 rps=0.2159
+  top3: xi=0.00025 lookback=1460 rho=0.007991678710764493 log_loss=1.0818 rps=0.2162
+league=42 best xi=0.0001 lookback=1095 rho=-0.017246666185181038 log_loss=1.0744 rps=0.2391 scored=23 skipped=0 rho_fitted median=-0.0172 [-0.0218, +0.0107] at_bound=0/4
+  top1: xi=0.0001 lookback=1095 rho=-0.017246666185181038 log_loss=1.0744 rps=0.2391
+  top2: xi=0.00025 lookback=1095 rho=-0.016298929472502756 log_loss=1.0753 rps=0.2395
+  top3: xi=0.0001 lookback=730 rho=-0.0005514388071571085 log_loss=1.0760 rps=0.2403
+league=45 best xi=0.005 lookback=730 rho=-0.14055178460900375 log_loss=0.9645 rps=0.2170 scored=19 skipped=0 rho_fitted median=-0.1406 [-0.1834, -0.0294] at_bound=0/5
+  top1: xi=0.005 lookback=730 rho=-0.14055178460900375 log_loss=0.9645 rps=0.2170
+  top2: xi=0.003 lookback=730 rho=-0.1720844947563887 log_loss=0.9695 rps=0.2205
+  top3: xi=0.002 lookback=730 rho=-0.11161825745653212 log_loss=0.9773 rps=0.2208
+league=180 best xi=0.0001 lookback=1460 rho=-0.10860520619720072 log_loss=1.0850 rps=0.2382 scored=179 skipped=0 rho_fitted median=-0.1086 [-0.1251, -0.0756] at_bound=0/28
+  top1: xi=0.0001 lookback=1460 rho=-0.10860520619720072 log_loss=1.0850 rps=0.2382
+  top2: xi=0.0001 lookback=1825 rho=-0.10860520619720072 log_loss=1.0850 rps=0.2382
+  top3: xi=0.00025 lookback=1460 rho=-0.11152470315526011 log_loss=1.0854 rps=0.2383
+Skipped leagues:
+  league=61: too few validation matches (3 < 15)
+  league=71: too few validation matches (4 < 15)
+  league=78: too few validation matches (1 < 15)
+  league=88: too few validation matches (1 < 15)
+  league=140: too few validation matches (3 < 15)
+  league=179: too few validation matches (4 < 15)
+  league=591: too few validation matches (2 < 15)

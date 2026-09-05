@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy import DateTime, func, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from database import Base
+from src.database import Base
 
 
 class MetadataRow(Base):

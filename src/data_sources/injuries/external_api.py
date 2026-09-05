@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from data_sources.api_football_client import APIFootballClient
-from data_sources.injuries.dtos import PlayerAvailabilityRecord
-from data_sources.injuries.parsers.api_football import (
+from src.data_sources.api_football_client import APIFootballClient
+from src.data_sources.injuries.dtos import PlayerAvailabilityRecord
+from src.data_sources.injuries.parsers.api_football import (
     parse_api_football_availability,
 )
-from objects.schema.data_classes.data_sources import DataSourceConfig
+from src.objects.schema.data_classes.data_sources import DataSourceConfig
 
 
 class ApiFootballInjuryProvider:

@@ -6,9 +6,8 @@ and reports market / DC / blend (and optional ML) multiclass LL plus binary
 draw LL/Brier.
 
 ```bash
-export PYTHONPATH=src
-python src/scripts/monitor_round_ll.py --draw-number 4950
-python src/scripts/monitor_round_ll.py --draw-number 4950 --model models/residual_ml/sweep_best/model.pkl
+python -m src.scripts.monitor_round_ll --draw-number 4950
+python -m src.scripts.monitor_round_ll --draw-number 4950 --model models/residual_ml/sweep_best/model.pkl
 ```
 """
 
@@ -19,11 +18,11 @@ import json
 from pathlib import Path
 from typing import Any
 
-from calc.probability_metrics import multiclass_log_loss
-from calc.residual_ml import load_dataset_rows
-from calc.residual_ml.evaluation import score_baseline_log_losses, score_outcome_metrics
-from calc.residual_ml.trainer import ResidualMLTrainer
-from utils.repo_paths import resolve_repo_path
+from src.calc.probability_metrics import multiclass_log_loss
+from src.calc.residual_ml import load_dataset_rows
+from src.calc.residual_ml.evaluation import score_baseline_log_losses, score_outcome_metrics
+from src.calc.residual_ml.trainer import ResidualMLTrainer
+from src.utils.repo_paths import resolve_repo_path
 
 LABEL_TO_INDEX = {"1": 0, "X": 1, "2": 2}
 

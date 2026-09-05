@@ -1,0 +1,1038 @@
+{
+  "row_count": 2589,
+  "has_availability_pct": 68.33,
+  "has_availability_counts": {
+    "1": 1769,
+    "0": 820
+  },
+  "missing_value_difference": {
+    "non_null_count": 1769,
+    "mean": -0.0,
+    "median": 0.0,
+    "min": -1.4e-05,
+    "max": 1.1e-05
+  },
+  "unavailable_counts_when_available": {
+    "home_mean": 4.011,
+    "away_mean": 4.067
+  },
+  "tiny_scaled_missing_value_rows": 1769,
+  "has_availability_x_blend_market_weight": {
+    "has_availability=1|blend_market_weight=0.85": 1137,
+    "has_availability=1|blend_market_weight=0.7": 632,
+    "has_availability=0|blend_market_weight=0.8": 446,
+    "has_availability=0|blend_market_weight=0.85": 374
+  },
+  "by_draw": {
+    "4760": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4761": {
+      "row_count": 8,
+      "has_availability_count": 0,
+      "has_availability_pct": 0.0
+    },
+    "4762": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4763": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4764": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4765": {
+      "row_count": 13,
+      "has_availability_count": 12,
+      "has_availability_pct": 92.31
+    },
+    "4766": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4767": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4768": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4769": {
+      "row_count": 13,
+      "has_availability_count": 0,
+      "has_availability_pct": 0.0
+    },
+    "4770": {
+      "row_count": 13,
+      "has_availability_count": 0,
+      "has_availability_pct": 0.0
+    },
+    "4771": {
+      "row_count": 13,
+      "has_availability_count": 0,
+      "has_availability_pct": 0.0
+    },
+    "4772": {
+      "row_count": 11,
+      "has_availability_count": 6,
+      "has_availability_pct": 54.55
+    },
+    "4773": {
+      "row_count": 12,
+      "has_availability_count": 9,
+      "has_availability_pct": 75.0
+    },
+    "4774": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4775": {
+      "row_count": 13,
+      "has_availability_count": 12,
+      "has_availability_pct": 92.31
+    },
+    "4776": {
+      "row_count": 13,
+      "has_availability_count": 0,
+      "has_availability_pct": 0.0
+    },
+    "4777": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4778": {
+      "row_count": 12,
+      "has_availability_count": 12,
+      "has_availability_pct": 100.0
+    },
+    "4779": {
+      "row_count": 13,
+      "has_availability_count": 3,
+      "has_availability_pct": 23.08
+    },
+    "4780": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4781": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4782": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4783": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4784": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4785": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4786": {
+      "row_count": 13,
+      "has_availability_count": 11,
+      "has_availability_pct": 84.62
+    },
+    "4787": {
+      "row_count": 13,
+      "has_availability_count": 0,
+      "has_availability_pct": 0.0
+    },
+    "4788": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4789": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4790": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4791": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4792": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4793": {
+      "row_count": 13,
+      "has_availability_count": 10,
+      "has_availability_pct": 76.92
+    },
+    "4794": {
+      "row_count": 13,
+      "has_availability_count": 10,
+      "has_availability_pct": 76.92
+    },
+    "4795": {
+      "row_count": 13,
+      "has_availability_count": 11,
+      "has_availability_pct": 84.62
+    },
+    "4796": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4797": {
+      "row_count": 13,
+      "has_availability_count": 3,
+      "has_availability_pct": 23.08
+    },
+    "4798": {
+      "row_count": 13,
+      "has_availability_count": 1,
+      "has_availability_pct": 7.69
+    },
+    "4799": {
+      "row_count": 13,
+      "has_availability_count": 0,
+      "has_availability_pct": 0.0
+    },
+    "4800": {
+      "row_count": 13,
+      "has_availability_count": 5,
+      "has_availability_pct": 38.46
+    },
+    "4801": {
+      "row_count": 13,
+      "has_availability_count": 3,
+      "has_availability_pct": 23.08
+    },
+    "4802": {
+      "row_count": 13,
+      "has_availability_count": 2,
+      "has_availability_pct": 15.38
+    },
+    "4803": {
+      "row_count": 13,
+      "has_availability_count": 0,
+      "has_availability_pct": 0.0
+    },
+    "4804": {
+      "row_count": 13,
+      "has_availability_count": 1,
+      "has_availability_pct": 7.69
+    },
+    "4805": {
+      "row_count": 13,
+      "has_availability_count": 1,
+      "has_availability_pct": 7.69
+    },
+    "4806": {
+      "row_count": 13,
+      "has_availability_count": 9,
+      "has_availability_pct": 69.23
+    },
+    "4807": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4808": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4809": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4810": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4811": {
+      "row_count": 13,
+      "has_availability_count": 0,
+      "has_availability_pct": 0.0
+    },
+    "4812": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4813": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4814": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4815": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4816": {
+      "row_count": 13,
+      "has_availability_count": 0,
+      "has_availability_pct": 0.0
+    },
+    "4817": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4818": {
+      "row_count": 13,
+      "has_availability_count": 12,
+      "has_availability_pct": 92.31
+    },
+    "4819": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4820": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4821": {
+      "row_count": 13,
+      "has_availability_count": 0,
+      "has_availability_pct": 0.0
+    },
+    "4822": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4823": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4824": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4825": {
+      "row_count": 13,
+      "has_availability_count": 12,
+      "has_availability_pct": 92.31
+    },
+    "4826": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4827": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4828": {
+      "row_count": 13,
+      "has_availability_count": 10,
+      "has_availability_pct": 76.92
+    },
+    "4829": {
+      "row_count": 13,
+      "has_availability_count": 0,
+      "has_availability_pct": 0.0
+    },
+    "4830": {
+      "row_count": 13,
+      "has_availability_count": 10,
+      "has_availability_pct": 76.92
+    },
+    "4831": {
+      "row_count": 12,
+      "has_availability_count": 9,
+      "has_availability_pct": 75.0
+    },
+    "4832": {
+      "row_count": 13,
+      "has_availability_count": 2,
+      "has_availability_pct": 15.38
+    },
+    "4833": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4834": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4835": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4836": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4837": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4838": {
+      "row_count": 13,
+      "has_availability_count": 12,
+      "has_availability_pct": 92.31
+    },
+    "4839": {
+      "row_count": 13,
+      "has_availability_count": 11,
+      "has_availability_pct": 84.62
+    },
+    "4840": {
+      "row_count": 13,
+      "has_availability_count": 0,
+      "has_availability_pct": 0.0
+    },
+    "4841": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4842": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4843": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4844": {
+      "row_count": 13,
+      "has_availability_count": 12,
+      "has_availability_pct": 92.31
+    },
+    "4845": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4846": {
+      "row_count": 13,
+      "has_availability_count": 12,
+      "has_availability_pct": 92.31
+    },
+    "4847": {
+      "row_count": 13,
+      "has_availability_count": 12,
+      "has_availability_pct": 92.31
+    },
+    "4848": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4849": {
+      "row_count": 13,
+      "has_availability_count": 3,
+      "has_availability_pct": 23.08
+    },
+    "4850": {
+      "row_count": 13,
+      "has_availability_count": 3,
+      "has_availability_pct": 23.08
+    },
+    "4851": {
+      "row_count": 13,
+      "has_availability_count": 0,
+      "has_availability_pct": 0.0
+    },
+    "4852": {
+      "row_count": 13,
+      "has_availability_count": 2,
+      "has_availability_pct": 15.38
+    },
+    "4853": {
+      "row_count": 13,
+      "has_availability_count": 2,
+      "has_availability_pct": 15.38
+    },
+    "4854": {
+      "row_count": 13,
+      "has_availability_count": 0,
+      "has_availability_pct": 0.0
+    },
+    "4855": {
+      "row_count": 13,
+      "has_availability_count": 7,
+      "has_availability_pct": 53.85
+    },
+    "4856": {
+      "row_count": 13,
+      "has_availability_count": 12,
+      "has_availability_pct": 92.31
+    },
+    "4857": {
+      "row_count": 13,
+      "has_availability_count": 3,
+      "has_availability_pct": 23.08
+    },
+    "4858": {
+      "row_count": 13,
+      "has_availability_count": 6,
+      "has_availability_pct": 46.15
+    },
+    "4859": {
+      "row_count": 13,
+      "has_availability_count": 2,
+      "has_availability_pct": 15.38
+    },
+    "4860": {
+      "row_count": 13,
+      "has_availability_count": 3,
+      "has_availability_pct": 23.08
+    },
+    "4861": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4862": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4863": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4864": {
+      "row_count": 13,
+      "has_availability_count": 0,
+      "has_availability_pct": 0.0
+    },
+    "4865": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4866": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4867": {
+      "row_count": 13,
+      "has_availability_count": 0,
+      "has_availability_pct": 0.0
+    },
+    "4868": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4869": {
+      "row_count": 13,
+      "has_availability_count": 0,
+      "has_availability_pct": 0.0
+    },
+    "4870": {
+      "row_count": 13,
+      "has_availability_count": 12,
+      "has_availability_pct": 92.31
+    },
+    "4871": {
+      "row_count": 13,
+      "has_availability_count": 12,
+      "has_availability_pct": 92.31
+    },
+    "4872": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4873": {
+      "row_count": 13,
+      "has_availability_count": 11,
+      "has_availability_pct": 84.62
+    },
+    "4874": {
+      "row_count": 13,
+      "has_availability_count": 0,
+      "has_availability_pct": 0.0
+    },
+    "4875": {
+      "row_count": 12,
+      "has_availability_count": 12,
+      "has_availability_pct": 100.0
+    },
+    "4876": {
+      "row_count": 13,
+      "has_availability_count": 11,
+      "has_availability_pct": 84.62
+    },
+    "4877": {
+      "row_count": 11,
+      "has_availability_count": 9,
+      "has_availability_pct": 81.82
+    },
+    "4878": {
+      "row_count": 13,
+      "has_availability_count": 11,
+      "has_availability_pct": 84.62
+    },
+    "4879": {
+      "row_count": 13,
+      "has_availability_count": 11,
+      "has_availability_pct": 84.62
+    },
+    "4880": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4881": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4882": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4883": {
+      "row_count": 8,
+      "has_availability_count": 0,
+      "has_availability_pct": 0.0
+    },
+    "4884": {
+      "row_count": 13,
+      "has_availability_count": 11,
+      "has_availability_pct": 84.62
+    },
+    "4885": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4886": {
+      "row_count": 13,
+      "has_availability_count": 12,
+      "has_availability_pct": 92.31
+    },
+    "4887": {
+      "row_count": 13,
+      "has_availability_count": 2,
+      "has_availability_pct": 15.38
+    },
+    "4888": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4889": {
+      "row_count": 13,
+      "has_availability_count": 11,
+      "has_availability_pct": 84.62
+    },
+    "4890": {
+      "row_count": 13,
+      "has_availability_count": 4,
+      "has_availability_pct": 30.77
+    },
+    "4891": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4892": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4893": {
+      "row_count": 13,
+      "has_availability_count": 0,
+      "has_availability_pct": 0.0
+    },
+    "4894": {
+      "row_count": 13,
+      "has_availability_count": 9,
+      "has_availability_pct": 69.23
+    },
+    "4895": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4896": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4897": {
+      "row_count": 13,
+      "has_availability_count": 11,
+      "has_availability_pct": 84.62
+    },
+    "4898": {
+      "row_count": 13,
+      "has_availability_count": 12,
+      "has_availability_pct": 92.31
+    },
+    "4899": {
+      "row_count": 13,
+      "has_availability_count": 7,
+      "has_availability_pct": 53.85
+    },
+    "4900": {
+      "row_count": 13,
+      "has_availability_count": 11,
+      "has_availability_pct": 84.62
+    },
+    "4901": {
+      "row_count": 13,
+      "has_availability_count": 3,
+      "has_availability_pct": 23.08
+    },
+    "4902": {
+      "row_count": 13,
+      "has_availability_count": 12,
+      "has_availability_pct": 92.31
+    },
+    "4903": {
+      "row_count": 13,
+      "has_availability_count": 7,
+      "has_availability_pct": 53.85
+    },
+    "4904": {
+      "row_count": 13,
+      "has_availability_count": 0,
+      "has_availability_pct": 0.0
+    },
+    "4905": {
+      "row_count": 13,
+      "has_availability_count": 0,
+      "has_availability_pct": 0.0
+    },
+    "4906": {
+      "row_count": 13,
+      "has_availability_count": 6,
+      "has_availability_pct": 46.15
+    },
+    "4907": {
+      "row_count": 13,
+      "has_availability_count": 3,
+      "has_availability_pct": 23.08
+    },
+    "4908": {
+      "row_count": 13,
+      "has_availability_count": 3,
+      "has_availability_pct": 23.08
+    },
+    "4909": {
+      "row_count": 13,
+      "has_availability_count": 5,
+      "has_availability_pct": 38.46
+    },
+    "4910": {
+      "row_count": 13,
+      "has_availability_count": 10,
+      "has_availability_pct": 76.92
+    },
+    "4911": {
+      "row_count": 13,
+      "has_availability_count": 11,
+      "has_availability_pct": 84.62
+    },
+    "4912": {
+      "row_count": 13,
+      "has_availability_count": 8,
+      "has_availability_pct": 61.54
+    },
+    "4913": {
+      "row_count": 13,
+      "has_availability_count": 11,
+      "has_availability_pct": 84.62
+    },
+    "4914": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4915": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4916": {
+      "row_count": 13,
+      "has_availability_count": 11,
+      "has_availability_pct": 84.62
+    },
+    "4917": {
+      "row_count": 13,
+      "has_availability_count": 12,
+      "has_availability_pct": 92.31
+    },
+    "4918": {
+      "row_count": 13,
+      "has_availability_count": 11,
+      "has_availability_pct": 84.62
+    },
+    "4919": {
+      "row_count": 13,
+      "has_availability_count": 12,
+      "has_availability_pct": 92.31
+    },
+    "4920": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4921": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4922": {
+      "row_count": 13,
+      "has_availability_count": 4,
+      "has_availability_pct": 30.77
+    },
+    "4923": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4924": {
+      "row_count": 13,
+      "has_availability_count": 12,
+      "has_availability_pct": 92.31
+    },
+    "4925": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4926": {
+      "row_count": 13,
+      "has_availability_count": 12,
+      "has_availability_pct": 92.31
+    },
+    "4927": {
+      "row_count": 13,
+      "has_availability_count": 4,
+      "has_availability_pct": 30.77
+    },
+    "4928": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4929": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4930": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4931": {
+      "row_count": 13,
+      "has_availability_count": 12,
+      "has_availability_pct": 92.31
+    },
+    "4932": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4933": {
+      "row_count": 13,
+      "has_availability_count": 8,
+      "has_availability_pct": 61.54
+    },
+    "4934": {
+      "row_count": 11,
+      "has_availability_count": 11,
+      "has_availability_pct": 100.0
+    },
+    "4935": {
+      "row_count": 11,
+      "has_availability_count": 1,
+      "has_availability_pct": 9.09
+    },
+    "4936": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4937": {
+      "row_count": 13,
+      "has_availability_count": 11,
+      "has_availability_pct": 84.62
+    },
+    "4938": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4939": {
+      "row_count": 13,
+      "has_availability_count": 6,
+      "has_availability_pct": 46.15
+    },
+    "4940": {
+      "row_count": 12,
+      "has_availability_count": 5,
+      "has_availability_pct": 41.67
+    },
+    "4941": {
+      "row_count": 13,
+      "has_availability_count": 11,
+      "has_availability_pct": 84.62
+    },
+    "4942": {
+      "row_count": 13,
+      "has_availability_count": 10,
+      "has_availability_pct": 76.92
+    },
+    "4943": {
+      "row_count": 13,
+      "has_availability_count": 7,
+      "has_availability_pct": 53.85
+    },
+    "4944": {
+      "row_count": 13,
+      "has_availability_count": 12,
+      "has_availability_pct": 92.31
+    },
+    "4945": {
+      "row_count": 13,
+      "has_availability_count": 10,
+      "has_availability_pct": 76.92
+    },
+    "4946": {
+      "row_count": 13,
+      "has_availability_count": 1,
+      "has_availability_pct": 7.69
+    },
+    "4947": {
+      "row_count": 13,
+      "has_availability_count": 10,
+      "has_availability_pct": 76.92
+    },
+    "4948": {
+      "row_count": 13,
+      "has_availability_count": 10,
+      "has_availability_pct": 76.92
+    },
+    "4949": {
+      "row_count": 13,
+      "has_availability_count": 10,
+      "has_availability_pct": 76.92
+    },
+    "4950": {
+      "row_count": 13,
+      "has_availability_count": 9,
+      "has_availability_pct": 69.23
+    },
+    "4951": {
+      "row_count": 13,
+      "has_availability_count": 4,
+      "has_availability_pct": 30.77
+    },
+    "4952": {
+      "row_count": 13,
+      "has_availability_count": 9,
+      "has_availability_pct": 69.23
+    },
+    "4953": {
+      "row_count": 13,
+      "has_availability_count": 10,
+      "has_availability_pct": 76.92
+    },
+    "4954": {
+      "row_count": 13,
+      "has_availability_count": 13,
+      "has_availability_pct": 100.0
+    },
+    "4955": {
+      "row_count": 13,
+      "has_availability_count": 0,
+      "has_availability_pct": 0.0
+    },
+    "4956": {
+      "row_count": 13,
+      "has_availability_count": 0,
+      "has_availability_pct": 0.0
+    },
+    "4957": {
+      "row_count": 13,
+      "has_availability_count": 0,
+      "has_availability_pct": 0.0
+    },
+    "4958": {
+      "row_count": 13,
+      "has_availability_count": 0,
+      "has_availability_pct": 0.0
+    },
+    "4959": {
+      "row_count": 12,
+      "has_availability_count": 0,
+      "has_availability_pct": 0.0
+    },
+    "4960": {
+      "row_count": 13,
+      "has_availability_count": 0,
+      "has_availability_pct": 0.0
+    }
+  },
+  "columns_present": {
+    "has_availability": true,
+    "blend_market_weight": true
+  },
+  "dataset_path": "/home/tomas/wetail/git/st/data/residual_ml/dataset.csv"
+}

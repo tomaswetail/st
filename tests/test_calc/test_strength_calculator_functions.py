@@ -9,18 +9,18 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from calc.strength_calculator import (
+from src.calc.strength_calculator import (
     StrengthCalculator,
     dixon_coles_matrix,
     expected_goals_from_strengths,
 )
-from calc.strength_helpers import (
+from src.calc.strength_helpers import (
     normalize_strength,
     recency_weights,
     shrink,
     weighted_mean,
 )
-from objects.schema.data_classes.team_strength_features import TeamStrengthFeatures
+from src.objects.schema.data_classes.team_strength_features import TeamStrengthFeatures
 
 
 def test_weighted_mean_basic():
@@ -232,7 +232,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from calc.strength_calculator import StrengthCalculator
+from src.calc.strength_calculator import StrengthCalculator
 
 
 def test_strength_calculator_with_mocked_database_data():

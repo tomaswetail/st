@@ -11,7 +11,7 @@ from pathlib import Path
 from statistics import mean, median
 from typing import Any
 
-from utils.repo_paths import resolve_repo_path
+from src.utils.repo_paths import resolve_repo_path
 
 
 def _float_or_none(raw: str | None) -> float | None:

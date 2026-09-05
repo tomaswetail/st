@@ -15,7 +15,7 @@ class BaseRepository(Generic[ModelT]):
 
     def __init__(self, session: Session | None = None) -> None:
         if session is None:
-            from database import SessionLocal
+            from src.database import SessionLocal
 
             self._session = SessionLocal()
             self._owns_session = True

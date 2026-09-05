@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from utils.time_split import DEFAULT_VALIDATION_FRACTION
+from src.utils.time_split import DEFAULT_VALIDATION_FRACTION
 
 
 def resolve_validation_fraction(

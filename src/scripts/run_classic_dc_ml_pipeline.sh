@@ -15,7 +15,6 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-export PYTHONPATH=src
 export RESIDUAL_ML_HOME_ADVANTAGE_MODE=fast
 export RESIDUAL_ML_DC_ENGINE=classic
 
@@ -27,24 +26,24 @@ DATASET="${DATASET:-data/residual_ml/dataset.csv}"
 MODEL="${MODEL:-models/residual_ml/sweep_best/model.pkl}"
 
 echo "==> 1/4 Optimize per-league Dixon–Coles (${VALIDATION_FRACTION} validation, jobs=${JOBS})"
-python -u src/scripts/optimize_classic_dixon_coles.py \
+python -u -m src.scripts.optimize_classic_dixon_coles \
   --validation-fraction "$VALIDATION_FRACTION" \
   --grid-config "$GRID_CONFIG" \
   --output "$LEAGUE_PARAMS" \
   --jobs "$JOBS"
 
 echo "==> 2/4 Build residual ML dataset (fast HA + classic DC)"
-python src/scripts/build_residual_ml_dataset.py
+python -m src.scripts.build_residual_ml_dataset
 
 echo "==> 3/4 Hyperparameter sweep (${VALIDATION_FRACTION} validation)"
-python src/scripts/train_residual_ml.py \
+python -m src.scripts.train_residual_ml \
   --dataset "$DATASET" \
   --sweep \
   --validation-fraction "$VALIDATION_FRACTION" \
   --output-dir "$(dirname "$MODEL")"
 
 echo "==> 4/4 Backtest on validation slice (${VALIDATION_FRACTION})"
-python src/scripts/backtest_residual_ml.py \
+python -m src.scripts.backtest_residual_ml \
   --dataset "$DATASET" \
   --model "$MODEL" \
   --validation-fraction "$VALIDATION_FRACTION"

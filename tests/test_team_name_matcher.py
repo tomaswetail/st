@@ -1,6 +1,6 @@
 """Tests for team alias loading."""
 
-from utils.team_name_matcher import _load_aliases
+from src.utils.team_name_matcher import _load_aliases
 
 
 def test_load_aliases_includes_moved_and_duplicate_pairs():

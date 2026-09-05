@@ -7,7 +7,7 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
-from objects.schema.data_classes.data_sources import DataSourceConfig
+from src.objects.schema.data_classes.data_sources import DataSourceConfig
 
 logger = logging.getLogger(__name__)
 

@@ -5,18 +5,18 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
-from data_sources.api_football_client import (
+from src.data_sources.api_football_client import (
     API_FOOTBALL_SOURCE,
     APIFootballClient,
     fixture_to_create,
     get_all_leagues,
     season_to_api_year,
 )
-from objects.schema.data_classes.data_sources import (
+from src.objects.schema.data_classes.data_sources import (
     DISK_CACHE_TTL_ONE_YEAR,
     DataSourceConfig,
 )
-from objects.schema.data_classes.fixture import Fixture
+from src.objects.schema.data_classes.fixture import Fixture
 
 
 def _sample_fixture(**overrides: Any) -> Fixture:
@@ -67,7 +67,7 @@ def test_api_football_cache_ttl_default_one_year() -> None:
 
 def test_shared_api_cache_root_under_data_cache() -> None:
     """FotMob / API-Football / Svenska Spel share repo data/cache/."""
-    from objects.schema.data_classes.svenska_spel_config import SvenskaSpelConfig
+    from src.objects.schema.data_classes.svenska_spel_config import SvenskaSpelConfig
 
     config = DataSourceConfig()
     ss = SvenskaSpelConfig()
@@ -112,7 +112,7 @@ def test_api_football_client_disk_cache_hit(tmp_path: Path) -> None:
     response.raise_for_status = MagicMock()
     response.json = MagicMock(return_value=response_payload)
 
-    with patch("data_sources.api_football_client.requests.get", return_value=response) as get_mock:
+    with patch("src.data_sources.api_football_client.requests.get", return_value=response) as get_mock:
         first = client.get("fixtures", {"league": 1})
         second = client.get("fixtures", {"league": 1})
 

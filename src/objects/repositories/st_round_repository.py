@@ -4,10 +4,10 @@ from typing import Any
 
 from sqlalchemy import select
 
-from objects.models.st_round import STRoundModel
+from src.objects.models.st_round import STRoundModel
 
-from objects.repositories.base import BaseRepository
-from objects.schema.db.st_round import STRound
+from src.objects.repositories.base import BaseRepository
+from src.objects.schema.db.st_round import STRound
 
 
 class STRoundRepository(BaseRepository[STRoundModel]):

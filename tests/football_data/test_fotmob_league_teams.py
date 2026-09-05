@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from data_sources.football_data.providers.fotmob import (
+from src.data_sources.football_data.providers.fotmob import (
     FotMobProvider,
     parse_fotmob_league_teams,
 )

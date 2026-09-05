@@ -1,0 +1,216 @@
+{
+  "question": "Does estimating Dixon-Coles rho by MLE beat grid-searching it on 1X2 log loss?",
+  "protocol": {
+    "slice": "time-split validation, validation_fraction=0.20, --draw-max=TUNING_DRAW_MAX (4950); holdout 4951-4960 excluded",
+    "validation_window": [
+      "2025-08-30",
+      "2026-04-25"
+    ],
+    "validation_matches_loaded": 441,
+    "leagues_scored": 5,
+    "matches_scored": 423,
+    "leagues_skipped_too_few_matches": [
+      61,
+      71,
+      78,
+      88,
+      140,
+      179,
+      591
+    ],
+    "note": "Both arms ran on identical data, leagues and windows."
+  },
+  "arms": {
+    "arm_a_grid": {
+      "combos_per_league": 210,
+      "rho_grid": [
+        -0.2,
+        -0.15,
+        -0.1,
+        -0.05,
+        0.0,
+        0.05
+      ],
+      "pooled_dc_log_loss": 1.031144,
+      "wall_clock_seconds": 4471,
+      "rho_at_grid_bound": 3,
+      "params_file": "artifacts/dc_rho_mle/params_arm_a_grid.json"
+    },
+    "arm_b_mle": {
+      "combos_per_league": 35,
+      "rho_bounds": [
+        -0.2,
+        0.2
+      ],
+      "pooled_dc_log_loss": 1.041638,
+      "wall_clock_seconds": 743,
+      "rho_fits_total": 87,
+      "rho_fits_at_bound": 0,
+      "params_file": "artifacts/dc_rho_mle/params_arm_b_fitted_rho.json"
+    }
+  },
+  "headline": {
+    "pooled_delta_arm_b_minus_arm_a": 0.010494,
+    "arm_b_speedup": 6.02,
+    "leagues_where_rho_sign_disagrees": 4,
+    "interpretation": "Arm A wins tuning-slice log loss because it is the argmin of 6x more candidates scored on the same rows it reports; that number is optimistically biased. Arm A puts 3/5 leagues on a rho grid boundary and disagrees with the MLE on the SIGN of rho in 3/5 leagues, so grid rho is not measuring low-score dependence. Arm B's rho is interior in 87/87 fits, tightly clustered per league, and in the range reported for European leagues."
+  },
+  "synthetic_recovery": {
+    "true_rho": -0.15,
+    "true_home_advantage": 1.35,
+    "seeds": 8,
+    "results": [
+      {
+        "n_matches": 1120,
+        "rho_mean": -0.1653,
+        "rho_sd": 0.0354,
+        "home_advantage_mean": 1.3616
+      },
+      {
+        "n_matches": 3360,
+        "rho_mean": -0.1629,
+        "rho_sd": 0.0247,
+        "home_advantage_mean": 1.3318
+      },
+      {
+        "n_matches": 16800,
+        "rho_mean": -0.1522,
+        "rho_sd": 0.0105,
+        "home_advantage_mean": 1.3431
+      }
+    ]
+  },
+  "leagues": [
+    {
+      "league_external_id": 39,
+      "n_evaluated": 133,
+      "arm_a_grid": {
+        "rho": -0.15,
+        "xi": 0.0001,
+        "lookback": 1460,
+        "log_loss": 0.9663172568608861,
+        "rho_at_grid_bound": false
+      },
+      "arm_b_mle": {
+        "rho_median": -0.01445160079447759,
+        "xi": 0.00025,
+        "lookback": 1460,
+        "log_loss": 0.968303299408454,
+        "rho_fit_spread": {
+          "median": -0.0145,
+          "min": -0.0466,
+          "max": -0.0012,
+          "at_bound_count": 0,
+          "n_fits": 27
+        }
+      },
+      "rho_sign_disagrees": false
+    },
+    {
+      "league_external_id": 41,
+      "n_evaluated": 69,
+      "arm_a_grid": {
+        "rho": -0.2,
+        "xi": 0.0001,
+        "lookback": 1460,
+        "log_loss": 1.0749236867450385,
+        "rho_at_grid_bound": true
+      },
+      "arm_b_mle": {
+        "rho_median": 0.006328979967030618,
+        "xi": 0.0001,
+        "lookback": 1460,
+        "log_loss": 1.0807956868062245,
+        "rho_fit_spread": {
+          "median": 0.0063,
+          "min": -0.0131,
+          "max": 0.0131,
+          "at_bound_count": 0,
+          "n_fits": 23
+        }
+      },
+      "rho_sign_disagrees": true
+    },
+    {
+      "league_external_id": 42,
+      "n_evaluated": 23,
+      "arm_a_grid": {
+        "rho": 0.05,
+        "xi": 0.0001,
+        "lookback": 1095,
+        "log_loss": 1.0696556725600623,
+        "rho_at_grid_bound": true
+      },
+      "arm_b_mle": {
+        "rho_median": -0.017246666185181038,
+        "xi": 0.0001,
+        "lookback": 1095,
+        "log_loss": 1.0743717819317156,
+        "rho_fit_spread": {
+          "median": -0.0172,
+          "min": -0.0218,
+          "max": 0.0107,
+          "at_bound_count": 0,
+          "n_fits": 4
+        }
+      },
+      "rho_sign_disagrees": true
+    },
+    {
+      "league_external_id": 45,
+      "n_evaluated": 19,
+      "arm_a_grid": {
+        "rho": 0.0,
+        "xi": 0.005,
+        "lookback": 730,
+        "log_loss": 0.9193110802377519,
+        "rho_at_grid_bound": false
+      },
+      "arm_b_mle": {
+        "rho_median": -0.14055178460900375,
+        "xi": 0.005,
+        "lookback": 730,
+        "log_loss": 0.9644955865456538,
+        "rho_fit_spread": {
+          "median": -0.1406,
+          "min": -0.1834,
+          "max": -0.0294,
+          "at_bound_count": 0,
+          "n_fits": 5
+        }
+      },
+      "rho_sign_disagrees": true
+    },
+    {
+      "league_external_id": 180,
+      "n_evaluated": 179,
+      "arm_a_grid": {
+        "rho": 0.05,
+        "xi": 0.0001,
+        "lookback": 1460,
+        "log_loss": 1.0693573076937999,
+        "rho_at_grid_bound": true
+      },
+      "arm_b_mle": {
+        "rho_median": -0.10860520619720072,
+        "xi": 0.0001,
+        "lookback": 1460,
+        "log_loss": 1.0850156297124043,
+        "rho_fit_spread": {
+          "median": -0.1086,
+          "min": -0.1251,
+          "max": -0.0756,
+          "at_bound_count": 0,
+          "n_fits": 28
+        }
+      },
+      "rho_sign_disagrees": true
+    }
+  ],
+  "out_of_scope_notes": [
+    "Not promoted: DC feature columns were not regenerated, HGB was not retrained, the 518-row gate was not re-measured.",
+    "DixonColesOptimizationResult.pooled_market_log_loss is still a stub returning 0.0 (optimizer.py).",
+    "min_training_matches is checked against the pre-filter match count, before matches_with_enough_team_history runs.",
+    "Selection contamination is unchanged: the DC tuning rows are also ~95% of the 518-row include-holdout gate."
+  ]
+}
