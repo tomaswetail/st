@@ -125,6 +125,7 @@ def train_and_save(
     max_iter: int,
     label_smoothing: float,
     exclude_injury_features: bool = False,
+    train_recency_half_life_days: float | None = None,
 ) -> None:
     train_rows, valid_rows = time_split_dataset_rows(
         rows,
@@ -134,6 +135,11 @@ def train_and_save(
         f"Fitting model on {len(train_rows)} train / {len(valid_rows)} validation rows",
         flush=True,
     )
+    if train_recency_half_life_days is not None:
+        print(
+            f"Train recency sample weights: half-life {train_recency_half_life_days:g} days",
+            flush=True,
+        )
     trainer = ResidualMLTrainer(
         market_weight=market_weight,
         dc_weight=dc_weight,
@@ -142,6 +148,7 @@ def train_and_save(
         max_iter=max_iter,
         label_smoothing=label_smoothing,
         exclude_injury_features=exclude_injury_features,
+        train_recency_half_life_days=train_recency_half_life_days,
     )
     result = trainer.fit(train_rows, valid_rows)
     saved = trainer.save(output_dir, version=version)

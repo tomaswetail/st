@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import pickle
 from dataclasses import dataclass
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +21,7 @@ from src.calc.residual_ml.injury_features import INJURY_FEATURE_COLUMNS
 from src.calc.residual_ml.vectorize import vectorize_row_values
 
 MODEL_TYPE = "residual_logit_v1"
+TRAIN_RECENCY_HALF_LIFE_KEY = "train_recency_half_life_days"
 
 _DATASET_ONLY_FIELDS = frozenset(
     {
@@ -61,6 +63,44 @@ class ResidualMLTrainingResult:
     baseline_weights_path: Path
 
 
+def parse_match_date(value: Any) -> date:
+    """Parse a dataset `match_date` (YYYY-MM-DD string or date) to `date`."""
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    return date.fromisoformat(str(value)[:10])
+
+
+def recency_sample_weight(days_before_as_of: int | float, half_life_days: float) -> float:
+    """Exponential decay weight: ``w = 2^(-d / half_life)``. ``d < 0`` → 1."""
+    if days_before_as_of < 0:
+        return 1.0
+    return float(2.0 ** (-float(days_before_as_of) / half_life_days))
+
+
+def train_as_of_match_date(train_rows: list[dict[str, Any]]) -> date:
+    """As-of date for recency weights: max train `match_date` (not val, not today)."""
+    if not train_rows:
+        raise ValueError("Cannot compute recency as-of date from empty train rows")
+    return max(parse_match_date(row["match_date"]) for row in train_rows)
+
+
+def train_recency_sample_weights(
+    train_rows: list[dict[str, Any]],
+    half_life_days: float,
+    *,
+    as_of_date: date | None = None,
+) -> np.ndarray:
+    """One weight per train row. Does not drop rows; ``d < 0`` keeps ``w = 1``."""
+    as_of = as_of_date if as_of_date is not None else train_as_of_match_date(train_rows)
+    weights = []
+    for row in train_rows:
+        days_before_as_of = (as_of - parse_match_date(row["match_date"])).days
+        weights.append(recency_sample_weight(days_before_as_of, half_life_days))
+    return np.asarray(weights, dtype=float)
+
+
 class ResidualMLTrainer:
     """Train a multi-output regressor predicting logit deltas vs blended baseline."""
 
@@ -75,6 +115,7 @@ class ResidualMLTrainer:
         learning_rate: float = 0.05,
         max_iter: int = 300,
         exclude_injury_features: bool = False,
+        train_recency_half_life_days: float | None = None,
     ) -> None:
         self.market_weight = market_weight
         self.dc_weight = dc_weight
@@ -84,6 +125,7 @@ class ResidualMLTrainer:
         self.learning_rate = learning_rate
         self.max_iter = max_iter
         self.exclude_injury_features = exclude_injury_features
+        self.train_recency_half_life_days = train_recency_half_life_days
         self.feature_names: list[str] = []
         self.global_medians: dict[str, float] = {}
         self.version = "v1"
@@ -137,7 +179,14 @@ class ResidualMLTrainer:
                 max_iter=self.max_iter,
             )
         )
-        self.model.fit(x_train, y_train)
+        if self.train_recency_half_life_days is not None:
+            sample_weight = train_recency_sample_weights(
+                train_rows,
+                self.train_recency_half_life_days,
+            )
+            self.model.fit(x_train, y_train, sample_weight=sample_weight)
+        else:
+            self.model.fit(x_train, y_train)
 
         train_loss = self._log_loss_from_rows(train_rows)
         valid_loss = self._log_loss_from_rows(validation_rows, labels=y_valid_labels)
@@ -173,6 +222,8 @@ class ResidualMLTrainer:
             "model_type": MODEL_TYPE,
             "version": version,
         }
+        if self.train_recency_half_life_days is not None:
+            artifact[TRAIN_RECENCY_HALF_LIFE_KEY] = self.train_recency_half_life_days
         with model_path.open("wb") as handle:
             pickle.dump(artifact, handle)
 
@@ -188,14 +239,14 @@ class ResidualMLTrainer:
             ),
             encoding="utf-8",
         )
+        baseline_payload: dict[str, Any] = {
+            "market_weight": self.market_weight,
+            "dc_weight": self.dc_weight,
+        }
+        if self.train_recency_half_life_days is not None:
+            baseline_payload[TRAIN_RECENCY_HALF_LIFE_KEY] = self.train_recency_half_life_days
         baseline_weights_path.write_text(
-            json.dumps(
-                {
-                    "market_weight": self.market_weight,
-                    "dc_weight": self.dc_weight,
-                },
-                indent=2,
-            ),
+            json.dumps(baseline_payload, indent=2),
             encoding="utf-8",
         )
 
@@ -232,6 +283,10 @@ class ResidualMLTrainer:
         trainer.market_weight = float(artifact.get("market_weight", trainer.market_weight))
         trainer.dc_weight = float(artifact.get("dc_weight", trainer.dc_weight))
         trainer.version = str(artifact.get("version", "v1"))
+        stored_half_life = artifact.get(TRAIN_RECENCY_HALF_LIFE_KEY)
+        trainer.train_recency_half_life_days = (
+            float(stored_half_life) if stored_half_life is not None else None
+        )
         return trainer
 
     def predict_deltas(self, vector: np.ndarray) -> dict[str, float]:

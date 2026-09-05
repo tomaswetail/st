@@ -50,6 +50,15 @@ def main() -> None:
         action="store_true",
         help="Omit injury/availability columns from HGB training (ablation B1)",
     )
+    parser.add_argument(
+        "--train-recency-half-life-days",
+        type=float,
+        default=None,
+        help=(
+            "Exponential decay half-life in days for train sample weights "
+            "(as-of = max train match_date). Default: unweighted."
+        ),
+    )
     args = parser.parse_args()
 
     dataset_path = resolve_repo_path(args.dataset)
@@ -99,6 +108,7 @@ def main() -> None:
             max_iter=args.max_iter,
             label_smoothing=args.label_smoothing,
             exclude_injury_features=args.exclude_injury_features,
+            train_recency_half_life_days=args.train_recency_half_life_days,
         )
 
 

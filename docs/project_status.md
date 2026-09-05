@@ -23,6 +23,7 @@ Pooled include-holdout log loss **≤ 0.99** on the official **518-row** gate (`
 | Market-anchored 6.2 | **FAIL** Gate B | Official 518 best shrink worse than Phase 1 / 6.1 — [`reports/ml_residual/phase6_market_anchored.md`](reports/ml_residual/phase6_market_anchored.md) |
 | DC ρ by MLE + pinned HGB | **ON** | Live scoring = MLE params + `sweep_best/` retrain, shrink **0.7**, official 518-row gate **1.0046**. Phase 6.1 **1.0022** is historical (grid-DC). — [`reports/2026-09-04-dc-mle-rho-freeze.md`](reports/2026-09-04-dc-mle-rho-freeze.md) |
 | Sweep HGB on MLE data | **OFF** | 81-combo sweep gate **1.0063** (α=0.8) worse than pinned retrain; `models/residual_ml/dc_rho_mle_sweep/` not promoted |
+| Recency-weighted HGB (half-life 180) | **KILL** | Official 518 shrink@0.7 **1.0088** (also 2026 **1.0310**); candidate kept, not promoted — [`reports/2026-09-05-recency-weighted-hgb.md`](reports/2026-09-05-recency-weighted-hgb.md) |
 
 ## Official gate reminder
 
@@ -38,6 +39,7 @@ Do **not** treat tuning-only or holdout-only LL as the ship metric. Ship decisio
 | MLE-ρ freeze | [`reports/2026-09-04-dc-mle-rho-freeze.md`](reports/2026-09-04-dc-mle-rho-freeze.md) | Canonical DC + pinned HGB; official gate **1.0046** |
 | Fail-closed DC + slice ML | [`reports/2026-09-04-dc-failclosed-and-slice-ml.md`](reports/2026-09-04-dc-failclosed-and-slice-ml.md) | Classic miss → market only; ship edge mixed (2025 + league 39) |
 | League-gated blend | [`reports/2026-09-04-league-gated-blend.md`](reports/2026-09-04-league-gated-blend.md) | 492 allowlist 39/45/180; official 518 **KILL** (league 39); **not promoted** |
+| Recency-weighted HGB | [`reports/2026-09-05-recency-weighted-hgb.md`](reports/2026-09-05-recency-weighted-hgb.md) | Half-life 180 on MLE CSV; official 518 **KILL** (1.0088); **not promoted** |
 
 ## Next ideas (non-binding)
 
@@ -50,6 +52,10 @@ Backlog only — **not** production:
 Prefer [`production_profile.md`](production_profile.md) for anything that affects live scoring.
 
 ## Recent work
+
+### 2026-09-05 10:25 — Recency-weighted HGB (KILL, not promoted)
+
+**APPROVED** protocol; gate **KILL**. One pinned HGB on existing MLE CSV with pre-registered train weights (half-life **180** vs max train `match_date`), α=0.7 frozen. Official 518 shrink@0.7 **1.0088** vs ship **1.0046**; 2026 **1.0310** vs **1.0265** (kill >1.0285). League 39 improved (**0.9503** vs **0.9526**) and does not override. Production `sweep_best/` and blend **unchanged**. Candidate kept at `models/residual_ml/recency_180_candidate/`. Tests **236 passed, 2 xfailed**. Report: [`reports/2026-09-05-recency-weighted-hgb.md`](reports/2026-09-05-recency-weighted-hgb.md). Artifact: [`gate_eval_recency_180.json`](../artifacts/dc_rho_mle_promotion/gate_eval_recency_180.json).
 
 ### 2026-09-05 00:20 — P0 league-gated blend (KILL, not promoted)
 
