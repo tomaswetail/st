@@ -125,6 +125,7 @@ def train_and_save(
     max_iter: int,
     label_smoothing: float,
     exclude_injury_features: bool = False,
+    injury_counts_only: bool = False,
     train_recency_half_life_days: float | None = None,
 ) -> None:
     train_rows, valid_rows = time_split_dataset_rows(
@@ -148,12 +149,18 @@ def train_and_save(
         max_iter=max_iter,
         label_smoothing=label_smoothing,
         exclude_injury_features=exclude_injury_features,
+        injury_counts_only=injury_counts_only,
         train_recency_half_life_days=train_recency_half_life_days,
     )
     result = trainer.fit(train_rows, valid_rows)
     saved = trainer.save(output_dir, version=version)
     if exclude_injury_features:
         print("Excluded injury feature columns from training", flush=True)
+    elif injury_counts_only:
+        print(
+            "Injury counts-only: kept home/away unavailable counts and has_availability",
+            flush=True,
+        )
     print(f"Train rows: {result.train_rows}, validation rows: {result.validation_rows}")
     print(f"Train log loss: {result.train_log_loss:.4f}")
     print(f"Validation log loss: {result.validation_log_loss:.4f}")

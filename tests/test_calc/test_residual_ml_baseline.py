@@ -5,11 +5,16 @@ from __future__ import annotations
 import pytest
 
 from src.calc.residual_ml.baseline import (
+    apply_count_differential_logit_shift,
     apply_residual_deltas,
     blend_baselines,
+    coverage_aware_shrink_alpha,
     engine_baseline,
+    inv_logit,
+    logit,
     market_baseline,
     shrink_toward_market,
+    shrink_toward_market_by_coverage,
     target_logit_deltas,
 )
 
@@ -76,6 +81,83 @@ def test_shrink_toward_market():
     assert toward_market["1"] == pytest.approx(0.50)
     no_shrink = shrink_toward_market(ml, market, alpha=0.0)
     assert no_shrink["1"] == pytest.approx(0.60)
+
+
+def test_coverage_aware_shrink_alpha_uses_covered_and_uncovered():
+    assert coverage_aware_shrink_alpha(1) == 0.7
+    assert coverage_aware_shrink_alpha(1.0) == 0.7
+    assert coverage_aware_shrink_alpha("1") == 0.7
+    assert coverage_aware_shrink_alpha(0) == 0.85
+    assert coverage_aware_shrink_alpha(None) == 0.85
+    assert coverage_aware_shrink_alpha("") == 0.85
+    assert coverage_aware_shrink_alpha("x") == 0.85
+
+
+def test_coverage_aware_shrink_renormalizes_and_leaves_global_shrink():
+    ml = {"1": 0.60, "X": 0.20, "2": 0.20}
+    market = {"1": 0.50, "X": 0.28, "2": 0.22}
+    covered = shrink_toward_market_by_coverage(ml, market, 1)
+    uncovered = shrink_toward_market_by_coverage(ml, market, 0)
+    missing = shrink_toward_market_by_coverage(ml, market, None)
+    global_ship = shrink_toward_market(ml, market, alpha=0.7)
+    assert sum(covered.values()) == pytest.approx(1.0)
+    assert sum(uncovered.values()) == pytest.approx(1.0)
+    assert covered["1"] == pytest.approx(global_ship["1"])
+    assert uncovered["1"] == pytest.approx(
+        shrink_toward_market(ml, market, alpha=0.85)["1"]
+    )
+    assert missing["1"] == pytest.approx(uncovered["1"])
+    assert shrink_toward_market(ml, market, alpha=0.7)["1"] == pytest.approx(
+        0.60 * 0.3 + 0.50 * 0.7
+    )
+
+
+def test_count_differential_logit_shift_moves_home_away_keeps_draw_logit():
+    engine = {"1": 0.45, "X": 0.30, "2": 0.25}
+    # c_a=4, c_h=2 → Δ = 0.04 * 2 = 0.08
+    shifted = apply_count_differential_logit_shift(
+        engine,
+        home_unavailable_count=2,
+        away_unavailable_count=4,
+        has_availability=1,
+        k=0.04,
+    )
+    assert sum(shifted.values()) == pytest.approx(1.0)
+    assert shifted["1"] == pytest.approx(
+        apply_residual_deltas(engine, {"1": 0.08, "X": 0.0, "2": -0.08})["1"]
+    )
+    assert shifted["1"] > engine["1"]
+    assert shifted["2"] < engine["2"]
+    pre_renorm_draw = inv_logit(logit(engine["X"]) + 0.0)
+    assert pre_renorm_draw == pytest.approx(engine["X"])
+
+
+def test_count_differential_logit_shift_leaves_uncovered_and_nulls():
+    engine = {"1": 0.45, "X": 0.30, "2": 0.25}
+    assert apply_count_differential_logit_shift(
+        engine,
+        home_unavailable_count=2,
+        away_unavailable_count=4,
+        has_availability=0,
+    ) == engine
+    assert apply_count_differential_logit_shift(
+        engine,
+        home_unavailable_count=2,
+        away_unavailable_count=4,
+        has_availability=None,
+    ) == engine
+    assert apply_count_differential_logit_shift(
+        engine,
+        home_unavailable_count=None,
+        away_unavailable_count=4,
+        has_availability=1,
+    ) == engine
+    assert apply_count_differential_logit_shift(
+        engine,
+        home_unavailable_count=2,
+        away_unavailable_count="",
+        has_availability=1,
+    ) == engine
 
 
 def test_apply_market_only_baseline():

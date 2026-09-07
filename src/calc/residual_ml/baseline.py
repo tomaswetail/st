@@ -27,9 +27,16 @@ __all__ = [
     "logit",
     "market_baseline",
     "normalize_probabilities",
+    "apply_count_differential_logit_shift",
+    "coverage_aware_shrink_alpha",
     "shrink_toward_market",
+    "shrink_toward_market_by_coverage",
     "target_logit_deltas",
 ]
+
+COVERED_SHRINK_ALPHA = 0.7
+UNCOVERED_SHRINK_ALPHA = 0.85
+COUNT_DIFF_LOGIT_SHIFT_K = 0.04
 
 
 def _clip_prob(probability: float, *, epsilon: float = PROB_EPSILON) -> float:
@@ -188,3 +195,63 @@ def shrink_toward_market(
     if normalized is None:
         return dict(ml_probabilities)
     return normalized
+
+
+def _parse_has_availability_flag(has_availability: object) -> int | None:
+    if has_availability in (None, ""):
+        return None
+    try:
+        return int(float(has_availability))  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+
+
+def coverage_aware_shrink_alpha(has_availability: object) -> float:
+    """Eval-time α: 0.7 when covered, 0.85 when has_availability != 1 (incl. missing)."""
+    if _parse_has_availability_flag(has_availability) == 1:
+        return COVERED_SHRINK_ALPHA
+    return UNCOVERED_SHRINK_ALPHA
+
+
+def shrink_toward_market_by_coverage(
+    ml_probabilities: Mapping[str, float],
+    market_probabilities: Mapping[str, float],
+    has_availability: object,
+) -> dict[str, float]:
+    """Row-level post-ML shrink. Production scoring still uses a single global α."""
+    return shrink_toward_market(
+        ml_probabilities,
+        market_probabilities,
+        alpha=coverage_aware_shrink_alpha(has_availability),
+    )
+
+
+def _parse_optional_count(value: object) -> float | None:
+    if value in (None, ""):
+        return None
+    try:
+        return float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+
+
+def apply_count_differential_logit_shift(
+    engine: Mapping[str, float],
+    *,
+    home_unavailable_count: object,
+    away_unavailable_count: object,
+    has_availability: object,
+    k: float = COUNT_DIFF_LOGIT_SHIFT_K,
+) -> dict[str, float]:
+    """Post-DC 1X2 logit shift. Unchanged when uncovered or counts are null."""
+    if _parse_has_availability_flag(has_availability) != 1:
+        return dict(engine)
+    home_count = _parse_optional_count(home_unavailable_count)
+    away_count = _parse_optional_count(away_unavailable_count)
+    if home_count is None or away_count is None:
+        return dict(engine)
+    delta = k * (away_count - home_count)
+    return apply_residual_deltas(
+        engine,
+        {"1": delta, "X": 0.0, "2": -delta},
+    )

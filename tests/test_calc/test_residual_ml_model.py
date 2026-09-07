@@ -7,6 +7,10 @@ from pathlib import Path
 import pytest
 
 from src.calc.residual_ml.baseline import apply_residual_deltas, blend_baselines
+from src.calc.residual_ml.injury_features import (
+    COUNTS_ONLY_INJURY_COLUMNS,
+    INJURY_FEATURE_COLUMNS,
+)
 from src.calc.residual_ml.model import ResidualMLModel
 from src.calc.residual_ml.trainer import ResidualMLTrainer
 from src.objects.schema.data_classes.residual_ml_features import ResidualMLFeatures
@@ -87,6 +91,39 @@ def test_trainer_exclude_injury_features_omits_columns():
     assert "has_availability" not in without_injury
     assert "home_unavailable_count" not in without_injury
     assert "attack_strength_difference" in without_injury
+    for column in INJURY_FEATURE_COLUMNS:
+        row_with_all = dict(rows[0])
+        row_with_all[column] = 1
+        names = ResidualMLTrainer.feature_names_from_rows(
+            [row_with_all],
+            exclude_injury_features=True,
+        )
+        assert column not in names
+
+
+def test_trainer_injury_counts_only_keeps_three_drops_nine():
+    rows = _synthetic_rows(4)
+    for row in rows:
+        for column in INJURY_FEATURE_COLUMNS:
+            row[column] = 1
+    counts_only = ResidualMLTrainer.feature_names_from_rows(
+        rows,
+        injury_counts_only=True,
+    )
+    all_excluded = ResidualMLTrainer.feature_names_from_rows(
+        rows,
+        exclude_injury_features=True,
+        injury_counts_only=True,
+    )
+    for column in COUNTS_ONLY_INJURY_COLUMNS:
+        assert column in counts_only
+        assert column not in all_excluded
+    dropped = INJURY_FEATURE_COLUMNS - COUNTS_ONLY_INJURY_COLUMNS
+    assert len(dropped) == 9
+    for column in dropped:
+        assert column not in counts_only
+        assert column not in all_excluded
+    assert "attack_strength_difference" in counts_only
 
 
 def test_trainer_fit_and_save_round_trip(tmp_path: Path):

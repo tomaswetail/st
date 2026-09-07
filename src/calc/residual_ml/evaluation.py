@@ -123,6 +123,28 @@ def slice_rows_by_availability(
     return grouped
 
 
+LOCKED_INJURY_SLICE_MIN_ABS_COUNT_DIFF = 2
+
+
+def slice_rows_by_unavailable_count_differential(
+    rows: list[dict[str, Any]],
+    *,
+    min_abs_diff: int = LOCKED_INJURY_SLICE_MIN_ABS_COUNT_DIFF,
+) -> list[dict[str, Any]]:
+    """Rows with has_availability=1 and |home − away unavailable count| >= min_abs_diff."""
+    selected: list[dict[str, Any]] = []
+    for row in rows:
+        if _parse_has_availability(row) != 1:
+            continue
+        home_count = _parse_float(row, "home_unavailable_count")
+        away_count = _parse_float(row, "away_unavailable_count")
+        if home_count is None or away_count is None:
+            continue
+        if abs(home_count - away_count) >= min_abs_diff:
+            selected.append(row)
+    return selected
+
+
 def slice_rows_by_injury_heavy(
     rows: list[dict[str, Any]],
     *,

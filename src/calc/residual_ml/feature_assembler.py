@@ -56,7 +56,7 @@ class ResidualMLFeatureAssembler:
             self.strength_calculator.home_advantage_calculator()
         )
         self.dixon_coles_service = DixonColesService(session, config=self.config)
-        self._league_external_id_cache: dict[str, int | None] = {}
+        self._league_external_id_cache: dict[tuple[str, str], int] = {}
         self._team_league_id_cache: dict[int, int | None] = {}
         self._team_fixtures_cache: dict[
             tuple[str, date, int], list
@@ -68,6 +68,8 @@ class ResidualMLFeatureAssembler:
 
     def clear_caches(self) -> None:
         """Drop lookback caches across nested calculators."""
+        self._league_external_id_cache.clear()
+        self._team_league_id_cache.clear()
         self._team_fixtures_cache.clear()
         self._classic_dc_fit_cache.clear()
         self._classic_dc_fallback_logged.clear()
@@ -335,28 +337,30 @@ class ResidualMLFeatureAssembler:
         )
 
     def _resolve_league_external_id(self, match: STMatchModel) -> int | None:
-        if match.league_name:
-            if match.league_name in self._league_external_id_cache:
-                return self._league_external_id_cache[match.league_name]
-            league = self.league_repo.get_by_name(match.league_name)
-            external_id = league.external_id if league is not None else None
-            self._league_external_id_cache[match.league_name] = external_id
-            if external_id is not None:
-                return external_id
-        if match.home_team is not None:
-            team_id = match.home_team.id
-            if team_id in self._team_league_id_cache:
-                internal_id = self._team_league_id_cache[team_id]
-            else:
-                internal_id = self.fixture_repo.resolve_internal_league_id_for_team(
-                    match.home_team
+        league_name = (getattr(match, "league_name", None) or "").strip()
+        country = (getattr(match, "league_country_name", None) or "").strip() or ""
+        if league_name:
+            cache_key = (league_name, country)
+            if cache_key in self._league_external_id_cache:
+                return self._league_external_id_cache[cache_key]
+            league = None
+            if country:
+                league = self.league_repo.get_by_name_and_country(
+                    league_name, country
                 )
-                self._team_league_id_cache[team_id] = internal_id
-            if internal_id is not None:
-                league = self.league_repo.get(internal_id)
-                if league is not None:
-                    return league.external_id
-        return None
+            if league is None:
+                league = self.league_repo.get_by_name(league_name)
+            if league is not None and league.external_id is not None:
+                external_id = int(league.external_id)
+                self._league_external_id_cache[cache_key] = external_id
+                return external_id
+            # Name miss: do not cache None — fall through to fixture/team path.
+
+        return self.fixture_repo.resolve_league_external_id_for_match(
+            match,
+            kickoff_tolerance_minutes=self.config.kickoff_match_tolerance_minutes,
+            skip_name=True,
+        )
 
     def _league_avg_npxg(self, match: STMatchModel, cutoff: date) -> float | None:
         if match.home_team is None:

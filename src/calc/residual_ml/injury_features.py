@@ -19,4 +19,25 @@ INJURY_FEATURE_COLUMNS: frozenset[str] = frozenset(
     }
 )
 
+COUNTS_ONLY_INJURY_COLUMNS: frozenset[str] = frozenset(
+    {
+        "home_unavailable_count",
+        "away_unavailable_count",
+        "has_availability",
+    }
+)
+
 DEFAULT_INJURY_HEAVY_THRESHOLD = 0.0
+
+
+def excluded_injury_feature_columns(
+    *,
+    exclude_injury_features: bool = False,
+    injury_counts_only: bool = False,
+) -> frozenset[str]:
+    """Columns to drop from HGB. All-or-nothing exclude wins over counts-only."""
+    if exclude_injury_features:
+        return INJURY_FEATURE_COLUMNS
+    if injury_counts_only:
+        return INJURY_FEATURE_COLUMNS - COUNTS_ONLY_INJURY_COLUMNS
+    return frozenset()

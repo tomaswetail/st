@@ -1,14 +1,17 @@
 """Residual ML training, evaluation, and inference."""
 
 from src.calc.residual_ml.baseline import (
+    apply_count_differential_logit_shift,
     apply_draw_adjustment,
     apply_market_only_baseline,
     apply_residual_deltas,
     blend_baselines,
+    coverage_aware_shrink_alpha,
     is_market_only_weights,
     load_draw_adjustment_config,
     market_baseline,
     shrink_toward_market,
+    shrink_toward_market_by_coverage,
 )
 from src.calc.residual_ml.blend_weights import (
     load_blend_weights_config,
@@ -36,6 +39,7 @@ __all__ = [
     "ResidualMLFeatureAssembler",
     "ResidualMLModel",
     "ResidualMLTrainer",
+    "apply_count_differential_logit_shift",
     "apply_draw_adjustment",
     "apply_market_only_baseline",
     "apply_residual_deltas",
@@ -54,6 +58,8 @@ __all__ = [
     "score_outcome_metrics",
     "select_backtest_rows",
     "select_blend_weights",
+    "coverage_aware_shrink_alpha",
     "shrink_toward_market",
+    "shrink_toward_market_by_coverage",
     "train_and_save",
 ]

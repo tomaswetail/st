@@ -51,6 +51,14 @@ def main() -> None:
         help="Omit injury/availability columns from HGB training (ablation B1)",
     )
     parser.add_argument(
+        "--injury-counts-only",
+        action="store_true",
+        help=(
+            "Among injury columns, keep only unavailable counts and has_availability; "
+            "drop the other INJURY_FEATURE_COLUMNS. Ignored if --exclude-injury-features."
+        ),
+    )
+    parser.add_argument(
         "--train-recency-half-life-days",
         type=float,
         default=None,
@@ -108,6 +116,7 @@ def main() -> None:
             max_iter=args.max_iter,
             label_smoothing=args.label_smoothing,
             exclude_injury_features=args.exclude_injury_features,
+            injury_counts_only=args.injury_counts_only,
             train_recency_half_life_days=args.train_recency_half_life_days,
         )
 

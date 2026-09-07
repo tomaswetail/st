@@ -17,7 +17,7 @@ from src.calc.residual_ml.baseline import (
     apply_residual_deltas,
     target_logit_deltas,
 )
-from src.calc.residual_ml.injury_features import INJURY_FEATURE_COLUMNS
+from src.calc.residual_ml.injury_features import excluded_injury_feature_columns
 from src.calc.residual_ml.vectorize import vectorize_row_values
 
 MODEL_TYPE = "residual_logit_v1"
@@ -115,6 +115,7 @@ class ResidualMLTrainer:
         learning_rate: float = 0.05,
         max_iter: int = 300,
         exclude_injury_features: bool = False,
+        injury_counts_only: bool = False,
         train_recency_half_life_days: float | None = None,
     ) -> None:
         self.market_weight = market_weight
@@ -125,6 +126,7 @@ class ResidualMLTrainer:
         self.learning_rate = learning_rate
         self.max_iter = max_iter
         self.exclude_injury_features = exclude_injury_features
+        self.injury_counts_only = False if exclude_injury_features else injury_counts_only
         self.train_recency_half_life_days = train_recency_half_life_days
         self.feature_names: list[str] = []
         self.global_medians: dict[str, float] = {}
@@ -137,14 +139,18 @@ class ResidualMLTrainer:
         rows: list[dict[str, Any]],
         *,
         exclude_injury_features: bool = False,
+        injury_counts_only: bool = False,
     ) -> list[str]:
         if not rows:
             return []
+        excluded = excluded_injury_feature_columns(
+            exclude_injury_features=exclude_injury_features,
+            injury_counts_only=injury_counts_only,
+        )
         return [
             key
             for key in rows[0].keys()
-            if key not in _DATASET_ONLY_FIELDS
-            and not (exclude_injury_features and key in INJURY_FEATURE_COLUMNS)
+            if key not in _DATASET_ONLY_FIELDS and key not in excluded
         ]
 
     def fit(
@@ -161,6 +167,7 @@ class ResidualMLTrainer:
         self.feature_names = self.feature_names_from_rows(
             train_rows,
             exclude_injury_features=self.exclude_injury_features,
+            injury_counts_only=self.injury_counts_only,
         )
         self.global_medians = self._compute_medians(train_rows, self.feature_names)
 

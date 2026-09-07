@@ -24,6 +24,7 @@ Pooled include-holdout log loss **≤ 0.99** on the official **518-row** gate (`
 | DC ρ by MLE + pinned HGB | **ON** | Live scoring = MLE params + `sweep_best/` retrain, shrink **0.7**, official 518-row gate **1.0046**. Phase 6.1 **1.0022** is historical (grid-DC). — [`reports/2026-09-04-dc-mle-rho-freeze.md`](reports/2026-09-04-dc-mle-rho-freeze.md) |
 | Sweep HGB on MLE data | **OFF** | 81-combo sweep gate **1.0063** (α=0.8) worse than pinned retrain; `models/residual_ml/dc_rho_mle_sweep/` not promoted |
 | Recency-weighted HGB (half-life 180) | **KILL** | Official 518 shrink@0.7 **1.0088** (also 2026 **1.0310**); candidate kept, not promoted — [`reports/2026-09-05-recency-weighted-hgb.md`](reports/2026-09-05-recency-weighted-hgb.md) |
+| Injuries v2 (T4–T2 wirings) | **KILL** | Official 518 shrink@0.7 T4 **1.0049**, T1 **1.0048**, T3 **1.0047**, T2 **1.0057** vs ship **1.0046**; production still off — [`reports/2026-09-05-injury-wiring-trials.md`](reports/2026-09-05-injury-wiring-trials.md). Follow-up review: **STOP** until XI/starter, fetch-time snapshot, or odds timestamp — [`reports/2026-09-05-injury-calculation-improvements.md`](reports/2026-09-05-injury-calculation-improvements.md) |
 
 ## Official gate reminder
 
@@ -34,24 +35,109 @@ Do **not** treat tuning-only or holdout-only LL as the ship metric. Ship decisio
 | Area | Path | Key files |
 |------|------|-----------|
 | Injuries | [`reports/injury/`](reports/injury/) | `injury_ablation_baseline.md`, `injury_phase2_results.md` |
+| Injury wiring trials | [`plans/2026-09-05-injury-wiring-trials.md`](plans/2026-09-05-injury-wiring-trials.md) | T4–T2 run; all **KILL**; production still off — [`reports/2026-09-05-injury-wiring-trials.md`](reports/2026-09-05-injury-wiring-trials.md) |
+| Injury calculation review | [`plans/2026-09-05-injury-calculation-improvements.md`](plans/2026-09-05-injury-calculation-improvements.md) | **STOP** until data quality; I1/I2 documented, not run — [`reports/2026-09-05-injury-calculation-improvements.md`](reports/2026-09-05-injury-calculation-improvements.md) |
 | Draw ML / adjustment | [`reports/ml_draw/`](reports/ml_draw/) | `draw_driver_analysis.md`, `draw_formula_report.txt` |
 | Residual ML / phases | [`reports/ml_residual/`](reports/ml_residual/) | `baseline_after_dc_tune.md`, `phase6_restore_phase1.md`, `phase6_market_anchored.md`, `log_loss_0.99_roadmap.md`, `dc_rho_mle.md`, `dc_rho_mle_promotion_contract.md` |
 | MLE-ρ freeze | [`reports/2026-09-04-dc-mle-rho-freeze.md`](reports/2026-09-04-dc-mle-rho-freeze.md) | Canonical DC + pinned HGB; official gate **1.0046** |
 | Fail-closed DC + slice ML | [`reports/2026-09-04-dc-failclosed-and-slice-ml.md`](reports/2026-09-04-dc-failclosed-and-slice-ml.md) | Classic miss → market only; ship edge mixed (2025 + league 39) |
 | League-gated blend | [`reports/2026-09-04-league-gated-blend.md`](reports/2026-09-04-league-gated-blend.md) | 492 allowlist 39/45/180; official 518 **KILL** (league 39); **not promoted** |
 | Recency-weighted HGB | [`reports/2026-09-05-recency-weighted-hgb.md`](reports/2026-09-05-recency-weighted-hgb.md) | Half-life 180 on MLE CSV; official 518 **KILL** (1.0088); **not promoted** |
+| PL vs Allsvenskan flip | [`reports/2026-09-05-pl-vs-allsvenskan-flip.md`](reports/2026-09-05-pl-vs-allsvenskan-flip.md) | Diagnostic; 180 flip is slice arithmetic (518 ⊂ 492; holdout n=0); **no Allsvenskan HGB** |
+| DC scoreline leftover | [`reports/2026-09-05-dc-scoreline-leftover.md`](reports/2026-09-05-dc-scoreline-leftover.md) | Diagnostic; leftover exists at locked λ totals but does **not** line up with the env split; **stop named regimes**; production unchanged |
+| 100% DC on official 518 | [`reports/2026-09-06-dc-only-518.md`](reports/2026-09-06-dc-only-518.md) | Eval-only; 100% DC **1.0471** (n=465); 53 classic miss; production unchanged |
+| Dixon–Coles NBM library | [`reports/2026-09-06-dixon-coles-nbm.md`](reports/2026-09-06-dixon-coles-nbm.md) | New `src/calc/dixon_coles_nbm/`; classic DC untouched; **not** wired to production |
+| Sarmanov–NB library | [`reports/2026-09-06-sarmanov-nb.md`](reports/2026-09-06-sarmanov-nb.md) | New `src/calc/sarmanov_nb/`; Michels four-cell Sarmanov×NB2; classic DC + ad-hoc NBM untouched; **not** wired to production |
+| 100% NBM on official 518 | [`reports/2026-09-06-dc-nbm-only-518.md`](reports/2026-09-06-dc-nbm-only-518.md) | Eval-only; 100% NBM **1.0143** (n=269); market **0.9908** same rows; production unchanged |
+| 100% NBM min_team_matches=3 | [`reports/2026-09-06-dc-nbm-only-518-min3.md`](reports/2026-09-06-dc-nbm-only-518-min3.md) | Eval-only; 100% NBM **1.0322** (n=278) at min=3; vs prior min=5 **1.0143**/269; production default still 5 |
+| 100% Sarmanov–NB on official 518 | [`reports/2026-09-06-sarmanov-nb-only-518.md`](reports/2026-09-06-sarmanov-nb-only-518.md) | Eval-only; 100% Sarmanov **1.0173** (n=269); market **0.9908** same rows; vs NBM min5 **1.0143**/269; production unchanged |
+| Stryktipset coupon optimizer | [`reports/2026-09-06-stryktipset-coupon-optimizer.md`](reports/2026-09-06-stryktipset-coupon-optimizer.md) | Market+streckprocent EV optimizer; MC + chronological tuner; **not** wired to ship path |
+| Stryktipset optimizer OOS backtest | [`reports/2026-09-06-stryktipset-optimizer-backtest.md`](reports/2026-09-06-stryktipset-optimizer-backtest.md) | 195 DB coupons 4760–4966; primary β=1/λ=0/C=100 lev **3.66**; hit-rate diag β=0.5; leakage UNKNOWN |
+| Stryktipset optimizer OOS rows=128 | [`reports/2026-09-06-stryktipset-optimizer-backtest-rows128.md`](reports/2026-09-06-stryktipset-optimizer-backtest-rows128.md) | Same 195 coupons; row_count=128, C=500 only; primary lev **3.444**; hit-diag mean correct **8.48** |
 
 ## Next ideas (non-binding)
 
 Backlog only — **not** production:
 
-- Injuries v2 (counts-only / coverage fixes)
+- Injuries calculation review **STOP** until data quality; I1/I2 optional only — [`plans/2026-09-05-injury-calculation-improvements.md`](plans/2026-09-05-injury-calculation-improvements.md)
 - Draw adjustment v2 (stricter OOS / fewer terms)
 - Stretch pooled include-holdout ≤0.99 remains **MISSED** (current ship **1.0046**, α=0.7). The 81-combo sweep on MLE data (**1.0063**, α=0.8) was worse than the pinned retrain and is not the ship.
 
 Prefer [`production_profile.md`](production_profile.md) for anything that affects live scoring.
 
 ## Recent work
+
+### 2026-09-06 23:45 — Stryktipset optimizer OOS backtest row_count=128
+
+Eval-only: same **195** DB coupons (4760–4966), **row_count=128**, reduced 9-cell grid β×λ × **C=500** (dropped C=100 — cannot select 128 rows; C=2000 omitted for runtime). ~**152 min**. Primary (leverage): **β=1.0, λ=0.0, C=500** → lev **3.444**, mean best-correct **5.76**, ≥10=2. Hit-rate diagnostic: **β=0.5, λ=1.0, C=500** → mean best-correct **8.48** (≥12/11/10 = 5/28/63). vs row=3: lev 3.655→3.444; hit best-correct 6.79→8.48. Leakage UNKNOWN; production untouched. Artifact: `artifacts/stryktipset_optimizer_backtest/backtest_rich_rows128.json`. Report: [`reports/2026-09-06-stryktipset-optimizer-backtest-rows128.md`](reports/2026-09-06-stryktipset-optimizer-backtest-rows128.md).
+
+### 2026-09-06 19:50 — Stryktipset optimizer chronological OOS backtest
+
+Eval-only: **195** settled DB coupons (draws **4760–4966**), default 18-point grid, `row_count=3`, ~37 min. Primary (mean portfolio leverage): **β=1.0, λ=0.0, C=100** → lev **3.655**, mean best-correct **3.88**, zero ≥10. Hit-rate diagnostic: **β=0.5, λ=1.0, C=500** → mean correct **6.79** (≥12/11/10 = 1/2/11). Market/public 1-row baselines ~6.45/6.51. Leakage UNKNOWN; ship path untouched. Artifact: `artifacts/stryktipset_optimizer_backtest/backtest_rich.json`. Report: [`reports/2026-09-06-stryktipset-optimizer-backtest.md`](reports/2026-09-06-stryktipset-optimizer-backtest.md).
+
+### 2026-09-06 11:20 — Stryktipset market+streckprocent coupon optimizer (APPROVED)
+
+**APPROVED** (PL + verifier + model review). Standalone `src/calc/stryktipset_optimizer/`: market odds as truth; EV vs streckprocent dilution; top-C search + Hamming portfolio; MC relative tiers; chronological OOS tuner with β-comparable `best_by_mean_portfolio_leverage`; public 1% scale fixed (any value `>1` ⇒ 0–100%). Tests **51 passed**. Ship gate / ProbabilityManager / residual ML / Dixon–Coles **unchanged**. Earlier pending/rework notes below superseded. Plan: [`plans/2026-09-06-stryktipset-coupon-optimizer.md`](plans/2026-09-06-stryktipset-coupon-optimizer.md). Report: [`reports/2026-09-06-stryktipset-coupon-optimizer.md`](reports/2026-09-06-stryktipset-coupon-optimizer.md).
+
+### 2026-09-06 11:13 — Stryktipset optimizer rework iter3 (public 1% scale)
+
+Blocking fix: `normalize_public_shares` treats any value `> 1` as 0–100% (ST ints `1` = 1%). Unit scale only when all ∈ `[0, 1]`. MC tiers relative to N. Favorite-count test keys verified (`"22"`/`"12"`/`"11"`). Pending PL/verifier — not APPROVED.
+
+### 2026-09-06 11:10 — Stryktipset optimizer rework iter2 (cross-β ranking)
+
+Blocking math fix: primary OOS selector is now `best_by_mean_portfolio_leverage` (`Σ log(Pm/Pp)` of selected rows; ≡ row_score at β=1). Construction `mean_top_row_score` kept as diagnostic only — not comparable across β. Test asserts best ≠ trivial max(β) under score inflation. Pending PL/verifier.
+
+### 2026-09-06 11:05 — Stryktipset coupon optimizer rework (pending PL/verifier)
+
+Rework fixes (not PL-approved): (1) `favorite_count` = selections equal to market argmax Pm (ties: OUTCOMES order); added `home_count` for homes; (2) backtest ranking moved off mean_correct (superseded 11:10 by portfolio leverage); realized row_score on settled rounds kept as metric; mean_correct/tiers diagnostic only; (3) MC `public_row_count` default **1000**; (4) docs wording / status honesty. Production scoring path still untouched. Report: [`reports/2026-09-06-stryktipset-coupon-optimizer.md`](reports/2026-09-06-stryktipset-coupon-optimizer.md).
+
+### 2026-09-06 10:55 — Stryktipset market+streckprocent coupon optimizer (implemented; pending PL/verifier)
+
+Implemented (rework applied 11:05). New `src/calc/stryktipset_optimizer/`: fair market Pm + public Pp row scoring, top-C exhaustive search, Hamming-diversified portfolio, banker/JS diagnostics, MC relative tiers, chronological OOS tuner. CLI `optimize_stryktipset_coupon` / `backtest_stryktipset_optimizer`. N=13 microbench candidate_count=500 **0.42s**, 50k **1.31s**. Leakage UNKNOWN documented (no odds/public timestamps; regCloseTime not on STRound). ProbabilityManager / residual ML / Dixon–Coles / ship gate **unchanged**. Plan: [`plans/2026-09-06-stryktipset-coupon-optimizer.md`](plans/2026-09-06-stryktipset-coupon-optimizer.md). Report: [`reports/2026-09-06-stryktipset-coupon-optimizer.md`](reports/2026-09-06-stryktipset-coupon-optimizer.md).
+
+### 2026-09-06 10:34 — 100% Sarmanov–NB on official 518 (eval-only)
+
+Diagnostic only. Official include-holdout 518 from the existing CSV (`select_backtest_rows`, no draw cap). Walk-forward `SarmanovNBModel` (ρ fitted, φ fitted; seed ρ=−0.13 / φ=0.05; no CSV-λ). **100% Sarmanov–NB** log-loss **1.0173** on 269 scored rows; 249 skipped (189 unknown_team, 56 missing_league, 4 fit_fail — same coverage as NBM min5). Same 269: market **0.9908**. vs cited NBM min5 **1.0143** (same n; slightly worse), classic 100% DC **1.0471** (n=465), and ship shrink@0.7 **1.0046** (n=518) is apples-to-oranges on ship/classic n. Intersection of the 269 with classic-valid-DC: Sarmanov **1.0173**, CSV classic **1.0171**, market **0.9908**. Fail-closed Sarmanov-or-market on 518 is **1.0206** — **not** 100% Sarmanov. Production HGB, blend 70/30, shrink α=0.7, classic DC, and the canonical CSV **unchanged**. Sarmanov not wired. Report: [`reports/2026-09-06-sarmanov-nb-only-518.md`](reports/2026-09-06-sarmanov-nb-only-518.md). Artifact: [`artifacts/sarmanov_nb_only_518.json`](../artifacts/sarmanov_nb_only_518.json).
+
+### 2026-09-06 10:15 — Sarmanov–NB library (not production)
+
+**APPROVED.** New `src/calc/sarmanov_nb/`: NB2 marginals × Michels/Karlis four-cell Sarmanov mixer (\(a=\lambda/(1+\varphi\lambda)\)). Classic `dixon_coles/` and ad-hoc `dixon_coles_nbm/` unmodified. Not wired into live scoring, blend, or HGB. Tests **90 passed**. Official ship **1.0046** / 70/30 / α=0.7 **unchanged**. Proper NB joint vs ad-hoc Poisson τ on NB. Report: [`reports/2026-09-06-sarmanov-nb.md`](reports/2026-09-06-sarmanov-nb.md).
+
+### 2026-09-06 09:02 — 100% NBM min_team_matches=3 on official 518 (eval-only)
+
+Diagnostic only. Same official 518; CLI `--min-team-matches 3` (config default still **5**). Walk-forward NBM (ρ=−0.13 fixed, φ fitted; no CSV-λ). **100% NBM** log-loss **1.0322** on 278 scored (+9 vs prior min=5 n=269); 240 skipped (180 unknown_team vs prior 189; 56 missing_league; 4 fit_fail). Same 278: market **0.9986**. vs prior min=5 NBM **1.0143** (worse LL despite more coverage). vs cited classic 100% DC **1.0471** (n=465) and ship **1.0046** (n=518) is apples-to-oranges. Production HGB, blend 70/30, shrink α=0.7, classic DC default min_team_matches=5, and CSV **unchanged**. NBM not wired. Report: [`reports/2026-09-06-dc-nbm-only-518-min3.md`](reports/2026-09-06-dc-nbm-only-518-min3.md). Artifact: [`artifacts/dc_nbm_only_518_min3.json`](../artifacts/dc_nbm_only_518_min3.json).
+
+### 2026-09-06 08:23 — 100% NBM on official 518 (eval-only)
+
+Diagnostic only. Official include-holdout 518 from the existing CSV (`select_backtest_rows`, no draw cap). Walk-forward `DixonColesNBMModel` (ρ=−0.13 fixed, φ fitted; no CSV-λ). **100% NBM** log-loss **1.0143** on 269 scored rows; 249 skipped (189 unknown_team, 56 missing_league, 4 fit_fail). Same 269: market **0.9908**. vs cited classic 100% DC **1.0471** (n=465) and ship shrink@0.7 **1.0046** (n=518) is apples-to-oranges. Intersection of the 269 with classic-valid-DC: NBM **1.0143**, CSV classic **1.0171**, market **0.9908**. Fail-closed NBM-or-market on 518 is **1.0190** — **not** 100% NBM. Production HGB, blend 70/30, shrink α=0.7, classic DC, and the canonical CSV **unchanged**. NBM not wired. Report: [`reports/2026-09-06-dc-nbm-only-518.md`](reports/2026-09-06-dc-nbm-only-518.md).
+
+### 2026-09-06 08:15 — Dixon–Coles NBM library (not production)
+
+**APPROVED.** New `src/calc/dixon_coles_nbm/`: NB2 marginals (one global φ) × classic four-cell τ. Classic `src/calc/dixon_coles/` unmodified. Not wired into live scoring, blend, or HGB. Tests **53 passed**. Official ship **1.0046** / 70/30 / α=0.7 **unchanged**. Not a leftover fix (NB raises P(0-0) vs Poisson). Report: [`reports/2026-09-06-dixon-coles-nbm.md`](reports/2026-09-06-dixon-coles-nbm.md).
+
+### 2026-09-06 07:51 — 100% DC on official 518 (eval-only)
+
+Diagnostic only. Official include-holdout 518 from the existing CSV (`select_backtest_rows`, no draw cap). **100% DC** log-loss **1.0471** on the 465 valid-DC rows; 53 classic misses (no invented DC). Same 465: market **1.0145**, blend **1.0162**. Fail-closed DC-or-market on the full 518 is **1.0361** — **not** 100% DC. 100% DC is worse than cited ship shrink@0.7 **1.0046**, and the comparison is apples-to-oranges (n=465 ≠ 518). Production HGB, blend 70/30, shrink α=0.7, and the canonical CSV **unchanged**. Report: [`reports/2026-09-06-dc-only-518.md`](reports/2026-09-06-dc-only-518.md).
+
+### 2026-09-05 20:15 — DC scoreline leftover diagnostic
+
+Diagnostic only. Joined ST FT scores (2589/2589; fixture fallback unused). Valid-λ n=2295 matches pre-registration. Leftover persists at low/mid λ (DC over-predicts 0-0); mid env persist is one-sided and realized 0-0 is inverted vs low-scoring-rate. **Answer:** Same totals, leftover 0-0/1-1 exists but does not line up with the locked environment split — stop named regimes. Official ship 1.0046 / α=0.7 / 70/30 and production files **unchanged**. Report: [`reports/2026-09-05-dc-scoreline-leftover.md`](reports/2026-09-05-dc-scoreline-leftover.md).
+
+### 2026-09-05 15:20 — Injury calculation review (STOP, plan only)
+
+**APPROVED** review. T4–T2 math was too blunt (squad≠XI, T2 four-factor, T3 on |d|=1, T4 shrank uncovered). Recommendation: **stop** injury 1X2 work until XI/starter, fetch-time snapshot, or odds timestamp. Two optional repaired formulas (I1 gated T3, I2 one-factor λ) documented, not run. Production, CSV, HGB, blend 70/30, shrink α=0.7 **unchanged**. Plan: [`plans/2026-09-05-injury-calculation-improvements.md`](plans/2026-09-05-injury-calculation-improvements.md). Report: [`reports/2026-09-05-injury-calculation-improvements.md`](reports/2026-09-05-injury-calculation-improvements.md).
+
+### 2026-09-05 14:20 — Injury wiring trials (all KILL, not promoted)
+
+**APPROVED** protocol. Preflight locked injury-slice n=191. T4 **1.0049**, T1 **1.0048**, T3 **1.0047** (blend 1.0085), T2 **1.0057** vs ship **1.0046** — all **KILL**. Production HGB, blend 70/30, shrink α=0.7, and canonical CSV **unchanged**. Injuries stay off. Report: [`reports/2026-09-05-injury-wiring-trials.md`](reports/2026-09-05-injury-wiring-trials.md).
+
+### 2026-09-05 — Injury wiring trials plan (not implemented)
+
+A plan was written; injuries were **not** implemented. Four later sittings (T4 shrink, T1 counts-only HGB, T3 post-DC logit, T2 λ shock). Production HGB, blend, and CSV **unchanged**. Plan: [`plans/2026-09-05-injury-wiring-trials.md`](plans/2026-09-05-injury-wiring-trials.md). Report: [`reports/2026-09-05-injury-wiring-trials-plan.md`](reports/2026-09-05-injury-wiring-trials-plan.md).
+
+### 2026-09-05 11:35 — PL vs Allsvenskan flip diagnostic
+
+Diagnostic, not a train. **Cause:** slice arithmetic — official 518 Allsvenskan is a subset of tuning 492 (158 of 201); holdout/518−492 have zero league-180 rows; the 492 win is 43 early-2025 rows that 518 drops. **Decision: no Allsvenskan HGB.** Report: [`reports/2026-09-05-pl-vs-allsvenskan-flip.md`](reports/2026-09-05-pl-vs-allsvenskan-flip.md). Production, CSV, HGB, blend 70/30, shrink α=0.7 **unchanged**.
 
 ### 2026-09-05 10:25 — Recency-weighted HGB (KILL, not promoted)
 

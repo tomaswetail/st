@@ -46,6 +46,7 @@ def _match():
         home_team=SimpleNamespace(id=1, name="Arsenal", external_id=42),
         away_team=SimpleNamespace(id=2, name="Chelsea", external_id=43),
         league_name="Premier League",
+        league_country_name="England",
         match_odds=SimpleNamespace(
             id=1,
             stryktipset_match_id=99,
@@ -63,6 +64,9 @@ def test_assembler_maps_feature_groups():
         config=DataSourceConfig(residual_ml_dc_engine="strength"),
     )
     assembler.league_repo.get_by_name = MagicMock(
+        return_value=SimpleNamespace(id=10, external_id=39)
+    )
+    assembler.league_repo.get_by_name_and_country = MagicMock(
         return_value=SimpleNamespace(id=10, external_id=39)
     )
     assembler.fixture_repo.resolve_internal_league_id_for_team = MagicMock(return_value=10)
@@ -228,6 +232,9 @@ def _stub_assemblers(assembler: ResidualMLFeatureAssembler) -> MatchStrengthFeat
         dixon_coles_away_probability=0.27,
     )
     assembler.league_repo.get_by_name = MagicMock(
+        return_value=SimpleNamespace(id=10, external_id=39)
+    )
+    assembler.league_repo.get_by_name_and_country = MagicMock(
         return_value=SimpleNamespace(id=10, external_id=39)
     )
     assembler.fixture_repo.resolve_internal_league_id_for_team = MagicMock(
@@ -427,4 +434,72 @@ def test_assembler_classic_fit_cached_per_league_day():
 
     assert assembler.dixon_coles_service.fit_league.call_count == 1
     assert classic_model.predict.call_count == 2
+
+
+def test_resolve_league_name_miss_falls_back_to_fixture_helper():
+    session = MagicMock()
+    assembler = ResidualMLFeatureAssembler(session, config=DataSourceConfig())
+    assembler.league_repo.get_by_name = MagicMock(return_value=None)
+    assembler.league_repo.get_by_name_and_country = MagicMock(return_value=None)
+    assembler.fixture_repo.resolve_league_external_id_for_match = MagicMock(
+        return_value=39
+    )
+    match = _match()
+    match.league_name = "Unmapped Svenska Spel Name"
+    match.league_country_name = "England"
+
+    resolved = assembler._resolve_league_external_id(match)
+
+    assert resolved == 39
+    assembler.fixture_repo.resolve_league_external_id_for_match.assert_called_once()
+    assert (
+        assembler.fixture_repo.resolve_league_external_id_for_match.call_args.kwargs[
+            "skip_name"
+        ]
+        is True
+    )
+
+
+def test_resolve_league_name_cache_miss_does_not_block_later_fallback():
+    session = MagicMock()
+    assembler = ResidualMLFeatureAssembler(session, config=DataSourceConfig())
+    assembler.league_repo.get_by_name = MagicMock(return_value=None)
+    assembler.league_repo.get_by_name_and_country = MagicMock(return_value=None)
+    assembler.fixture_repo.resolve_league_external_id_for_match = MagicMock(
+        side_effect=[None, 180]
+    )
+
+    first = _match()
+    first.league_name = "Allsvenskan Weird"
+    first.league_country_name = "Sweden"
+    second = _match()
+    second.id = 100
+    second.league_name = "Allsvenskan Weird"
+    second.league_country_name = "Sweden"
+    second.home_team = SimpleNamespace(id=3, name="AIK", external_id=99)
+
+    assert assembler._resolve_league_external_id(first) is None
+    assert assembler._resolve_league_external_id(second) == 180
+    assert "Allsvenskan Weird" not in [
+        key[0] for key in assembler._league_external_id_cache
+    ]
+    assert assembler.fixture_repo.resolve_league_external_id_for_match.call_count == 2
+
+
+def test_resolve_league_successful_name_is_cached():
+    session = MagicMock()
+    assembler = ResidualMLFeatureAssembler(session, config=DataSourceConfig())
+    assembler.league_repo.get_by_name = MagicMock(
+        return_value=SimpleNamespace(external_id=39)
+    )
+    assembler.league_repo.get_by_name_and_country = MagicMock(
+        return_value=SimpleNamespace(external_id=39)
+    )
+    assembler.fixture_repo.resolve_league_external_id_for_match = MagicMock()
+
+    match = _match()
+    assert assembler._resolve_league_external_id(match) == 39
+    assert assembler._resolve_league_external_id(match) == 39
+    assembler.league_repo.get_by_name_and_country.assert_called_once()
+    assembler.fixture_repo.resolve_league_external_id_for_match.assert_not_called()
 

@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime
-from typing import Literal
+from datetime import date, datetime, timedelta
+from typing import TYPE_CHECKING, Literal
 
 from sqlalchemy import cast, Date, func, or_, outerjoin, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -19,6 +19,9 @@ from src.objects.models.team import TeamModel
 from src.objects.repositories.base import BaseRepository
 from src.objects.schema.db.fixture import Fixture, FixtureCreate
 from src.utils.seasons import season_code_to_start_year
+
+if TYPE_CHECKING:
+    from src.objects.models.st_match import STMatchModel
 
 logger = logging.getLogger(__name__)
 
@@ -542,6 +545,18 @@ class FixtureRepository(BaseRepository[FixtureModel]):
         self, team: TeamModel
     ) -> int | None:
         """Map a team to internal leagues.id via its most recent fixture."""
+        league_api_id = self.resolve_league_external_id_for_team(team)
+        if league_api_id is None:
+            return None
+        league = self.league_repo.get_by_external_id(int(league_api_id))
+        return league.id if league is not None else None
+
+    def resolve_league_external_id_for_team(
+        self, team: TeamModel
+    ) -> int | None:
+        """API league id from a team's most recent fixture."""
+        if team is None or team.external_id is None:
+            return None
         league_api_id = self.session.scalar(
             select(self.model.league_id)
             .where(
@@ -553,10 +568,110 @@ class FixtureRepository(BaseRepository[FixtureModel]):
             .order_by(self.model.fixture_date.desc())
             .limit(1)
         )
-        if league_api_id is None:
+        return int(league_api_id) if league_api_id is not None else None
+
+    def resolve_league_external_id_for_match(
+        self,
+        match: "STMatchModel",
+        *,
+        kickoff_tolerance_minutes: int = 24 * 60,
+        skip_name: bool = False,
+    ) -> int | None:
+        """Resolve API league id for an ST match.
+
+        Order: league name (+ country) → this-match fixture by both team
+        external ids and kickoff date → home latest fixture → away latest.
+        If home and away history leagues disagree, return None.
+        """
+        if not skip_name:
+            from_name = self._league_external_id_from_match_name(match)
+            if from_name is not None:
+                return from_name
+
+        from_fixture = self._league_external_id_from_this_match_fixture(
+            match,
+            kickoff_tolerance_minutes=kickoff_tolerance_minutes,
+        )
+        if from_fixture is not None:
+            return from_fixture
+
+        home_league = (
+            self.resolve_league_external_id_for_team(match.home_team)
+            if match.home_team is not None
+            else None
+        )
+        away_league = (
+            self.resolve_league_external_id_for_team(match.away_team)
+            if match.away_team is not None
+            else None
+        )
+        if home_league is not None and away_league is not None:
+            if home_league != away_league:
+                return None
+            return home_league
+        if home_league is not None:
+            return home_league
+        return away_league
+
+    def _league_external_id_from_match_name(
+        self, match: "STMatchModel"
+    ) -> int | None:
+        league_name = (match.league_name or "").strip()
+        if not league_name:
             return None
-        league = self.league_repo.get_by_external_id(int(league_api_id))
-        return league.id if league is not None else None
+        country = (match.league_country_name or "").strip() or None
+        league = None
+        if country:
+            league = self.league_repo.get_by_name_and_country(league_name, country)
+        if league is None:
+            league = self.league_repo.get_by_name(league_name)
+        if league is None or league.external_id is None:
+            return None
+        return int(league.external_id)
+
+    def _league_external_id_from_this_match_fixture(
+        self,
+        match: "STMatchModel",
+        *,
+        kickoff_tolerance_minutes: int,
+    ) -> int | None:
+        home = match.home_team
+        away = match.away_team
+        kickoff = match.start_time
+        if (
+            home is None
+            or away is None
+            or home.external_id is None
+            or away.external_id is None
+            or kickoff is None
+        ):
+            return None
+        tolerance = timedelta(minutes=max(kickoff_tolerance_minutes, 0))
+        date_from = (kickoff - tolerance).date()
+        date_to = (kickoff + tolerance).date()
+        candidates = self.find_by_date_range_and_teams(
+            date_from=date_from,
+            date_to=date_to,
+            home_team_ids=[int(home.external_id)],
+            away_team_ids=[int(away.external_id)],
+        )
+        if not candidates:
+            return None
+        if len(candidates) == 1:
+            return int(candidates[0].league_id)
+
+        def _kickoff_distance(fixture: FixtureModel) -> float:
+            fixture_dt = fixture.fixture_date
+            if fixture_dt is None:
+                return float("inf")
+            if fixture_dt.tzinfo is None and kickoff.tzinfo is not None:
+                fixture_dt = fixture_dt.replace(tzinfo=kickoff.tzinfo)
+            elif fixture_dt.tzinfo is not None and kickoff.tzinfo is None:
+                fixture_dt = fixture_dt.replace(tzinfo=None)
+            return abs((fixture_dt - kickoff).total_seconds())
+
+        closest = min(candidates, key=_kickoff_distance)
+        return int(closest.league_id)
 
     def upsert_many(self, fixtures: list[FixtureCreate]) -> int:
         written = 0
