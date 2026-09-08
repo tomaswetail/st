@@ -1,15 +1,21 @@
 #!/usr/bin/env python3
 """Chronological OOS backtest / parameter tuner for the coupon optimizer.
 
+Requires explicit ``--mode`` (PREDICTION or VALUE). Does not silently score
+PREDICTION portfolios with the old VALUE leverage primary.
+
 ```bash
-python -m src.scripts.backtest_stryktipset_optimizer --fixture-dir path/to/rounds/
-python -m src.scripts.backtest_stryktipset_optimizer --min-draw 4900 --max-draw 4950
+python -m src.scripts.backtest_stryktipset_optimizer --mode VALUE \\
+  --fixture-dir path/to/rounds/
+python -m src.scripts.backtest_stryktipset_optimizer --mode PREDICTION \\
+  --objective MAX_P13 --fixture-dir path/to/rounds/
 ```
 
 Fixture dir: one JSON file per round (same schema as optimize CLI fixture).
 Ordering: min(start_time) else draw_number — never shuffled.
 
-Leakage UNKNOWN documented in output.
+Leakage UNKNOWN documented in output. Prior β-leverage OOS reports are
+VALUE-objective only and do not apply to PREDICTION default.
 """
 
 from __future__ import annotations
@@ -28,6 +34,10 @@ from src.calc.stryktipset_optimizer.data import (
     CouponMatchInput,
     LEAKAGE_LIMITATIONS,
     prepare_matches,
+)
+from src.calc.stryktipset_optimizer.params import (
+    VALID_MODES,
+    VALID_OBJECTIVES,
 )
 from src.utils.repo_paths import resolve_repo_path
 
@@ -70,25 +80,52 @@ def _coupon_from_payload(payload: dict[str, Any], coupon_size: int) -> Any:
     )
 
 
-def _default_grid() -> list[ParamConfig]:
-    grid: list[ParamConfig] = []
-    for beta in (0.5, 1.0, 1.5):
-        for lambda_div in (0.0, 0.5, 1.0):
-            for cand in (100, 500):
-                grid.append(
-                    ParamConfig(
-                        beta=beta,
-                        lambda_diversity=lambda_div,
-                        banker_value_weight=1.0,
-                        candidate_count=cand,
-                        row_count=3,
+def _default_grid(mode: str, objective: str, row_count: int) -> list[ParamConfig]:
+    if mode == "VALUE":
+        grid: list[ParamConfig] = []
+        for beta in (0.5, 1.0, 1.5):
+            for lambda_div in (0.0, 0.5, 1.0):
+                for cand in (100, 500):
+                    grid.append(
+                        ParamConfig(
+                            mode="VALUE",
+                            objective="MAX_P13",
+                            beta=beta,
+                            lambda_diversity=lambda_div,
+                            banker_value_weight=1.0,
+                            candidate_count=cand,
+                            row_count=row_count,
+                        )
                     )
-                )
-    return grid
+        return grid
+
+    # PREDICTION: vary row_count / candidate pool; β/λ unused for selection.
+    return [
+        ParamConfig(
+            mode="PREDICTION",
+            objective=objective,  # type: ignore[arg-type]
+            row_count=row_count,
+            prediction_candidate_count=cand,
+            reduced_system=False,
+        )
+        for cand in (500, 2000)
+    ]
 
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--mode",
+        choices=sorted(VALID_MODES),
+        required=True,
+        help="Required: PREDICTION or VALUE (no silent default)",
+    )
+    parser.add_argument(
+        "--objective",
+        choices=sorted(VALID_OBJECTIVES),
+        default="MAX_P13",
+        help="PREDICTION objective (ignored for VALUE grid)",
+    )
     parser.add_argument(
         "--fixture-dir",
         type=Path,
@@ -98,6 +135,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--min-draw", type=int, default=None)
     parser.add_argument("--max-draw", type=int, default=None)
     parser.add_argument("--coupon-size", type=int, default=13)
+    parser.add_argument("--rows", type=int, default=3, help="Portfolio row count")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--n-simulations", type=int, default=200)
     parser.add_argument(
@@ -138,30 +176,58 @@ def main() -> None:
             session.close()
 
     print(f"Loaded {len(coupons)} coupons", flush=True)
+    print(f"Mode={args.mode} objective={args.objective}", flush=True)
     print(f"Limitations: {LEAKAGE_LIMITATIONS}", flush=True)
+    if args.mode == "VALUE":
+        print(
+            "NOTE: VALUE leverage primary; prior OOS reports apply here only.",
+            flush=True,
+        )
+    else:
+        print(
+            "NOTE: PREDICTION coverage primary; VALUE β-leverage backtests "
+            "do NOT validate this mode.",
+            flush=True,
+        )
 
     result = run_backtest(
         coupons,
-        _default_grid(),
+        _default_grid(args.mode, args.objective, args.rows),
         seed=args.seed,
         n_simulations=args.n_simulations,
+        mode=args.mode,  # type: ignore[arg-type]
     )
 
     for item in result.results:
         p = item.params
+        if args.mode == "VALUE":
+            print(
+                f"beta={p.beta} λ={p.lambda_diversity} C={p.candidate_count} "
+                f"n={item.rounds_evaluated} "
+                f"mean_portfolio_leverage={item.mean_portfolio_leverage:.4f} "
+                f"mean_top_row_score(diag)={item.mean_top_row_score:.4f} "
+                f"mean_correct(diag)={item.mean_correct:.4f}",
+                flush=True,
+            )
+        else:
+            print(
+                f"obj={p.objective} rows={p.row_count} "
+                f"predC={p.prediction_candidate_count} "
+                f"n={item.rounds_evaluated} "
+                f"P_full={item.mean_coverage_p_full:.6g} "
+                f"P12+={item.mean_coverage_p_12_or_better:.6g} "
+                f"E[best]={item.mean_coverage_expected_best:.4f} "
+                f"hit(diag)={item.mean_correct:.4f}",
+                flush=True,
+            )
+
+    if result.best_by_primary is not None:
+        best = result.best_by_primary
         print(
-            f"beta={p.beta} λ={p.lambda_diversity} C={p.candidate_count} "
-            f"n={item.rounds_evaluated} "
-            f"mean_portfolio_leverage={item.mean_portfolio_leverage:.4f} "
-            f"mean_top_row_score(diag)={item.mean_top_row_score:.4f} "
-            f"mean_correct(diag)={item.mean_correct:.4f}",
-            flush=True,
-        )
-    if result.best_by_mean_portfolio_leverage is not None:
-        best = result.best_by_mean_portfolio_leverage
-        print(
-            f"Best by mean_portfolio_leverage: beta={best.beta} "
-            f"λ={best.lambda_diversity} C={best.candidate_count}",
+            f"Best by {result.primary_metric}: mode={best.mode} "
+            f"objective={best.objective} beta={best.beta} "
+            f"λ={best.lambda_diversity} C={best.candidate_count} "
+            f"rows={best.row_count}",
             flush=True,
         )
 
@@ -169,7 +235,14 @@ def main() -> None:
         out_path = resolve_repo_path(args.json)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
+            "mode": result.mode,
+            "primary_metric": result.primary_metric,
             "limitations": result.limitations,
+            "best_by_primary": (
+                None
+                if result.best_by_primary is None
+                else result.best_by_primary.__dict__
+            ),
             "best_by_mean_portfolio_leverage": (
                 None
                 if result.best_by_mean_portfolio_leverage is None
@@ -181,6 +254,10 @@ def main() -> None:
                     "rounds_evaluated": item.rounds_evaluated,
                     "rounds_skipped": item.rounds_skipped,
                     "mean_portfolio_leverage": item.mean_portfolio_leverage,
+                    "mean_coverage_p_full": item.mean_coverage_p_full,
+                    "mean_coverage_p_12_or_better": item.mean_coverage_p_12_or_better,
+                    "mean_coverage_p_11_or_better": item.mean_coverage_p_11_or_better,
+                    "mean_coverage_expected_best": item.mean_coverage_expected_best,
                     "mean_top_row_score_diagnostic": item.mean_top_row_score,
                     "mean_realized_row_score_diagnostic": item.mean_realized_row_score,
                     "mean_correct_diagnostic": item.mean_correct,

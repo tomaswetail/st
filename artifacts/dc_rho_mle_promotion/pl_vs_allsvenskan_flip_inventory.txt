@@ -1,0 +1,125 @@
+pooled 492=492 518=518 intersect=389 518-only=129 492-only=103 holdout=129
+
+=== league 39 ===
+492 {'n': 144, 'date_min': '2025-08-16', 'date_max': '2026-04-25', 'draw_min': 4914, 'draw_max': 4950, 'years': {'2025': 90, '2026': 54}, 'labels': {'2': 40, 'X': 34, '1': 70}}
+  market: 0.9513 (n=144)
+  dc: 0.9584 (n=144)
+  blend: 0.9491 (n=144)
+518 {'n': 135, 'date_min': '2025-10-04', 'date_max': '2026-05-24', 'draw_min': 4921, 'draw_max': 4954, 'years': {'2025': 58, '2026': 77}, 'labels': {'1': 66, '2': 37, 'X': 32}}
+  market: 0.9580 (n=135)
+  dc: 0.9566 (n=135)
+  blend: 0.9538 (n=135)
+492∩518 {'n': 112, 'date_min': '2025-10-04', 'date_max': '2026-04-25', 'draw_min': 4921, 'draw_max': 4950, 'years': {'2025': 58, '2026': 54}, 'labels': {'1': 55, '2': 32, 'X': 25}}
+  market: 0.9312 (n=112)
+  dc: 0.9447 (n=112)
+  blend: 0.9314 (n=112)
+518−492 {'n': 23, 'date_min': '2026-05-02', 'date_max': '2026-05-24', 'draw_min': 4951, 'draw_max': 4954, 'years': {'2026': 23}, 'labels': {'1': 11, 'X': 7, '2': 5}}
+  market: 1.0886 (n=23)
+  dc: 1.0145 (n=23)
+  blend: 1.0631 (n=23)
+492−518 {'n': 32, 'date_min': '2025-08-16', 'date_max': '2025-09-27', 'draw_min': 4914, 'draw_max': 4920, 'years': {'2025': 32}, 'labels': {'X': 9, '2': 8, '1': 15}}
+  market: 1.0218 (n=32)
+  dc: 1.0063 (n=32)
+  blend: 1.0112 (n=32)
+holdout {'n': 23, 'date_min': '2026-05-02', 'date_max': '2026-05-24', 'draw_min': 4951, 'draw_max': 4954, 'years': {'2026': 23}, 'labels': {'1': 11, 'X': 7, '2': 5}}
+  market: 1.0886 (n=23)
+  dc: 1.0145 (n=23)
+  blend: 1.0631 (n=23)
+
+=== league 180 ===
+492 {'n': 201, 'date_min': '2025-08-09', 'date_max': '2026-04-25', 'draw_min': 4913, 'draw_max': 4950, 'years': {'2025': 117, '2026': 84}, 'labels': {'1': 88, '2': 70, 'X': 43}}
+  market: 1.0782 (n=201)
+  dc: 1.0859 (n=201)
+  blend: 1.0733 (n=201)
+518 {'n': 158, 'date_min': '2025-09-27', 'date_max': '2026-04-25', 'draw_min': 4920, 'draw_max': 4950, 'years': {'2025': 74, '2026': 84}, 'labels': {'X': 35, '1': 73, '2': 50}}
+  market: 1.0529 (n=158)
+  dc: 1.0796 (n=158)
+  blend: 1.0542 (n=158)
+492∩518 {'n': 158, 'date_min': '2025-09-27', 'date_max': '2026-04-25', 'draw_min': 4920, 'draw_max': 4950, 'years': {'2025': 74, '2026': 84}, 'labels': {'X': 35, '1': 73, '2': 50}}
+  market: 1.0529 (n=158)
+  dc: 1.0796 (n=158)
+  blend: 1.0542 (n=158)
+518−492 {'n': 0, 'date_min': None, 'date_max': None, 'draw_min': None, 'draw_max': None, 'years': {}, 'labels': {}}
+492−518 {'n': 43, 'date_min': '2025-08-09', 'date_max': '2025-09-27', 'draw_min': 4913, 'draw_max': 4920, 'years': {'2025': 43}, 'labels': {'2': 20, '1': 15, 'X': 8}}
+  market: 1.1711 (n=43)
+  dc: 1.1089 (n=43)
+  blend: 1.1433 (n=43)
+holdout {'n': 0, 'date_min': None, 'date_max': None, 'draw_min': None, 'draw_max': None, 'years': {}, 'labels': {}}
+
+=== year-level LL (hypothesis 1) ===
+
+--- league 39 ---
+492 2025: n=90 market=0.9220 (n=90) dc=0.9078 (n=90) blend=0.9121 (n=90)
+492 2026: n=54 market=1.0003 (n=54) dc=1.0428 (n=54) blend=1.0110 (n=54)
+518 2025: n=58 market=0.8669 (n=58) dc=0.8535 (n=58) blend=0.8573 (n=58)
+518 2026: n=77 market=1.0266 (n=77) dc=1.0343 (n=77) blend=1.0265 (n=77)
+492∩518 2025: n=58 market=0.8669 (n=58) dc=0.8535 (n=58) blend=0.8573 (n=58)
+492∩518 2026: n=54 market=1.0003 (n=54) dc=1.0428 (n=54) blend=1.0110 (n=54)
+518−492 2025: n=0
+518−492 2026: n=23 market=1.0886 (n=23) dc=1.0145 (n=23) blend=1.0631 (n=23)
+492−518 2025: n=32 market=1.0218 (n=32) dc=1.0063 (n=32) blend=1.0112 (n=32)
+492−518 2026: n=0
+holdout 2025: n=0
+holdout 2026: n=23 market=1.0886 (n=23) dc=1.0145 (n=23) blend=1.0631 (n=23)
+
+--- league 180 ---
+492 2025: n=117 market=1.0545 (n=117) dc=1.0653 (n=117) blend=1.0507 (n=117)
+492 2026: n=84 market=1.1112 (n=84) dc=1.1145 (n=84) blend=1.1047 (n=84)
+518 2025: n=74 market=0.9868 (n=74) dc=1.0399 (n=74) blend=0.9969 (n=74)
+518 2026: n=84 market=1.1112 (n=84) dc=1.1145 (n=84) blend=1.1047 (n=84)
+492∩518 2025: n=74 market=0.9868 (n=74) dc=1.0399 (n=74) blend=0.9969 (n=74)
+492∩518 2026: n=84 market=1.1112 (n=84) dc=1.1145 (n=84) blend=1.1047 (n=84)
+518−492 2025: n=0
+518−492 2026: n=0
+492−518 2025: n=43 market=1.1711 (n=43) dc=1.1089 (n=43) blend=1.1433 (n=43)
+492−518 2026: n=0
+holdout 2025: n=0
+holdout 2026: n=0
+
+=== outcome mix realized vs predicted mean shares (hypothesis 5) ===
+
+--- league 39 ---
+492 n=144
+  1: realized=0.486 market=0.458 dc=0.448 blend=0.455
+  X: realized=0.236 market=0.239 dc=0.231 blend=0.236
+  2: realized=0.278 market=0.304 dc=0.321 blend=0.309
+518 n=135
+  1: realized=0.489 market=0.456 dc=0.451 blend=0.454
+  X: realized=0.237 market=0.238 dc=0.235 blend=0.237
+  2: realized=0.274 market=0.307 dc=0.315 blend=0.309
+492∩518 n=112
+  1: realized=0.491 market=0.460 dc=0.450 blend=0.457
+  X: realized=0.223 market=0.237 dc=0.232 blend=0.236
+  2: realized=0.286 market=0.303 dc=0.318 blend=0.308
+518−492 n=23
+  1: realized=0.478 market=0.436 dc=0.455 blend=0.442
+  X: realized=0.304 market=0.240 dc=0.249 blend=0.243
+  2: realized=0.217 market=0.324 dc=0.296 blend=0.316
+492−518 n=32
+  1: realized=0.469 market=0.449 dc=0.441 blend=0.447
+  X: realized=0.281 market=0.244 dc=0.228 blend=0.239
+  2: realized=0.250 market=0.307 dc=0.331 blend=0.314
+holdout n=23
+  1: realized=0.478 market=0.436 dc=0.455 blend=0.442
+  X: realized=0.304 market=0.240 dc=0.249 blend=0.243
+  2: realized=0.217 market=0.324 dc=0.296 blend=0.316
+
+--- league 180 ---
+492 n=201
+  1: realized=0.438 market=0.434 dc=0.388 blend=0.420
+  X: realized=0.214 market=0.271 dc=0.318 blend=0.285
+  2: realized=0.348 market=0.295 dc=0.294 blend=0.295
+518 n=158
+  1: realized=0.462 market=0.435 dc=0.387 blend=0.420
+  X: realized=0.222 market=0.273 dc=0.319 blend=0.287
+  2: realized=0.316 market=0.293 dc=0.293 blend=0.293
+492∩518 n=158
+  1: realized=0.462 market=0.435 dc=0.387 blend=0.420
+  X: realized=0.222 market=0.273 dc=0.319 blend=0.287
+  2: realized=0.316 market=0.293 dc=0.293 blend=0.293
+518−492: n=0
+492−518 n=43
+  1: realized=0.349 market=0.431 dc=0.392 blend=0.419
+  X: realized=0.186 market=0.266 dc=0.312 blend=0.279
+  2: realized=0.465 market=0.304 dc=0.296 blend=0.301
+holdout: n=0

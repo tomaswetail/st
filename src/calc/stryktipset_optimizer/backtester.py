@@ -1,12 +1,12 @@
 """Chronological OOS historical parameter tuner.
 
-Orders coupons by min(start_time) else draw_number — never shuffles time.
-Aggregates relative metrics per parameter config. Skips incomplete rounds.
+Supports:
+- VALUE mode: primary ranking by mean portfolio leverage Σ log(Pm/Pp)
+  (prior β-leverage backtests apply here only).
+- PREDICTION mode: primary ranking by mean coverage objective
+  (P_full / P12+ / P11+ / E[best_correct]); does NOT use leverage primary.
 
-Primary ranking uses mean portfolio leverage
-``Σ log(Pm/Pp)`` (≡ row_score at β=1), which is comparable across construction
-β / λ. Construction ``row_score`` / ``mean_top_row_score`` inflate with β and
-are diagnostics only. mean_correct / tier rates are also diagnostics only.
+Orders coupons by min(start_time) else draw_number — never shuffles time.
 
 Leakage UNKNOWN: odds/public shares lack timestamps; regCloseTime not on
 STRoundModel. Do not claim closing-line safety from this backtest.
@@ -17,39 +17,60 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Sequence
+from typing import Literal, Sequence
 
 from src.calc.stryktipset_optimizer.data import (
     LEAKAGE_LIMITATIONS,
     PreparedCoupon,
 )
 from src.calc.stryktipset_optimizer.optimize import CouponOptimizer
-from src.calc.stryktipset_optimizer.params import OptimizerParams
+from src.calc.stryktipset_optimizer.params import (
+    OptimizerMode,
+    OptimizerParams,
+    PredictionObjective,
+)
 from src.calc.stryktipset_optimizer.simulator import simulate_pool
 from src.utils.common import Outcome
+
+BacktestPrimaryMetric = Literal[
+    "portfolio_leverage",
+    "p_full",
+    "p_12_or_better",
+    "p_11_or_better",
+    "expected_best_correct",
+]
 
 
 @dataclass(frozen=True)
 class ParamConfig:
     """One grid point for historical tuning."""
 
+    mode: OptimizerMode = "VALUE"
+    objective: PredictionObjective = "MAX_P13"
     beta: float = 1.0
     lambda_diversity: float = 0.5
     banker_value_weight: float = 1.0
     candidate_count: int = 500
+    prediction_candidate_count: int = 2000
     row_count: int = 1
+    reduced_system: bool = False
 
 
 @dataclass(frozen=True)
 class RoundEval:
     draw_number: int | None
     sort_key: tuple
-    # Cross-β comparable primary metric (mean leverage of selected rows):
+    # VALUE primary (comparable across β):
     portfolio_leverage: float
     top_leverage_score: float
+    # PREDICTION primary / diagnostics:
+    coverage_p_full: float
+    coverage_p_12_or_better: float
+    coverage_p_11_or_better: float
+    coverage_expected_best: float
     # Diagnostics — construction row_score is NOT comparable across β:
     row_score_top: float
-    realized_row_score: float | None  # actual outcome under construction beta
+    realized_row_score: float | None
     mean_correct: float
     tier13_rate: float
 
@@ -60,8 +81,12 @@ class BacktestConfigResult:
     rounds_evaluated: int
     rounds_skipped: int
     mean_portfolio_leverage: float
+    mean_coverage_p_full: float
+    mean_coverage_p_12_or_better: float
+    mean_coverage_p_11_or_better: float
+    mean_coverage_expected_best: float
     # Diagnostics only:
-    mean_top_row_score: float  # not comparable across β
+    mean_top_row_score: float
     mean_realized_row_score: float | None
     mean_correct: float
     mean_tier13_rate: float
@@ -72,6 +97,10 @@ class BacktestConfigResult:
 @dataclass(frozen=True)
 class BacktestResult:
     results: tuple[BacktestConfigResult, ...]
+    mode: OptimizerMode
+    primary_metric: BacktestPrimaryMetric
+    best_by_primary: ParamConfig | None
+    # Backward-compatible alias for VALUE leverage ranking:
     best_by_mean_portfolio_leverage: ParamConfig | None
     limitations: str = LEAKAGE_LIMITATIONS
 
@@ -126,6 +155,40 @@ def realized_row_score_for_outcomes(
     return total
 
 
+def _primary_for_mode(
+    mode: OptimizerMode,
+    objective: PredictionObjective,
+) -> BacktestPrimaryMetric:
+    if mode == "VALUE":
+        return "portfolio_leverage"
+    if objective == "MAX_P13":
+        return "p_full"
+    if objective == "MAX_P12_OR_BETTER":
+        return "p_12_or_better"
+    if objective == "MAX_P11_OR_BETTER":
+        return "p_11_or_better"
+    if objective == "MAX_EXPECTED_CORRECT":
+        return "expected_best_correct"
+    return "p_full"
+
+
+def _primary_value(
+    item: BacktestConfigResult,
+    metric: BacktestPrimaryMetric,
+) -> float:
+    if metric == "portfolio_leverage":
+        return item.mean_portfolio_leverage
+    if metric == "p_full":
+        return item.mean_coverage_p_full
+    if metric == "p_12_or_better":
+        return item.mean_coverage_p_12_or_better
+    if metric == "p_11_or_better":
+        return item.mean_coverage_p_11_or_better
+    if metric == "expected_best_correct":
+        return item.mean_coverage_expected_best
+    raise ValueError(f"unknown primary metric: {metric}")
+
+
 def evaluate_coupon_against_truth(
     coupon: PreparedCoupon,
     params: ParamConfig,
@@ -134,19 +197,23 @@ def evaluate_coupon_against_truth(
     seed: int = 0,
     n_simulations: int = 200,
 ) -> RoundEval | None:
-    """Optimize one coupon; record cross-β leverage + descriptive diagnostics."""
+    """Optimize one coupon; record mode-appropriate metrics + diagnostics."""
     if len(coupon.matches) == 0:
         return None
 
     optimizer = CouponOptimizer(
         OptimizerParams(
+            mode=params.mode,
+            objective=params.objective,
             beta=params.beta,
             lambda_diversity=params.lambda_diversity,
             banker_value_weight=params.banker_value_weight,
             candidate_count=params.candidate_count,
+            prediction_candidate_count=params.prediction_candidate_count,
             public_epsilon=public_epsilon,
             coupon_size=len(coupon.matches),
             seed=seed,
+            reduced_system=params.reduced_system,
         )
     )
     result = optimizer.optimize_prepared(coupon, row_count=params.row_count)
@@ -158,6 +225,10 @@ def evaluate_coupon_against_truth(
     ]
     portfolio_leverage = sum(leverages) / len(leverages)
     top_leverage = max(leverages)
+
+    coverage = result.coverage
+    if coverage is None:
+        raise RuntimeError("optimizer result missing coverage block")
 
     realized: float | None = None
     if all(match.result is not None for match in coupon.matches):
@@ -177,7 +248,7 @@ def evaluate_coupon_against_truth(
             our_rows,
             n_simulations=n_simulations,
             seed=seed,
-            public_row_count=50,  # keep unsettled MC light in backtest loops
+            public_row_count=50,
         )
         mean_correct = sim.mean_correct_ours
         tier13 = sim.our_tier_rates["13"]
@@ -187,6 +258,10 @@ def evaluate_coupon_against_truth(
         sort_key=coupon_sort_key(coupon),
         portfolio_leverage=portfolio_leverage,
         top_leverage_score=top_leverage,
+        coverage_p_full=coverage.p_full,
+        coverage_p_12_or_better=coverage.p_12_or_better,
+        coverage_p_11_or_better=coverage.p_11_or_better,
+        coverage_expected_best=coverage.expected_best_correct,
         row_score_top=top_score,
         realized_row_score=realized,
         mean_correct=mean_correct,
@@ -201,24 +276,63 @@ def run_backtest(
     public_epsilon: float = 1e-6,
     seed: int = 0,
     n_simulations: int = 200,
+    mode: OptimizerMode | None = None,
 ) -> BacktestResult:
     """Chronological OOS: evaluate each param config on ordered coupons.
 
-    Primary ranking: ``best_by_mean_portfolio_leverage`` (Σ log(Pm/Pp) of
-    selected rows — comparable across β). Construction row_score and
-    mean_correct are diagnostics only. Does not shuffle time.
+    If ``mode`` is set, all grid points must match that mode (or grid mode
+    fields are overridden). Primary ranking:
+    - VALUE → mean portfolio leverage
+    - PREDICTION → coverage metric matching objective
+    Does not shuffle time. Does not silently score PREDICTION with leverage.
     """
+    if not param_grid:
+        raise ValueError("param_grid must be non-empty")
+
+    resolved_mode: OptimizerMode = mode or param_grid[0].mode
+    for config in param_grid:
+        cfg_mode = mode or config.mode
+        if cfg_mode != resolved_mode:
+            raise ValueError(
+                "mixed modes in one backtest run are not allowed; "
+                f"got {resolved_mode!r} and {cfg_mode!r}"
+            )
+
+    # Use first config's objective to pick PREDICTION primary when uniform;
+    # if objectives differ within PREDICTION, still rank each by its own
+    # objective via best_by_primary using the first's metric only when all
+    # share it — otherwise require a single objective.
+    objectives = {config.objective for config in param_grid}
+    if resolved_mode == "PREDICTION" and len(objectives) > 1:
+        raise ValueError(
+            "PREDICTION backtest grid must share one objective "
+            f"(got {sorted(objectives)})"
+        )
+    objective = param_grid[0].objective
+    primary = _primary_for_mode(resolved_mode, objective)
+
     ordered = order_coupons_chronologically(coupons)
     config_results: list[BacktestConfigResult] = []
 
     for config in param_grid:
+        effective = ParamConfig(
+            mode=resolved_mode,
+            objective=config.objective,
+            beta=config.beta,
+            lambda_diversity=config.lambda_diversity,
+            banker_value_weight=config.banker_value_weight,
+            candidate_count=config.candidate_count,
+            prediction_candidate_count=config.prediction_candidate_count,
+            row_count=config.row_count,
+            reduced_system=config.reduced_system,
+        )
         round_evals: list[RoundEval] = []
         skipped = 0
         for coupon in ordered:
             try:
                 evaluation = evaluate_coupon_against_truth(
                     coupon,
-                    config,
+                    effective,
                     public_epsilon=public_epsilon,
                     seed=seed,
                     n_simulations=n_simulations,
@@ -235,10 +349,14 @@ def run_backtest(
         if n == 0:
             config_results.append(
                 BacktestConfigResult(
-                    params=config,
+                    params=effective,
                     rounds_evaluated=0,
                     rounds_skipped=skipped + len(ordered),
                     mean_portfolio_leverage=float("nan"),
+                    mean_coverage_p_full=float("nan"),
+                    mean_coverage_p_12_or_better=float("nan"),
+                    mean_coverage_p_11_or_better=float("nan"),
+                    mean_coverage_expected_best=float("nan"),
                     mean_top_row_score=float("nan"),
                     mean_realized_row_score=None,
                     mean_correct=float("nan"),
@@ -260,11 +378,23 @@ def run_backtest(
 
         config_results.append(
             BacktestConfigResult(
-                params=config,
+                params=effective,
                 rounds_evaluated=n,
                 rounds_skipped=skipped,
                 mean_portfolio_leverage=(
                     sum(r.portfolio_leverage for r in round_evals) / n
+                ),
+                mean_coverage_p_full=(
+                    sum(r.coverage_p_full for r in round_evals) / n
+                ),
+                mean_coverage_p_12_or_better=(
+                    sum(r.coverage_p_12_or_better for r in round_evals) / n
+                ),
+                mean_coverage_p_11_or_better=(
+                    sum(r.coverage_p_11_or_better for r in round_evals) / n
+                ),
+                mean_coverage_expected_best=(
+                    sum(r.coverage_expected_best for r in round_evals) / n
                 ),
                 mean_top_row_score=sum(r.row_score_top for r in round_evals) / n,
                 mean_realized_row_score=mean_realized,
@@ -279,14 +409,32 @@ def run_backtest(
         item
         for item in config_results
         if item.rounds_evaluated > 0
-        and item.mean_portfolio_leverage == item.mean_portfolio_leverage
+        and _primary_value(item, primary) == _primary_value(item, primary)
     ]
     best = None
     if scored:
-        best = max(scored, key=lambda item: item.mean_portfolio_leverage).params
+        best = max(scored, key=lambda item: _primary_value(item, primary)).params
+
+    leverage_best = None
+    if resolved_mode == "VALUE":
+        leverage_best = best
+    else:
+        # Do not pretend leverage is the PREDICTION primary.
+        leverage_best = None
+
+    limitations = LEAKAGE_LIMITATIONS
+    if resolved_mode == "PREDICTION":
+        limitations = (
+            f"{LEAKAGE_LIMITATIONS} | PREDICTION backtest primary="
+            f"{primary}; prior β-leverage OOS reports are VALUE-only "
+            "and do not validate PREDICTION."
+        )
 
     return BacktestResult(
         results=tuple(config_results),
-        best_by_mean_portfolio_leverage=best,
-        limitations=LEAKAGE_LIMITATIONS,
+        mode=resolved_mode,
+        primary_metric=primary,
+        best_by_primary=best,
+        best_by_mean_portfolio_leverage=leverage_best,
+        limitations=limitations,
     )

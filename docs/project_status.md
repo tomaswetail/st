@@ -51,9 +51,10 @@ Do **not** treat tuning-only or holdout-only LL as the ship metric. Ship decisio
 | 100% NBM on official 518 | [`reports/2026-09-06-dc-nbm-only-518.md`](reports/2026-09-06-dc-nbm-only-518.md) | Eval-only; 100% NBM **1.0143** (n=269); market **0.9908** same rows; production unchanged |
 | 100% NBM min_team_matches=3 | [`reports/2026-09-06-dc-nbm-only-518-min3.md`](reports/2026-09-06-dc-nbm-only-518-min3.md) | Eval-only; 100% NBM **1.0322** (n=278) at min=3; vs prior min=5 **1.0143**/269; production default still 5 |
 | 100% Sarmanov–NB on official 518 | [`reports/2026-09-06-sarmanov-nb-only-518.md`](reports/2026-09-06-sarmanov-nb-only-518.md) | Eval-only; 100% Sarmanov **1.0173** (n=269); market **0.9908** same rows; vs NBM min5 **1.0143**/269; production unchanged |
-| Stryktipset coupon optimizer | [`reports/2026-09-06-stryktipset-coupon-optimizer.md`](reports/2026-09-06-stryktipset-coupon-optimizer.md) | Market+streckprocent EV optimizer; MC + chronological tuner; **not** wired to ship path |
-| Stryktipset optimizer OOS backtest | [`reports/2026-09-06-stryktipset-optimizer-backtest.md`](reports/2026-09-06-stryktipset-optimizer-backtest.md) | 195 DB coupons 4760–4966; primary β=1/λ=0/C=100 lev **3.66**; hit-rate diag β=0.5; leakage UNKNOWN |
-| Stryktipset optimizer OOS rows=128 | [`reports/2026-09-06-stryktipset-optimizer-backtest-rows128.md`](reports/2026-09-06-stryktipset-optimizer-backtest-rows128.md) | Same 195 coupons; row_count=128, C=500 only; primary lev **3.444**; hit-diag mean correct **8.48** |
+| Stryktipset coupon optimizer | [`reports/2026-09-06-stryktipset-coupon-optimizer.md`](reports/2026-09-06-stryktipset-coupon-optimizer.md) | Original VALUE (EV vs streckprocent) implementation report; superseded as default by PREDICTION |
+| Stryktipset optimizer PREDICTION default | [`reports/2026-09-07-stryktipset-optimizer-prediction.md`](reports/2026-09-07-stryktipset-optimizer-prediction.md) | Default **PREDICTION/MAX_P13** (market Pm only); VALUE mode retained; **not** wired to ship path |
+| Stryktipset optimizer OOS backtest | [`reports/2026-09-06-stryktipset-optimizer-backtest.md`](reports/2026-09-06-stryktipset-optimizer-backtest.md) | **VALUE-only**; 195 DB coupons 4760–4966; primary β=1/λ=0/C=100 lev **3.66**; does **not** validate PREDICTION |
+| Stryktipset optimizer OOS rows=128 | [`reports/2026-09-06-stryktipset-optimizer-backtest-rows128.md`](reports/2026-09-06-stryktipset-optimizer-backtest-rows128.md) | **VALUE-only**; row_count=128; primary lev **3.444**; does **not** validate PREDICTION |
 
 ## Next ideas (non-binding)
 
@@ -67,13 +68,17 @@ Prefer [`production_profile.md`](production_profile.md) for anything that affect
 
 ## Recent work
 
+### 2026-09-07 22:30 — Stryktipset optimizer PREDICTION default (MAX_P13)
+
+Default mode **PREDICTION**, objective **MAX_P13**: exact top-R by joint vig-free market P (DFS/heap); public % diagnostic only. Coverage metrics `P(best_correct=k)` attached. Approx greedy for MAX_P12+/MAX_P11+/MAX_EXPECTED. Reduced doubles/triples via marginal gain. VALUE mode keeps β/λ EV path. Tests **45 passed**. Prior β-leverage OOS backtests are **VALUE-only** / not applicable to PREDICTION. Ship gate / ProbabilityManager / residual ML / Dixon–Coles **unchanged**. Plan: [`plans/2026-09-07-stryktipset-optimizer-prediction.md`](plans/2026-09-07-stryktipset-optimizer-prediction.md). Report: [`reports/2026-09-07-stryktipset-optimizer-prediction.md`](reports/2026-09-07-stryktipset-optimizer-prediction.md).
+
 ### 2026-09-06 23:45 — Stryktipset optimizer OOS backtest row_count=128
 
-Eval-only: same **195** DB coupons (4760–4966), **row_count=128**, reduced 9-cell grid β×λ × **C=500** (dropped C=100 — cannot select 128 rows; C=2000 omitted for runtime). ~**152 min**. Primary (leverage): **β=1.0, λ=0.0, C=500** → lev **3.444**, mean best-correct **5.76**, ≥10=2. Hit-rate diagnostic: **β=0.5, λ=1.0, C=500** → mean best-correct **8.48** (≥12/11/10 = 5/28/63). vs row=3: lev 3.655→3.444; hit best-correct 6.79→8.48. Leakage UNKNOWN; production untouched. Artifact: `artifacts/stryktipset_optimizer_backtest/backtest_rich_rows128.json`. Report: [`reports/2026-09-06-stryktipset-optimizer-backtest-rows128.md`](reports/2026-09-06-stryktipset-optimizer-backtest-rows128.md).
+**VALUE-objective only** (does not validate PREDICTION default). Eval-only: same **195** DB coupons (4760–4966), **row_count=128**, reduced 9-cell grid β×λ × **C=500** (dropped C=100 — cannot select 128 rows; C=2000 omitted for runtime). ~**152 min**. Primary (leverage): **β=1.0, λ=0.0, C=500** → lev **3.444**, mean best-correct **5.76**, ≥10=2. Hit-rate diagnostic: **β=0.5, λ=1.0, C=500** → mean best-correct **8.48** (≥12/11/10 = 5/28/63). vs row=3: lev 3.655→3.444; hit best-correct 6.79→8.48. Leakage UNKNOWN; production untouched. Artifact: `artifacts/stryktipset_optimizer_backtest/backtest_rich_rows128.json`. Report: [`reports/2026-09-06-stryktipset-optimizer-backtest-rows128.md`](reports/2026-09-06-stryktipset-optimizer-backtest-rows128.md).
 
 ### 2026-09-06 19:50 — Stryktipset optimizer chronological OOS backtest
 
-Eval-only: **195** settled DB coupons (draws **4760–4966**), default 18-point grid, `row_count=3`, ~37 min. Primary (mean portfolio leverage): **β=1.0, λ=0.0, C=100** → lev **3.655**, mean best-correct **3.88**, zero ≥10. Hit-rate diagnostic: **β=0.5, λ=1.0, C=500** → mean correct **6.79** (≥12/11/10 = 1/2/11). Market/public 1-row baselines ~6.45/6.51. Leakage UNKNOWN; ship path untouched. Artifact: `artifacts/stryktipset_optimizer_backtest/backtest_rich.json`. Report: [`reports/2026-09-06-stryktipset-optimizer-backtest.md`](reports/2026-09-06-stryktipset-optimizer-backtest.md).
+**VALUE-objective only** (does not validate PREDICTION default). Eval-only: **195** settled DB coupons (draws **4760–4966**), default 18-point grid, `row_count=3`, ~37 min. Primary (mean portfolio leverage): **β=1.0, λ=0.0, C=100** → lev **3.655**, mean best-correct **3.88**, zero ≥10. Hit-rate diagnostic: **β=0.5, λ=1.0, C=500** → mean correct **6.79** (≥12/11/10 = 1/2/11). Market/public 1-row baselines ~6.45/6.51. Leakage UNKNOWN; ship path untouched. Artifact: `artifacts/stryktipset_optimizer_backtest/backtest_rich.json`. Report: [`reports/2026-09-06-stryktipset-optimizer-backtest.md`](reports/2026-09-06-stryktipset-optimizer-backtest.md).
 
 ### 2026-09-06 11:20 — Stryktipset market+streckprocent coupon optimizer (APPROVED)
 

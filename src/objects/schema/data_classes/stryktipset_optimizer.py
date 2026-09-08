@@ -8,14 +8,18 @@ from src.utils.common import Outcome
 
 
 class OptimizerParametersDTO(BaseModel):
+    mode: str = "PREDICTION"
+    objective: str = "MAX_P13"
     beta: float
     lambda_diversity: float
     banker_value_weight: float
     candidate_count: int
+    prediction_candidate_count: int = 2000
     public_epsilon: float
     coupon_size: int
     seed: int | None = None
     row_count: int = 1
+    reduced_system: bool = False
 
 
 class PortfolioRowDTO(BaseModel):
@@ -28,17 +32,20 @@ class PortfolioRowDTO(BaseModel):
     home_count: int
     draw_count: int
     away_count: int
+    joint_probability: float | None = None
+    log_pm_sum: float | None = None
 
 
 class CandidateRowDTO(BaseModel):
     outcomes: list[Outcome]
     row_score: float
     log_pm_sum: float
-    log_pp_sum: float
+    log_pp_sum: float | None = None
     favorite_count: int
     home_count: int
     draw_count: int
     away_count: int
+    joint_probability: float | None = None
 
 
 class MatchAnalysisDTO(BaseModel):
@@ -63,11 +70,25 @@ class BankerSuggestionDTO(BaseModel):
     log_leverage: float
 
 
+class CoverageMetricsDTO(BaseModel):
+    """P(best_correct=k) and cumulatives under market measure."""
+
+    n_matches: int
+    p_best_correct: list[float]
+    p_full: float
+    p_13: float
+    p_12_or_better: float
+    p_11_or_better: float
+    p_10_or_better: float
+    expected_best_correct: float
+
+
 class PortfolioAnalysisDTO(BaseModel):
     selected_count: int
     candidate_pool_size: int
     mean_pairwise_hamming_similarity: float | None = None
     top_bankers: list[BankerSuggestionDTO] = Field(default_factory=list)
+    sum_joint_probability: float | None = None
 
 
 class SimulationTierCounts(BaseModel):
@@ -97,10 +118,16 @@ class StryktipsetOptimizationResult(BaseModel):
 
     draw_number: int | None = None
     match_count: int
+    mode: str = "PREDICTION"
+    objective: str = "MAX_P13"
+    exact_selection: bool = True
     parameters: OptimizerParametersDTO
     rows: list[PortfolioRowDTO]
     candidates: list[CandidateRowDTO] = Field(default_factory=list)
     match_analysis: list[MatchAnalysisDTO]
     portfolio_analysis: PortfolioAnalysisDTO
+    coverage: CoverageMetricsDTO | None = None
+    system_sign_pattern: list[list[Outcome]] | None = None
+    system_sign_counts: list[int] | None = None
     limitations: str
     simulation: SimulationMetricsDTO | None = None

@@ -1,13 +1,21 @@
 #!/usr/bin/env python3
-"""Optimize Stryktipset coupon rows via market odds + streckprocent.
+"""Optimize Stryktipset coupon rows (PREDICTION default / VALUE optional).
 
-Uses fair market probabilities as truth and public shares for dilution.
+PREDICTION (default): market Pm only; objective MAX_P13 = exact top-R by
+joint market probability. Public % is diagnostic only.
+
+VALUE: fair market Pm + public dilution ``Σ log Pm − β Σ log Pp``.
+
 Does NOT call ProbabilityManager / residual ML / Dixon–Coles.
 
 ```bash
-python -m src.scripts.optimize_stryktipset_coupon --draw-number 4950 --rows 5
-python -m src.scripts.optimize_stryktipset_coupon --fixture path/to.json --rows 3 --json out.json
-python -m src.scripts.optimize_stryktipset_coupon --fixture path/to.json --simulate --n-simulations 1000 --seed 0
+python -m src.scripts.optimize_stryktipset_coupon --fixture path.json --rows 5
+python -m src.scripts.optimize_stryktipset_coupon --fixture path.json \\
+  --mode PREDICTION --objective MAX_P13 --rows 8
+python -m src.scripts.optimize_stryktipset_coupon --fixture path.json \\
+  --mode PREDICTION --system reduced --rows 16
+python -m src.scripts.optimize_stryktipset_coupon --fixture path.json \\
+  --mode VALUE --beta 1.0 --lambda-diversity 0.5 --rows 5
 ```
 
 Fixture JSON: ``{"draw_number": N, "matches": [{"odds_1", "odds_x", "odds_2",
@@ -30,7 +38,11 @@ from src.calc.stryktipset_optimizer.data import (
     prepare_matches,
 )
 from src.calc.stryktipset_optimizer.optimize import CouponOptimizer
-from src.calc.stryktipset_optimizer.params import OptimizerParams
+from src.calc.stryktipset_optimizer.params import (
+    VALID_MODES,
+    VALID_OBJECTIVES,
+    OptimizerParams,
+)
 from src.calc.stryktipset_optimizer.simulator import simulate_pool
 from src.utils.repo_paths import resolve_repo_path
 
@@ -73,11 +85,50 @@ def _build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="Load coupon from JSON fixture (DB-less)",
     )
-    parser.add_argument("--rows", type=int, default=1, help="Portfolio row count")
-    parser.add_argument("--beta", type=float, default=1.0)
-    parser.add_argument("--lambda-diversity", type=float, default=0.5)
+    parser.add_argument(
+        "--mode",
+        choices=sorted(VALID_MODES),
+        default="PREDICTION",
+        help="PREDICTION (default, market only) or VALUE (EV vs public)",
+    )
+    parser.add_argument(
+        "--objective",
+        choices=sorted(VALID_OBJECTIVES),
+        default="MAX_P13",
+        help="PREDICTION objective (ignored conceptually in VALUE mode)",
+    )
+    parser.add_argument("--rows", type=int, default=1, help="Portfolio row count / system budget")
+    parser.add_argument(
+        "--system",
+        choices=("free", "reduced"),
+        default="free",
+        help="PREDICTION only: free top-R rows or reduced doubles/triples",
+    )
+    parser.add_argument(
+        "--beta",
+        type=float,
+        default=1.0,
+        help="VALUE only: public-dilution weight",
+    )
+    parser.add_argument(
+        "--lambda-diversity",
+        type=float,
+        default=0.5,
+        help="VALUE only: Hamming diversity penalty",
+    )
     parser.add_argument("--banker-value-weight", type=float, default=1.0)
-    parser.add_argument("--candidate-count", type=int, default=500)
+    parser.add_argument(
+        "--candidate-count",
+        type=int,
+        default=500,
+        help="VALUE top-C pool size",
+    )
+    parser.add_argument(
+        "--prediction-candidate-count",
+        type=int,
+        default=2000,
+        help="PREDICTION approx objective candidate pool size",
+    )
     parser.add_argument("--public-epsilon", type=float, default=1e-6)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument(
@@ -89,7 +140,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--simulate",
         action="store_true",
-        help="Attach MC relative tier metrics (Phase 2)",
+        help="Attach MC relative tier metrics (VALUE-oriented)",
     )
     parser.add_argument("--n-simulations", type=int, default=1000)
     parser.add_argument(
@@ -109,14 +160,22 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = _build_parser().parse_args()
+    reduced = args.system == "reduced"
+    if reduced and args.mode != "PREDICTION":
+        raise SystemExit("--system reduced requires --mode PREDICTION")
+
     params = OptimizerParams(
+        mode=args.mode,
+        objective=args.objective,
         beta=args.beta,
         lambda_diversity=args.lambda_diversity,
         banker_value_weight=args.banker_value_weight,
         candidate_count=args.candidate_count,
+        prediction_candidate_count=args.prediction_candidate_count,
         public_epsilon=args.public_epsilon,
         coupon_size=args.coupon_size,
         seed=args.seed,
+        reduced_system=reduced,
     )
     optimizer = CouponOptimizer(params)
 
@@ -164,18 +223,35 @@ def main() -> None:
 
     payload_out = result.model_dump()
     print(
-        f"Draw {result.draw_number}: {result.match_count} matches, "
-        f"{len(result.rows)} portfolio rows "
-        f"(candidates={result.portfolio_analysis.candidate_pool_size})",
+        f"Draw {result.draw_number}: mode={result.mode} "
+        f"objective={result.objective} exact={result.exact_selection} "
+        f"{result.match_count} matches, {len(result.rows)} rows "
+        f"(pool={result.portfolio_analysis.candidate_pool_size})",
         flush=True,
     )
     for row in result.rows:
+        joint = (
+            f" P={row.joint_probability:.6g}"
+            if row.joint_probability is not None
+            else ""
+        )
         print(
             f"  #{row.rank} score={row.row_score:.4f} "
-            f"adj={row.adjusted_score:.4f} "
+            f"adj={row.adjusted_score:.4f}{joint} "
             f"{''.join(row.outcomes)}",
             flush=True,
         )
+    if result.coverage is not None:
+        cov = result.coverage
+        print(
+            f"Coverage: P(full)={cov.p_full:.6g} "
+            f"P(12+)={cov.p_12_or_better:.6g} "
+            f"P(11+)={cov.p_11_or_better:.6g} "
+            f"E[best]={cov.expected_best_correct:.4f}",
+            flush=True,
+        )
+    if result.system_sign_counts is not None:
+        print(f"System signs: {result.system_sign_counts}", flush=True)
     if result.simulation is not None:
         print(
             f"MC mean_correct ours={result.simulation.mean_correct_ours:.3f} "
