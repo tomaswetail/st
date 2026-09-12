@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
-from typing import Sequence
+from datetime import date, timedelta
+from typing import Any, Sequence
 
 from sqlalchemy.orm import Session
 
+from src.calc.match_feature_context import (
+    MatchFeatureContext,
+    require_teams,
+    resolve_cutoff_date,
+    team_side_name,
+)
 from src.objects.models.fixture import FixtureModel
-from src.objects.models.st_match import STMatchModel
 from src.objects.repositories.fixture_repository import FixtureRepository
 from src.objects.schema.data_classes.data_sources import DataSourceConfig
 from src.objects.schema.data_classes.player_availability_features import (
@@ -39,28 +44,35 @@ class RestCongestionCalculator:
 
     def calculate(
         self,
-        match: STMatchModel,
+        match: Any,
         *,
         availability: PlayerAvailabilityFeatures | None = None,
+        before_date: date | None = None,
+        context: MatchFeatureContext | None = None,
     ) -> RestCongestionFeatures:
-        """Compute rest and congestion features for one ST fixture.
+        """Compute rest and congestion features for one ST match or fixture.
 
         When ``availability`` is provided with ``has_availability=1``, fills
         lineup/squad-depth stubs from those signals.
         """
-        if match.home_team is None or match.away_team is None:
-            raise ValueError(f"Missing team on match id={match.id}")
-        if match.start_time is None:
-            raise ValueError(f"Missing start_time on match id={match.id}")
-
+        home_team, away_team = require_teams(match, context=context)
+        del home_team, away_team
         cutoff = (
-            match.start_time.date()
-            if isinstance(match.start_time, datetime)
-            else match.start_time
+            context.cutoff
+            if context is not None and before_date is None
+            else resolve_cutoff_date(match, before_date=before_date)
         )
         lookback = self.config.rest_congestion_lookback_matches
-        home_history = self._load_team_history(match.home_team.name, cutoff, lookback)
-        away_history = self._load_team_history(match.away_team.name, cutoff, lookback)
+        home_history = self._load_team_history(
+            team_side_name(match, side="home", context=context),
+            cutoff,
+            lookback,
+        )
+        away_history = self._load_team_history(
+            team_side_name(match, side="away", context=context),
+            cutoff,
+            lookback,
+        )
 
         home_previous = home_history[0] if home_history else None
         away_previous = away_history[0] if away_history else None
@@ -135,21 +147,31 @@ class RestCongestionCalculator:
         )
 
     def previous_fixtures(
-        self, match: STMatchModel
+        self,
+        match: Any,
+        *,
+        before_date: date | None = None,
+        context: MatchFeatureContext | None = None,
     ) -> tuple[FixtureModel | None, FixtureModel | None]:
-        """Return (home_previous, away_previous) fixtures strictly before kickoff."""
-        if match.home_team is None or match.away_team is None:
-            raise ValueError(f"Missing team on match id={match.id}")
-        if match.start_time is None:
-            raise ValueError(f"Missing start_time on match id={match.id}")
+        """Return (home_previous, away_previous) fixtures strictly before cutoff."""
+        home_team, away_team = require_teams(match, context=context)
+        del home_team, away_team
         cutoff = (
-            match.start_time.date()
-            if isinstance(match.start_time, datetime)
-            else match.start_time
+            context.cutoff
+            if context is not None and before_date is None
+            else resolve_cutoff_date(match, before_date=before_date)
         )
         lookback = self.config.rest_congestion_lookback_matches
-        home_history = self._load_team_history(match.home_team.name, cutoff, lookback)
-        away_history = self._load_team_history(match.away_team.name, cutoff, lookback)
+        home_history = self._load_team_history(
+            team_side_name(match, side="home", context=context),
+            cutoff,
+            lookback,
+        )
+        away_history = self._load_team_history(
+            team_side_name(match, side="away", context=context),
+            cutoff,
+            lookback,
+        )
         return (
             home_history[0] if home_history else None,
             away_history[0] if away_history else None,

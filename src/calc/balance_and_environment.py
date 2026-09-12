@@ -8,9 +8,15 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from src.calc.match_feature_context import (
+    MatchFeatureContext,
+    is_fixture_shaped,
+    require_teams,
+    resolve_cutoff_date,
+    team_side_name,
+)
 from src.calc.strength_calculator import StrengthCalculator
 from src.objects.models.fixture import FixtureModel
-from src.objects.models.st_match import STMatchModel
 from src.objects.schema.data_classes.balance_and_environment_features import (
     BalanceAndEnvironmentFeatures,
 )
@@ -46,28 +52,48 @@ class BalanceAndEnvironment:
 
     def calculate(
         self,
-        match: STMatchModel,
+        match: Any,
         fixtures: Sequence[Fixture | FixtureModel],
         market_probabilities: dict[str, float | None],
         *,
         strength: MatchStrengthFeatures | None = None,
+        before_date: date | None = None,
+        context: MatchFeatureContext | None = None,
     ) -> BalanceAndEnvironmentFeatures:
-        """Compute balance/environment features for one ST fixture."""
-        if match.home_team is None or match.away_team is None:
-            raise ValueError(f"Missing team on match id={match.id}")
-        if match.start_time is None:
-            raise ValueError(f"Missing start_time on match id={match.id}")
-
+        """Compute balance/environment features for one ST match or fixture."""
+        home_team, away_team = require_teams(match, context=context)
         cutoff = (
-            match.start_time.date()
-            if isinstance(match.start_time, datetime)
-            else match.start_time
+            context.cutoff
+            if context is not None and before_date is None
+            else resolve_cutoff_date(match, before_date=before_date)
         )
         if strength is None:
+            if is_fixture_shaped(match) and context is None:
+                raise ValueError(
+                    f"Fixture-shaped match id={getattr(match, 'id', None)} "
+                    "requires resolved teams (context) or precomputed strength"
+                )
+            home_team_id = (
+                context.home_team_internal_id
+                if context is not None
+                else match.home_team_id
+            )
+            away_team_id = (
+                context.away_team_internal_id
+                if context is not None
+                else match.away_team_id
+            )
+            strength_before: date | datetime
+            if before_date is not None:
+                strength_before = before_date
+            elif getattr(match, "start_time", None) is not None:
+                strength_before = match.start_time
+            else:
+                strength_before = cutoff
             strength = self.strength_calculator.get_fixture_features(
-                match.home_team_id,
-                match.away_team_id,
-                match.start_time,
+                home_team_id,
+                away_team_id,
+                strength_before,
                 match_id=match.id,
             )
 
@@ -75,8 +101,11 @@ class BalanceAndEnvironment:
         away_attack_strength = strength.away_attack_strength
         home_defence = strength.home_defence_strength
         away_defence = strength.away_defence_strength
-        home_xg = strength.expected_home_goals
-        away_xg = strength.expected_away_goals
+        home_xg, away_xg = self.strength_calculator.expected_match_goals(
+            home_team=home_team,
+            away_team=away_team,
+            match_date=cutoff,
+        )
 
         unit_market_probabilities = ensure_unit_probabilities(market_probabilities)
         p_home = unit_market_probabilities.get("1")
@@ -84,12 +113,12 @@ class BalanceAndEnvironment:
 
         home_rates = self._team_recent_rates(
             fixtures,
-            team_name=match.home_team.name,
+            team_name=team_side_name(match, side="home", context=context),
             before_date=cutoff,
         )
         away_rates = self._team_recent_rates(
             fixtures,
-            team_name=match.away_team.name,
+            team_name=team_side_name(match, side="away", context=context),
             before_date=cutoff,
         )
 

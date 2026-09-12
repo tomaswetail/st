@@ -9,12 +9,13 @@ regCloseTime is in the API but not on STRoundModel.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
-from typing import Any, Sequence
+from typing import Any, Mapping, Sequence
 
 from sqlalchemy.orm import Session, selectinload
 
+from src.calc.probability_metrics import clip_and_normalize_probs
 from src.calc.stryktipset_optimizer.fair_probs import (
     InvalidOddsError,
     fair_probabilities_from_odds,
@@ -58,6 +59,7 @@ class CouponMatchInput:
     label: str | None = None
     start_time: datetime | None = None
     result: Outcome | None = None
+    st_match_id: int | None = None
 
 
 @dataclass(frozen=True)
@@ -71,6 +73,7 @@ class PreparedMatch:
     external_id: int | None
     start_time: datetime | None
     result: Outcome | None
+    st_match_id: int | None = None
 
 
 @dataclass(frozen=True)
@@ -133,6 +136,7 @@ def prepare_matches(
                 external_id=raw.external_id,
                 start_time=raw.start_time,
                 result=result,
+                st_match_id=raw.st_match_id,
             )
         )
 
@@ -141,6 +145,36 @@ def prepare_matches(
         matches=tuple(prepared),
         limitations=LEAKAGE_LIMITATIONS,
     )
+
+
+def with_replaced_market_probs(
+    coupon: PreparedCoupon,
+    probs: Sequence[Mapping[str, float]],
+) -> PreparedCoupon:
+    """Copy a coupon and replace only ``market_probs`` (clip+normalized)."""
+    if len(probs) != len(coupon.matches):
+        raise CouponDataError(
+            f"expected {len(coupon.matches)} probability rows, got {len(probs)}"
+        )
+    replaced: list[PreparedMatch] = []
+    for match, raw_probs in zip(coupon.matches, probs):
+        try:
+            p_home, p_draw, p_away = clip_and_normalize_probs(
+                float(raw_probs["1"]),
+                float(raw_probs["X"]),
+                float(raw_probs["2"]),
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise CouponDataError(
+                f"match index {match.match_index}: invalid replacement probs ({exc})"
+            ) from exc
+        replaced.append(
+            replace(
+                match,
+                market_probs={"1": p_home, "X": p_draw, "2": p_away},
+            )
+        )
+    return replace(coupon, matches=tuple(replaced))
 
 
 def _label_from_st_match(match: STMatchModel) -> str:
@@ -190,6 +224,7 @@ def coupon_inputs_from_st_matches(
                 label=_label_from_st_match(match),
                 start_time=match.start_time,
                 result=result,
+                st_match_id=match.id,
             )
         )
     return inputs

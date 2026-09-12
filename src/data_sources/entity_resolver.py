@@ -21,7 +21,7 @@ from src.objects.schema.data_classes.data_sources import DataSourceConfig
 from src.objects.schema.data_classes.provider_dtos import ProviderMatch
 from src.utils.common import NATIONAL_TEAMS_SE_TO_EN
 from src.utils.team_mappings import SVENSKA_SPEL_TO_API_FOOTBALL_TEAMS
-from src.utils.team_name_matcher import _load_aliases, normalize_team_name
+from src.utils.team_name_matcher import _load_aliases, normalize_team_name, _football_data_load_aliases
 
 # Temporary alias for call sites / type hints still using the old name.
 
@@ -87,6 +87,7 @@ class EntityResolver:
         self.league_repo = LeagueRepository(session)
         self.fixture_repo = FixtureRepository(session)
         self._aliases = _load_aliases()
+        self._football_data_aliases = _football_data_load_aliases()
         self._team_name_cache: list[str] | None = None
 
     def resolve_team(
@@ -102,6 +103,11 @@ class EntityResolver:
         on miss and store an external mapping for reimports.
         """
 
+        if self.provider == 'football-data.co.uk':
+            _alias = self._football_data_aliases.get(provider_team_name)
+            team = self._get_team_by_name(_alias)
+            if team is not None:
+                return TeamResolution(team=team, confidence=1.0, method="exact_name")
         if self.provider == "svenska-spel":
             try:
                 svenska_spel_team_id = int(provider_team_id)
@@ -250,7 +256,6 @@ class EntityResolver:
 
         """Resolve a provider fixture to a historical match by mapping or date/teams."""
         warnings: list[str] = []
-
         home_team_ids = (
             [home_team.external_id] if home_team is not None else None
         )

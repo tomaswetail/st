@@ -6,7 +6,7 @@ Application Python packages live under **`src/`**. First-party imports are **`sr
 
 ```bash
 python -m pytest tests/
-python -m src.scripts.optimize_classic_dixon_coles --help
+python -m src.scripts.calculate_probabilities --draw-number <N>
 ```
 
 Before implementing features, read the knowledge layer under `docs/`.
@@ -15,7 +15,7 @@ Before implementing features, read the knowledge layer under `docs/`.
 
 1. Read [`docs/BUSINESS.md`](docs/BUSINESS.md) — product purpose, workflows, business rules.
 2. Read [`docs/DOMAIN.md`](docs/DOMAIN.md) — terminology (ST Match vs Fixture, draw_number vs round id, etc.).
-3. Read [`docs/wiki.md`](docs/wiki.md) — modeling & evaluation jargon (slice, HGB residual, logit, shrink, blend, Brier).
+3. Read [`docs/wiki.md`](docs/wiki.md) — modeling & evaluation jargon (slice, HGB residual, logit, shrink, Brier).
 4. Read relevant [`docs/product/`](docs/product/) docs for the area you are changing.
 5. Read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) when touching ingestion, modeling, or cross-cutting behavior.
 6. Read [`docs/DECISIONS.md`](docs/DECISIONS.md) for established patterns and uncertain areas.
@@ -31,9 +31,8 @@ Also useful: [`docs/football_data_ingestion.md`](docs/product/football_data_inge
 - Treat as **high-risk** when changing:
   - Entity resolution / team matching (`src/data_sources/entity_resolver.py`)
   - Feature cutoff dates in `src/calc/strength_calculator.py` and related calculators
-  - Probability blend weights and ML baseline logic (`src/calc/probability_manager.py`)
+  - Market baseline + residual ML wiring in `src/calc/probability_manager.py`
   - Fixture upsert keys and EntityResolver / team&league `external_id`
-  - DC league params JSON used in production backtests
 
 ## Implementation conventions
 

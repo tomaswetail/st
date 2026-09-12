@@ -7,9 +7,15 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from src.calc.match_feature_context import (
+    MatchFeatureContext,
+    availability_cutoff_datetime,
+    is_fixture_shaped,
+    require_teams,
+)
+from src.utils.datetime_tz import align_datetime_tzinfo
 from src.objects.models.fixture import FixtureModel
 from src.objects.models.match_availability import MatchAvailabilityModel
-from src.objects.models.st_match import STMatchModel
 from src.objects.repositories.fixture_repository import FixtureRepository
 from src.objects.repositories.match_availability_repository import MatchAvailabilityRepository
 from src.objects.schema.data_classes.data_sources import DataSourceConfig
@@ -87,9 +93,10 @@ def _lineup_change_count(
 class PlayerAvailabilityCalculator:
     """Derive injury/availability ML features from persisted snapshots only.
 
-    Resolves the ST coupon match to a historical fixture via team external ids
+    Resolves an ST coupon match to a historical fixture via team external ids
     and kickoff window, then loads the latest ``match_availability`` row with
-    ``snapshot_at <= match.start_time`` (no future leakage).
+    ``snapshot_at <= kickoff`` (no future leakage). When the input is already a
+    fixture, uses ``fixtures.id`` directly.
     """
 
     def __init__(
@@ -110,29 +117,28 @@ class PlayerAvailabilityCalculator:
 
     def calculate(
         self,
-        match: STMatchModel,
+        match: Any,
         *,
         favourite_strength: float | None = None,
         home_short_rest: int | None = None,
         away_short_rest: int | None = None,
         home_previous_fixture: FixtureModel | None = None,
         away_previous_fixture: FixtureModel | None = None,
+        before_date: date | None = None,
+        context: MatchFeatureContext | None = None,
     ) -> PlayerAvailabilityFeatures:
-        if match.home_team is None or match.away_team is None:
-            raise ValueError(f"Missing team on match id={match.id}")
-        if match.start_time is None:
-            raise ValueError(f"Missing start_time on match id={match.id}")
-
-        cutoff_dt = (
-            match.start_time
-            if isinstance(match.start_time, datetime)
-            else datetime.combine(match.start_time, datetime.min.time())
+        require_teams(match, context=context)
+        cutoff_dt = availability_cutoff_datetime(
+            match, before_date=before_date, context=context
         )
-        fixture = self._resolve_fixture(match)
-        if fixture is None:
-            return _empty_features()
+        fixture_pk = self._fixture_pk(match, context=context)
+        if fixture_pk is None:
+            fixture = self._resolve_fixture(match)
+            if fixture is None:
+                return _empty_features()
+            fixture_pk = fixture.id
 
-        snapshot = self._latest_snapshot(fixture.id, cutoff_dt)
+        snapshot = self._latest_snapshot(fixture_pk, cutoff_dt)
         if snapshot is None or snapshot.coverage_level == "none":
             return _empty_features()
 
@@ -191,7 +197,18 @@ class PlayerAvailabilityCalculator:
             coverage_level=snapshot.coverage_level,
         )
 
-    def _resolve_fixture(self, match: STMatchModel) -> FixtureModel | None:
+    @staticmethod
+    def _fixture_pk(
+        match: Any, *, context: MatchFeatureContext | None = None
+    ) -> int | None:
+        if context is not None and context.fixture_pk is not None:
+            return int(context.fixture_pk)
+        if is_fixture_shaped(match):
+            match_id = getattr(match, "id", None)
+            return int(match_id) if match_id is not None else None
+        return None
+
+    def _resolve_fixture(self, match: Any) -> FixtureModel | None:
         home_external_id = getattr(match.home_team, "external_id", None)
         away_external_id = getattr(match.away_team, "external_id", None)
         if home_external_id is None or away_external_id is None:
@@ -242,7 +259,10 @@ class PlayerAvailabilityCalculator:
             cached = self._availability_cache[fixture_id]
             if cached is None:
                 return None
-            if cached.snapshot_at <= cutoff_dt:
+            snapshot_at, aligned_cutoff = align_datetime_tzinfo(
+                cached.snapshot_at, cutoff_dt
+            )
+            if snapshot_at <= aligned_cutoff:
                 return cached
 
         preferred: MatchAvailabilityModel | None = None

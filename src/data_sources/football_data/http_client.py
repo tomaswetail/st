@@ -66,7 +66,7 @@ class ThrottledHttpClient:
         self._last_request_at: float | None = None
         self._client = httpx.Client(
             timeout=timeout_sec,
-            headers={"User-Agent": user_agent, "Accept": "application/json"},
+            headers={"User-Agent": user_agent},
             follow_redirects=True,
         )
         if self.enable_cache and self.cache_dir is not None:
@@ -93,6 +93,33 @@ class ThrottledHttpClient:
     ) -> Any:
         """GET JSON from path with optional cache."""
         return self._request_json("GET", path, params=params, use_cache=use_cache)
+
+    def get_text(
+        self,
+        path: str,
+        *,
+        params: dict[str, Any] | None = None,
+        use_cache: bool = True,
+        accept: str = "text/csv, */*",
+    ) -> str:
+        """GET response body as text (CSV). Follows redirects; does not require JSON Accept."""
+        url = path if path.startswith("http") else f"{self.base_url}/{path.lstrip('/')}"
+        cache_key = self._cache_key("GET", url, params, {"accept": accept})
+        if use_cache and self.enable_cache:
+            cached = self._read_text_cache(cache_key)
+            if cached is not None:
+                logger.debug("Cache hit for GET %s", url)
+                return cached
+        response = self._send(
+            "GET",
+            url,
+            params=params,
+            headers={"Accept": accept},
+        )
+        text = response.text
+        if use_cache and self.enable_cache:
+            self._write_text_cache(cache_key, text)
+        return text
 
     def post_json(
         self,
@@ -129,6 +156,28 @@ class ThrottledHttpClient:
                 logger.debug("Cache hit for %s %s", method, url)
                 return cached
 
+        response = self._send(
+            method,
+            url,
+            params=params,
+            json_body=json_body,
+            headers={"Accept": "application/json"},
+        )
+        data = response.json()
+        if use_cache and self.enable_cache:
+            self._write_cache(cache_key, data)
+        return data
+
+    def _send(
+        self,
+        method: str,
+        url: str,
+        *,
+        params: dict[str, Any] | None = None,
+        json_body: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> httpx.Response:
+        """Perform a throttled HTTP request with retries. Returns the success response."""
         last_error: Exception | None = None
         for attempt in range(self.max_retries + 1):
             self._throttle()
@@ -140,10 +189,15 @@ class ThrottledHttpClient:
                     params,
                     attempt + 1,
                 )
+                request_headers = headers or {}
                 if method.upper() == "POST":
-                    response = self._client.post(url, params=params, json=json_body)
+                    response = self._client.post(
+                        url, params=params, json=json_body, headers=request_headers
+                    )
                 else:
-                    response = self._client.get(url, params=params)
+                    response = self._client.get(
+                        url, params=params, headers=request_headers
+                    )
                 status = response.status_code
                 if status == 404:
                     raise NotFoundError(f"Not found: {url}", status_code=404)
@@ -170,10 +224,7 @@ class ThrottledHttpClient:
                         status_code=status,
                         retryable=False,
                     )
-                data = response.json()
-                if use_cache and self.enable_cache:
-                    self._write_cache(cache_key, data)
-                return data
+                return response
             except (httpx.TimeoutException, httpx.TransportError) as exc:
                 wait = self._backoff_seconds(attempt)
                 logger.warning(
@@ -231,18 +282,21 @@ class ThrottledHttpClient:
         )
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
-    def _cache_path(self, key: str) -> Path:
+    def _cache_path(self, key: str, *, suffix: str = ".json") -> Path:
         """Filesystem path for a cache key."""
         assert self.cache_dir is not None
-        return self.cache_dir / f"{key}.json"
+        return self.cache_dir / f"{key}{suffix}"
+
+    def _cache_is_fresh(self, path: Path) -> bool:
+        if not path.exists():
+            return False
+        age = time.time() - path.stat().st_mtime
+        return age <= self.cache_ttl_seconds
 
     def _read_cache(self, key: str) -> Any | None:
         """Return cached JSON if present and within TTL."""
         path = self._cache_path(key)
-        if not path.exists():
-            return None
-        age = time.time() - path.stat().st_mtime
-        if age > self.cache_ttl_seconds:
+        if not self._cache_is_fresh(path):
             return None
         try:
             return json.loads(path.read_text(encoding="utf-8"))
@@ -254,5 +308,23 @@ class ThrottledHttpClient:
         path = self._cache_path(key)
         try:
             path.write_text(json.dumps(data), encoding="utf-8")
+        except OSError as exc:
+            logger.warning("Failed to write cache %s: %s", path, exc)
+
+    def _read_text_cache(self, key: str) -> str | None:
+        """Return cached text if present and within TTL."""
+        path = self._cache_path(key, suffix=".txt")
+        if not self._cache_is_fresh(path):
+            return None
+        try:
+            return path.read_text(encoding="utf-8")
+        except OSError:
+            return None
+
+    def _write_text_cache(self, key: str, data: str) -> None:
+        """Persist a text response under the cache key."""
+        path = self._cache_path(key, suffix=".txt")
+        try:
+            path.write_text(data, encoding="utf-8")
         except OSError as exc:
             logger.warning("Failed to write cache %s: %s", path, exc)

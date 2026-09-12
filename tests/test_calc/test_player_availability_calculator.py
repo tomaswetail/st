@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -228,3 +228,36 @@ def test_count_proxy_missing_values_are_treated_as_none():
     assert features.away_missing_player_value is None
     assert features.missing_value_difference is None
     assert features.home_unavailable_count == 2
+
+
+def test_fixture_shaped_uses_fixture_pk_directly():
+    session = MagicMock()
+    calculator = PlayerAvailabilityCalculator(session, config=DataSourceConfig())
+    calculator.fixture_repo.find_by_date_range_and_teams = MagicMock(return_value=[])
+    calculator.availability_repo.list_before_cutoff = MagicMock(return_value=[])
+    fixture = SimpleNamespace(
+        id=55,
+        fixture_date=datetime(2025, 8, 15, 18, 0, tzinfo=timezone.utc),
+        home_team=SimpleNamespace(id=1, name="Arsenal", external_id=42),
+        away_team=SimpleNamespace(id=2, name="Chelsea", external_id=43),
+    )
+
+    features = calculator.calculate(fixture)
+
+    assert features.has_availability == 0
+    calculator.fixture_repo.find_by_date_range_and_teams.assert_not_called()
+    assert calculator.availability_repo.list_before_cutoff.call_args.args[0] == 55
+
+
+def test_before_date_override_is_passed_to_snapshot_cutoff():
+    session = MagicMock()
+    calculator = PlayerAvailabilityCalculator(session, config=DataSourceConfig())
+    calculator.fixture_repo.find_by_date_range_and_teams = MagicMock(
+        return_value=[SimpleNamespace(id=10, fixture_date=datetime(2025, 8, 15))]
+    )
+    calculator.availability_repo.list_before_cutoff = MagicMock(return_value=[])
+
+    calculator.calculate(_match(), before_date=date(2025, 6, 1))
+
+    cutoff = calculator.availability_repo.list_before_cutoff.call_args.kwargs["cutoff"]
+    assert cutoff.date() == date(2025, 6, 1)

@@ -28,7 +28,7 @@ Evidence: entry points are `main.py` and `scripts/`; no web server or API routes
 | Persona | Likely use | Confidence |
 |---------|------------|------------|
 | Data engineer | Ingest fixtures, xG, team mappings | HIGH |
-| Quant / ML researcher | Train/backtest DC and residual ML models | HIGH |
+| Quant / ML researcher | Train/backtest residual ML models against market baseline | HIGH |
 | Analyst | Run probability pipeline on a draw | MEDIUM |
 
 ---
@@ -41,8 +41,8 @@ Evidence: entry points are `main.py` and `scripts/`; no web server or API routes
 | Historical fixtures | Import API-Football results into `fixtures` | `data_sources/data_collector.py`, `data_sources/api_football_client.py` |
 | Advanced stats | Attach xG/shots to existing fixtures | `data_sources/football_data/service.py` |
 | Entity resolution | Map provider IDs/names → internal teams/leagues/fixtures | `data_sources/entity_resolver.py` |
-| Match probability engine | Market + Dixon–Coles + optional ML blend | `calc/probability_manager.py`, `calc/residual_ml/` |
-| Model research | DC optimization, ML dataset build, backtests | `scripts/`, `calc/dixon_coles/` |
+| Match probability engine | Market baseline + optional residual ML + optional shrink | `calc/probability_manager.py`, `calc/residual_ml/` |
+| Model research | Residual ML dataset build, sweep, backtests | `src/scripts/`, `src/calc/residual_ml/` |
 | Coupon strategy helpers | Double-coverage heuristics (experimental) | `services/bet_distribution.py` |
 
 See also `docs/product/` for deeper area docs.
@@ -89,24 +89,25 @@ Evidence: `data_sources/football_data/service.py`, `docs/football_data_ingestion
 ProbabilityManager.process(draw_number)
   → Load round + matches from DB
   → For each match: ResidualMLFeatureAssembler.assemble()
-  → market_baseline (Svenska Spel odds) + engine_baseline (DC) → blend
-  → Optional ResidualMLModel.predict_proba() → STMatchProbabilityResult
+  → market_baseline (Svenska Spel odds)
+  → Optional ResidualMLModel.predict_proba(features, baseline=market)
+  → Optional shrink_toward_market(alpha)
+  → STMatchProbabilityResult
 ```
 
-Evidence: `calc/probability_manager.py`.
+Evidence: `calc/probability_manager.py`, `src/scripts/calculate_probabilities.py`.
 
 **Note:** Results are returned as Pydantic objects (`STMatchProbabilityResult`); no DB table for persisted predictions was found.
 
 ## WF-005 — ML research pipeline
 
 ```
-optimize_classic_dixon_coles.py  → per-league DC params JSON
 build_residual_ml_dataset.py     → CSV from finished ST matches (draws 4760–4960)
-train_residual_ml.py             → train/sweep model
-backtest_residual_ml.py          → validation metrics
+train_residual_ml.py [--sweep]   → train / grid-search model
+backtest_residual_ml.py          → validation metrics vs market baseline
 ```
 
-Evidence: `scripts/run_classic_dc_ml_pipeline.sh`, `config/stryktipset.py`.
+Evidence: `config/stryktipset.py`, `src/calc/residual_ml/`.
 
 ---
 
@@ -146,7 +147,7 @@ Evidence: `objects/repositories/st_match_repository.py`
 
 Confidence: **HIGH**
 
-## BR-003 — Feature history must not include the target match (no leakage)
+## BR-003 — Feature history must not include the target match (no leakage) (superseded terminology in BR-009/BR-010)
 
 Team strength and related features use only matches **strictly before** the feature cutoff date.
 
@@ -164,9 +165,9 @@ Evidence: `utils/common.py`, `calc/residual_ml/baseline.py`
 
 Confidence: **HIGH**
 
-## BR-005 — Decimal odds must be positive to convert to probabilities
+## BR-005 — Decimal odds must be finite and greater than 1 to convert to probabilities
 
-`odds_to_probabilities` raises if any of home/draw/away odds ≤ 0.
+`odds_to_probabilities` and the optimizer fair-probability helper share `validate_decimal_odds`. Odds that are null, non-numeric, NaN, inf, or ≤ 1 are rejected. Only finite decimal odds > 1 are accepted.
 
 Evidence: `utils/common.py`
 
@@ -196,17 +197,17 @@ Evidence: `config/stryktipset.py`, `calc/residual_ml/dataset.py`
 
 Confidence: **HIGH** (for research pipeline; not necessarily a product rule for live use)
 
-## BR-009 — Default probability blend weights market over engine
+## BR-009 — Baseline is the normalized Svenska Spel market
 
-When both baselines exist: default **70% market / 30% Dixon–Coles** (`residual_ml_market_weight=0.7`, `residual_ml_dc_weight=0.3`).
+`ProbabilityManager` uses the overround-free market baseline from Svenska Spel ST odds as the sole baseline. If odds are missing for a match the manager raises. See DEC-015.
 
-Evidence: `objects/schema/data_classes/data_sources.py`, `calc/probability_manager.py`
+Evidence: `calc/market_probabilities.py`, `calc/probability_manager.py`, `calc/residual_ml/baseline.py::market_baseline`
 
-Confidence: **HIGH** (configurable via env)
+Confidence: **HIGH**
 
 ## BR-010 — Residual ML is off by default
 
-`RESIDUAL_ML_ENABLED` defaults to false; pipeline uses market+DC blend unless explicitly enabled and model file exists.
+`RESIDUAL_ML_ENABLED` defaults to false; pipeline returns the market baseline unless explicitly enabled and a model file exists.
 
 Evidence: `objects/schema/data_classes/data_sources.py`, `calc/probability_manager.py`
 
@@ -220,7 +221,7 @@ Confidence: **HIGH**
 |----|-----------|----------|
 | INV-001 | Team strength features computed only from data available before match kickoff | `calc/strength_calculator.py`, strength tests |
 | INV-002 | Opponent strength for adjustment uses only prior matches | `_get_opponent_strength_before` in `calc/strength_calculator.py` |
-| INV-003 | Dixon–Coles 1X2 probabilities renormalize to sum ≈ 1 | `calc/strength_calculator.py` (`dixon_coles_matrix`), tests |
+| INV-003 | Market and ML 1X2 vectors renormalize to sum ≈ 1 | `calc/residual_ml/baseline.py::normalize_probabilities`, tests |
 | INV-004 | ST match `external_id` is unique (Svenska Spel matchId) | `objects/models/st_match.py` |
 | INV-005 | ST round unique on `(product_id, draw_number)` | `objects/models/st_round.py` |
 | INV-006 | Advanced stats attach to existing fixtures; unresolved fixtures are skipped and logged | `data_sources/football_data/service.py`, ingestion tests |

@@ -32,31 +32,15 @@ Capture of patterns and choices evidenced in code, tests, and existing docs. Rat
 
 ---
 
-## DEC-003 — Dual baseline: market + Dixon–Coles before ML
+## DEC-003 — [SUPERSEDED by DEC-015] Dual baseline: market + Dixon–Coles before ML
 
-**Decision:** Default pipeline blends market (70%) and engine/DC (30%) before optional residual ML adjustment.
-
-**Reason/rationale:** Config defaults and `ProbabilityManager.process_match` flow.
-
-**Evidence:** `calc/probability_manager.py`, `calc/residual_ml/baseline.py`, `DataSourceConfig.residual_ml_market_weight`
-
-**Implications:** Changing weights affects both inference and ML training baseline.
-
-**Confidence:** HIGH
+The blended market + DC baseline was replaced with a market-only baseline. See DEC-015.
 
 ---
 
-## DEC-004 — Residual ML predicts in logit space relative to blend baseline
+## DEC-004 — [SUPERSEDED by DEC-015] Residual ML predicts in logit space relative to blend baseline
 
-**Decision:** ML model adjusts baseline probabilities, not raw odds or scores.
-
-**Reason/rationale:** `calc/residual_ml/baseline.py` (logit/inv_logit), trainer predicts residuals.
-
-**Evidence:** `calc/residual_ml/model.py`, `calc/residual_ml/trainer.py`
-
-**Implications:** Baseline must be computable at predict time for ML path.
-
-**Confidence:** HIGH
+Residual ML now predicts logit deltas relative to the market baseline (no DC/blend). See DEC-015.
 
 ---
 
@@ -104,17 +88,9 @@ Capture of patterns and choices evidenced in code, tests, and existing docs. Rat
 
 ---
 
-## DEC-008 — Classic DC params stored per league in JSON
+## DEC-008 — [SUPERSEDED by DEC-015] Classic DC params stored per league in JSON
 
-**Decision:** Optimized Dixon–Coles hyperparameters persisted in `config/classic_dc_league_params.json`, loaded by `DixonColesService`.
-
-**Reason/rationale:** Enables per-league tuning from optimization scripts.
-
-**Evidence:** `calc/dixon_coles/service.py`, `tests/test_calc/test_dixon_coles_service.py`
-
-**Implications:** Production/research DC behavior depends on this file being current.
-
-**Confidence:** HIGH
+Dixon–Coles is no longer part of the pipeline. See DEC-015.
 
 ---
 
@@ -180,7 +156,7 @@ Capture of patterns and choices evidenced in code, tests, and existing docs. Rat
 
 ```bash
 python -m pytest tests/
-python -m src.scripts.optimize_classic_dixon_coles --help
+python -m src.scripts.calculate_probabilities --draw-number 4964
 ```
 
 `config/` sits at the repo root, so `from config....` is already correct and stays bare.
@@ -195,15 +171,53 @@ python -m src.scripts.optimize_classic_dixon_coles --help
 
 ---
 
-## DEC-014 — MLE ρ is the canonical Dixon–Coles
+## DEC-014 — [SUPERSEDED by DEC-015] MLE ρ is the canonical Dixon–Coles
 
-**Decision:** Live scoring and official eval use MLE-fitted ρ. `config/classic_dc_league_params.json` is the live MLE params file. `config/classic_dc_league_params_grid_bck.json` is grid-ρ backup only and must not be used as production. Optimizer and live fit default to `fit_rho=True` (`CLASSIC_DC_FIT_RHO` / `DataSourceConfig.classic_dc_fit_rho`, and production `config/classic_dc_optimization_grid.json` `"fit_rho": true`).
+Dixon–Coles is no longer part of the pipeline. See DEC-015.
 
-**Reason/rationale:** Grid ρ was selection noise on a small 1X2 log-loss slice. Product freeze: one canonical DC for live scoring and official eval.
+---
 
-**Evidence:** `DataSourceConfig.classic_dc_fit_rho` default `"1"`, `config/classic_dc_league_params.json`, `src/scripts/optimize_classic_dixon_coles.py` (`resolve_optimize_fit_rho`).
+## DEC-015 — Pipeline pivots to market baseline + optional residual ML + optional market shrink
 
-**Implications:** A bare `python -m src.scripts.optimize_classic_dixon_coles` must not overwrite live params with grid-searched ρ. Use `--no-fit-rho` only when deliberately grid-searching.
+**Decision:** The live and research 1X2 pipeline is:
+
+```
+market_baseline  →  (optional) residual ML logit-delta correction  →  (optional) shrink toward market
+```
+
+All Dixon–Coles, blend, draw-adjustment, Sarmanov / negative-binomial, and injury λ-shock / logit-shift code, config, tests, docs, and shipped model artifacts are removed. Feature scaffolding (xG, availability, rest/congestion, league behavior, balance/environment) and historical ingestion are kept intact.
+
+**Reason/rationale:** The DC + blend + draw-adj stack repeatedly failed to beat market on held-out slices. The market baseline is a strong, cheap prior; residual ML has room to add value only against a market-anchored target, not against a self-blended one. Collapsing the stack removes bug surface, config surface, and misleading defaults, and makes the shipped HGB retrain trivial (single baseline, one target definition).
+
+**Evidence:** `src/calc/probability_manager.py`, `src/calc/residual_ml/*` (market baseline only), `src/scripts/calculate_probabilities.py`, DoD grep `rg 'dixon_coles|draw_adjustment|blend_weights|sarmanov_nb|lambda_shock|classic_dc_config' src/` returns nothing.
+
+**Implications:**
+- Supersedes DEC-003 (dual baseline), DEC-004 (residual vs blend baseline), DEC-008 (classic DC params JSON), DEC-014 (MLE ρ as canonical DC).
+- `STMatchProbabilityResult` drops `engine_probabilities`, `draw_boost_score`, `draw_value_gap`; declares `event_number`.
+- `ResidualMLFeatures` drops `*_dc*`, `market_vs_dc_*`, and `expected_*_goals` fields.
+- `DataSourceConfig` drops `residual_ml_market_weight`, `residual_ml_dc_weight`, `residual_ml_blend_weights_path`, `residual_ml_home_advantage_mode`, `residual_ml_dc_engine`, all `classic_dc_*` fields, and both `dixon_coles_*` fields.
+- **Operational impact / OI1:** the currently shipped HGB (`models/residual_ml/sweep_best/`) was trained against the blend baseline. It must be retrained against the market baseline before production use of the ML branch. A pre-pivot snapshot is preserved at `models/residual_ml/sweep_best_pre_market_pivot_bck/`.
+- Regression guard: `tests/test_calc/test_no_dc_imports.py` forbids DC-adjacent tokens under `src/`.
+
+**Confidence:** HIGH
+
+---
+
+## DEC-016 — Historical fixture odds from football-data.co.uk
+
+**Decision:** Persist historical bookmaker 1X2 odds from football-data.co.uk onto existing `fixtures` rows in `fixture_odds`, for ML training and evaluation. Live coupon scoring is unchanged.
+
+**Reason/rationale:** Residual ML and backtests need a fixture-level market snapshot. Svenska Spel `stryktipset_match_odds` cover coupon matches only. football-data.co.uk publishes opening and closing 1X2 columns that can be attached to API-Football fixtures via entity resolution.
+
+**Evidence:** `src/objects/models/fixture_odds.py`, `src/data_sources/football_data_odds/`, `src/scripts/ingest_football_data_odds.py`
+
+**Implications:**
+- DEC-001 still holds for **API-Football** odds: we do not fetch or persist API-Football `/odds`.
+- DEC-002 still holds for **live coupon scoring**: `ProbabilityManager` continues to use Svenska Spel ST odds as the market baseline. `fixture_odds` is a second source for the future ML dataset, not a replacement of that path.
+- `snapshot_at` is stored as `kickoff_at` for both opening and closing rows because the archive has no opening timestamp; do not invent one. `price_type` (`opening` | `closing`) distinguishes them.
+- Canonical price for later modeling is **closing** primary; opening is stored alongside and can be selected by `FIXTURE_ODDS_PRICE_TYPE`.
+- Archive consensus for ML fixtures selects a stored `fixture_odds` bookmaker row (default `Avg` closing; `PS` via `FIXTURE_ODDS_BOOKMAKER`). If the preferred bookmaker is missing and is not `Avg`, fall back to `Avg` at the same `price_type`; never mix opening and closing. Live coupon scoring still uses Svenska Spel ST odds (DEC-002).
+- Odds FK is internal `fixtures.id`. Unresolved archive matches are logged to `data/unresolved_football_data_odds.csv`, not invented.
 
 **Confidence:** HIGH
 

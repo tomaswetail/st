@@ -42,14 +42,6 @@ def _minimal_features(*, league_external_id: int | None = 39) -> ResidualMLFeatu
         away_set_piece_defence=1.0,
         home_goalkeeper_prevention=0.0,
         away_goalkeeper_prevention=0.0,
-        expected_home_goals=1.4,
-        expected_away_goals=1.1,
-        p_home_dc=0.48,
-        p_draw_dc=0.29,
-        p_away_dc=0.23,
-        market_vs_dc_home=0.02,
-        market_vs_dc_draw=-0.01,
-        market_vs_dc_away=-0.01,
         attack_strength_difference=0.1,
         expected_goal_difference=0.3,
         expected_goal_total=2.5,
@@ -96,6 +88,7 @@ def test_features_include_league_external_id_in_row_dict():
     assert row["draw_number"] == 4950
     # Metadata must not be treated as an HGB model feature.
     assert "league_external_id" not in features.model_feature_names()
+    assert "market_price_type" not in features.model_feature_names()
 
 
 def test_features_allow_missing_league_external_id():

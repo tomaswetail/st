@@ -253,3 +253,10 @@ def test_home_and_away_appearances_count_toward_schedule():
     find_calls = calculator.fixture_repo.find_before_date_by_team.call_args_list
     assert find_calls[0].kwargs["team_name"] == "Arsenal"
     assert find_calls[0].kwargs["venue"] is None
+
+
+def test_before_date_override_is_used_for_history():
+    calculator = _calculator(home_history=[], away_history=[])
+    calculator.calculate(_match(), before_date=date(2024, 1, 1))
+    kwargs = calculator.fixture_repo.find_before_date_by_team.call_args_list[0].kwargs
+    assert kwargs["before_date"] == date(2024, 1, 1)

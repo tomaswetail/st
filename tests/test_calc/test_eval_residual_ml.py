@@ -8,7 +8,6 @@ from src.calc.residual_ml.evaluation import (
     run_backtest_scoring,
     slice_rows_by_availability,
     slice_rows_by_draw_quarter,
-    slice_rows_by_injury_heavy,
     slice_rows_by_league,
     slice_rows_by_year,
     top_pick_accuracy,
@@ -115,26 +114,6 @@ def test_slice_rows_by_availability_groups_flag():
     assert len(grouped["availability:0"]) == 1
 
 
-def test_slice_rows_by_injury_heavy_splits_on_difference():
-    rows = [
-        {
-            **_row(1, "2024-01-01", 4800),
-            "has_availability": 1,
-            "missing_value_difference": 0.5,
-        },
-        {
-            **_row(2, "2024-01-02", 4801),
-            "has_availability": 1,
-            "missing_value_difference": 0.0,
-        },
-        {**_row(3, "2024-01-03", 4802), "has_availability": 0},
-    ]
-    grouped = slice_rows_by_injury_heavy(rows, threshold=0.0)
-    assert grouped is not None
-    assert len(grouped["injury_heavy:>0.0"]) == 1
-    assert len(grouped["injury_heavy:<=0.0"]) == 1
-
-
 class _FakeTrainer:
     def predict_match_proba(self, row):
         return {"1": 0.50, "X": 0.30, "2": 0.20}
@@ -149,23 +128,14 @@ def _scored_row(
     league_external_id: int,
     market_probs: tuple[float, float, float],
 ) -> dict:
-    home, draw, away = market_probs
-    return {
-        **_row(
-            match_id,
-            match_date,
-            draw_number,
-            label,
-            league_external_id=league_external_id,
-            market_probs=market_probs,
-        ),
-        "p_home_dc_norm": 0.40,
-        "p_draw_dc_norm": 0.30,
-        "p_away_dc_norm": 0.30,
-        "p_home_blend": home,
-        "p_draw_blend": draw,
-        "p_away_blend": away,
-    }
+    return _row(
+        match_id,
+        match_date,
+        draw_number,
+        label,
+        league_external_id=league_external_id,
+        market_probs=market_probs,
+    )
 
 
 def _scored_fixture_rows() -> list[dict]:

@@ -1,3 +1,4 @@
+import math
 import re
 from enum import Enum
 from typing import Literal
@@ -179,25 +180,43 @@ def swedish_to_ascii(text: str) -> str:
     return "".join(replacements.get(char, char) for char in text)
 
 
+def validate_decimal_odds(label: str, odds: object) -> float:
+    """Reject null, non-numeric, NaN, inf, and odds <= 1. Accept finite odds > 1."""
+    if odds is None:
+        raise ValueError(f"{label} odds is null")
+    try:
+        value = float(odds)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{label} odds is not numeric: {odds!r}") from exc
+    if math.isnan(value) or math.isinf(value):
+        raise ValueError(f"{label} odds is not finite: {odds!r}")
+    if value <= 1.0:
+        raise ValueError(f"{label} odds must be > 1, got {value}")
+    return value
+
+
 def odds_to_probabilities(
     win_home: float,
     draw: float,
     win_away: float,
 ) -> dict[Outcome, float]:
-    """Convert decimal 1X2 odds to normalized probabilities."""
-    for label, odds in (("win_home", win_home), ("draw", draw), ("win_away", win_away)):
-        if odds <= 0:
-            raise ValueError(f"{label} odds must be positive, got {odds}")
+    """Convert decimal 1X2 odds to vig-free probabilities.
 
-    home = 1.0 / win_home
-    draw_prob = 1.0 / draw
-    away = 1.0 / win_away
-    total = home + draw_prob + away
+    Odds must be finite and greater than 1 (see ``validate_decimal_odds``).
+    """
+    home_odds = validate_decimal_odds("home", win_home)
+    draw_odds = validate_decimal_odds("draw", draw)
+    away_odds = validate_decimal_odds("away", win_away)
+
+    implied_home = 1.0 / home_odds
+    implied_draw = 1.0 / draw_odds
+    implied_away = 1.0 / away_odds
+    overround = implied_home + implied_draw + implied_away
 
     return {
-        "1": home / total,
-        "X": draw_prob / total,
-        "2": away / total,
+        "1": implied_home / overround,
+        "X": implied_draw / overround,
+        "2": implied_away / overround,
     }
 
 

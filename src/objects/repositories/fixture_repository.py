@@ -14,10 +14,12 @@ from src.data_sources.api_football_leagues import (
     load_api_football_leagues,
 )
 from src.objects.models.fixture import FixtureModel
+from src.objects.models.fixture_odds import FixtureOddsModel
 from src.objects.models.match_advanced_stats import MatchAdvancedStatsModel
 from src.objects.models.team import TeamModel
 from src.objects.repositories.base import BaseRepository
 from src.objects.schema.db.fixture import Fixture, FixtureCreate
+from src.utils.datetime_tz import align_datetime_tzinfo
 from src.utils.seasons import season_code_to_start_year
 
 if TYPE_CHECKING:
@@ -283,8 +285,8 @@ class FixtureRepository(BaseRepository[FixtureModel]):
             self.model.home_team_id.in_(resolved_home_ids),
             self.model.away_team_id.in_(resolved_away_ids),
         )
-        if league_external_id is not None:
-            query = query.where(self.model.league_id == league_external_id)
+        #if league_external_id is not None:
+        #    query = query.where(self.model.league_id == league_external_id)
         sql = str(
             query.compile(
                 dialect=self.session.get_bind().dialect,
@@ -376,6 +378,55 @@ class FixtureRepository(BaseRepository[FixtureModel]):
         if league_id is not None:
             query = query.where(self.model.league_id == league_id)
         query = query.order_by(self.model.fixture_date.asc())
+        return list(self.session.scalars(query).all())
+
+    def find_finished_for_league_season(
+        self,
+        *,
+        league_id: int,
+        league_season: int,
+    ) -> list[FixtureModel]:
+        """Finished fixtures with goals for one API-Football league + season.
+
+        ``league_id`` is the API-Football / fixture ``league_id`` (external).
+        Ordered by kickoff then internal ``fixtures.id``.
+        """
+        query = (
+            select(self.model)
+            .where(self.model.status_short.in_(self._FINISHED_STATUSES))
+            .where(self.model.goals_home.is_not(None))
+            .where(self.model.goals_away.is_not(None))
+            .where(self.model.league_id == league_id)
+            .where(self.model.league_season == league_season)
+            .order_by(self.model.fixture_date.asc(), self.model.id.asc())
+        )
+        return list(self.session.scalars(query).all())
+
+    def find_finished_with_odds(
+        self,
+        *,
+        provider: str,
+        league_id: int | None = None,
+        league_season: int | None = None,
+    ) -> list[FixtureModel]:
+        """Finished fixtures that have at least one odds row for *provider*."""
+        query = (
+            select(self.model)
+            .join(
+                FixtureOddsModel,
+                FixtureOddsModel.fixture_id == self.model.id,
+            )
+            .where(self.model.status_short.in_(self._FINISHED_STATUSES))
+            .where(self.model.goals_home.is_not(None))
+            .where(self.model.goals_away.is_not(None))
+            .where(FixtureOddsModel.provider == provider)
+            .distinct()
+            .order_by(self.model.fixture_date.asc(), self.model.id.asc())
+        )
+        if league_id is not None:
+            query = query.where(self.model.league_id == league_id)
+        if league_season is not None:
+            query = query.where(self.model.league_season == league_season)
         return list(self.session.scalars(query).all())
 
     def find_missing_stats(
@@ -664,11 +715,8 @@ class FixtureRepository(BaseRepository[FixtureModel]):
             fixture_dt = fixture.fixture_date
             if fixture_dt is None:
                 return float("inf")
-            if fixture_dt.tzinfo is None and kickoff.tzinfo is not None:
-                fixture_dt = fixture_dt.replace(tzinfo=kickoff.tzinfo)
-            elif fixture_dt.tzinfo is not None and kickoff.tzinfo is None:
-                fixture_dt = fixture_dt.replace(tzinfo=None)
-            return abs((fixture_dt - kickoff).total_seconds())
+            fixture_dt, aligned_kickoff = align_datetime_tzinfo(fixture_dt, kickoff)
+            return abs((fixture_dt - aligned_kickoff).total_seconds())
 
         closest = min(candidates, key=_kickoff_distance)
         return int(closest.league_id)

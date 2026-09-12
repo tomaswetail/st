@@ -46,7 +46,7 @@ Documented SQL TRUNCATE + sequential reimport in `docs/football_data_ingestion.m
 
 - **BR-006** — fixture upsert idempotent on `fixture_id`
 - **INV-006** — xG import attaches to existing `fixtures` rows; unresolved matches logged to CSV
-- Docs: fixture odds from API-Football **not** persisted
+- Docs: fixture odds from API-Football **not** persisted. Historical 1X2 odds from football-data.co.uk **are** persisted on `fixture_odds` (DEC-016); live ST odds path unchanged.
 - Season codes: YYXX or calendar year → stored as calendar start year (`utils/seasons.py`)
 
 # Permissions

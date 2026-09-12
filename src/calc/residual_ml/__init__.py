@@ -1,27 +1,19 @@
-"""Residual ML training, evaluation, and inference."""
+"""Residual ML training, evaluation, and inference against the market baseline."""
 
 from src.calc.residual_ml.baseline import (
-    apply_count_differential_logit_shift,
-    apply_draw_adjustment,
-    apply_market_only_baseline,
+    apply_large_move_or_identity,
     apply_residual_deltas,
-    blend_baselines,
-    coverage_aware_shrink_alpha,
-    is_market_only_weights,
-    load_draw_adjustment_config,
+    inv_logit,
+    logit,
     market_baseline,
+    normalize_probabilities,
     shrink_toward_market,
-    shrink_toward_market_by_coverage,
-)
-from src.calc.residual_ml.blend_weights import (
-    load_blend_weights_config,
-    select_blend_weights,
+    target_logit_deltas,
 )
 from src.calc.residual_ml.dataset import ResidualMLDatasetBuilder
 from src.calc.residual_ml.evaluation import (
     BacktestScoringResult,
     run_backtest_scoring,
-    run_phase3_ablation,
     score_baseline_log_losses,
     score_outcome_metrics,
 )
@@ -39,27 +31,21 @@ __all__ = [
     "ResidualMLFeatureAssembler",
     "ResidualMLModel",
     "ResidualMLTrainer",
-    "apply_count_differential_logit_shift",
-    "apply_draw_adjustment",
-    "apply_market_only_baseline",
+    "apply_large_move_or_identity",
     "apply_residual_deltas",
-    "blend_baselines",
     "filter_rows_by_draw",
-    "is_market_only_weights",
-    "load_blend_weights_config",
+    "inv_logit",
     "load_dataset_rows",
-    "load_draw_adjustment_config",
+    "logit",
     "market_baseline",
+    "normalize_probabilities",
     "resolve_validation_fraction",
     "run_backtest_scoring",
     "run_hyperparameter_sweep",
-    "run_phase3_ablation",
     "score_baseline_log_losses",
     "score_outcome_metrics",
     "select_backtest_rows",
-    "select_blend_weights",
-    "coverage_aware_shrink_alpha",
     "shrink_toward_market",
-    "shrink_toward_market_by_coverage",
+    "target_logit_deltas",
     "train_and_save",
 ]

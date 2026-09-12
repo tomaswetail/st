@@ -629,3 +629,31 @@ def test_competitive_balance_higher_when_teams_closer():
         balanced_features.league_competitive_balance
         > unbalanced_features.league_competitive_balance
     )
+
+
+def test_before_date_override_is_used_for_history():
+    calculator = _calculator(league_matches=[], global_matches=[], shrinkage=0)
+    calculator.calculate(_match(), before_date=date(2024, 1, 1))
+    kwargs = calculator.fixture_repo.find_before_date_by_league_id.call_args.kwargs
+    assert kwargs["before_date"] == date(2024, 1, 1)
+    global_kwargs = calculator.fixture_repo.get_filtered.call_args.kwargs
+    assert global_kwargs["before_date"] == date(2024, 1, 1)
+
+
+def test_fixture_shaped_resolves_league_via_external_id():
+    calculator = _calculator(league_matches=[], shrinkage=0)
+    calculator.league_repo.get_by_external_id = MagicMock(
+        return_value=SimpleNamespace(id=7)
+    )
+    fixture = SimpleNamespace(
+        id=1,
+        fixture_date=datetime(2024, 6, 15, 15, 0, tzinfo=timezone.utc),
+        league_id=39,
+        home_team=SimpleNamespace(name="Arsenal"),
+        away_team=SimpleNamespace(name="Chelsea"),
+    )
+    calculator.calculate(fixture)
+    calculator.league_repo.get_by_external_id.assert_called_once_with(39)
+    kwargs = calculator.fixture_repo.find_before_date_by_league_id.call_args.kwargs
+    assert kwargs["league_id"] == 7
+    assert kwargs["before_date"] == date(2024, 6, 15)

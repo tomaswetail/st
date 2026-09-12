@@ -7,12 +7,10 @@ import argparse
 from pathlib import Path
 
 from src.calc.residual_ml import (
-    apply_market_only_baseline,
     load_dataset_rows,
     run_hyperparameter_sweep,
     train_and_save,
 )
-from src.objects.schema.data_classes.data_sources import DataSourceConfig
 from src.utils.repo_paths import resolve_repo_path
 from src.utils.time_split import DEFAULT_VALIDATION_FRACTION
 
@@ -41,11 +39,6 @@ def main() -> None:
         help="Grid-search hyperparameters and save the best model",
     )
     parser.add_argument(
-        "--market-only-baseline",
-        action="store_true",
-        help="Train residuals vs market only (blend := market_norm; weights 1/0)",
-    )
-    parser.add_argument(
         "--exclude-injury-features",
         action="store_true",
         help="Omit injury/availability columns from HGB training (ablation B1)",
@@ -72,33 +65,18 @@ def main() -> None:
     dataset_path = resolve_repo_path(args.dataset)
     output_dir = resolve_repo_path(args.output_dir)
     default_output = Path("models/residual_ml/v1")
-    if args.output_dir == default_output:
-        if args.market_only_baseline:
-            output_dir = resolve_repo_path(Path("models/residual_ml/market_only"))
-        elif args.sweep:
-            output_dir = resolve_repo_path(Path("models/residual_ml/sweep_best"))
+    if args.output_dir == default_output and args.sweep:
+        output_dir = resolve_repo_path(Path("models/residual_ml/sweep_best"))
 
-    config = DataSourceConfig()
     rows = load_dataset_rows(dataset_path)
     if not rows:
         raise SystemExit(f"No rows loaded from {dataset_path}")
 
     print(f"Loaded {len(rows)} rows from {dataset_path}", flush=True)
 
-    if args.market_only_baseline:
-        apply_market_only_baseline(rows)
-        market_weight = 1.0
-        dc_weight = 0.0
-        print("Using market-only baseline (blend := market_norm)", flush=True)
-    else:
-        market_weight = config.residual_ml_market_weight
-        dc_weight = config.residual_ml_dc_weight
-
     if args.sweep:
         run_hyperparameter_sweep(
             rows,
-            market_weight=market_weight,
-            dc_weight=dc_weight,
             output_dir=output_dir,
             validation_fraction=args.validation_fraction,
             exclude_injury_features=args.exclude_injury_features,
@@ -106,8 +84,6 @@ def main() -> None:
     else:
         train_and_save(
             rows,
-            market_weight=market_weight,
-            dc_weight=dc_weight,
             output_dir=output_dir,
             version=args.version,
             validation_fraction=args.validation_fraction,

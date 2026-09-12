@@ -1,42 +1,24 @@
-"""Market + Dixon–Coles baseline blend and residual probability math."""
+"""Market baseline + residual logit-delta math for the 1X2 ML model."""
 
 from __future__ import annotations
 
 import math
 from typing import Mapping
 
-from src.calc.draw_adjustment import (
-    DrawAdjustmentConfig,
-    apply_draw_adjustment,
-    load_draw_adjustment_config,
-)
-from src.utils.common import OUTCOMES, Outcome, ensure_unit_probabilities
 from src.calc.probability_metrics import PROB_EPSILON
+from src.utils.common import OUTCOMES, Outcome, ensure_unit_probabilities
 
 __all__ = [
-    "DrawAdjustmentConfig",
-    "apply_draw_adjustment",
-    "apply_market_only_baseline",
+    "OUTCOMES",
     "apply_residual_deltas",
-    "blend_baselines",
-    "blend_logit_vector",
-    "engine_baseline",
     "inv_logit",
-    "is_market_only_weights",
-    "load_draw_adjustment_config",
     "logit",
     "market_baseline",
     "normalize_probabilities",
-    "apply_count_differential_logit_shift",
-    "coverage_aware_shrink_alpha",
+    "apply_large_move_or_identity",
     "shrink_toward_market",
-    "shrink_toward_market_by_coverage",
     "target_logit_deltas",
 ]
-
-COVERED_SHRINK_ALPHA = 0.7
-UNCOVERED_SHRINK_ALPHA = 0.85
-COUNT_DIFF_LOGIT_SHIFT_K = 0.04
 
 
 def _clip_prob(probability: float, *, epsilon: float = PROB_EPSILON) -> float:
@@ -44,11 +26,13 @@ def _clip_prob(probability: float, *, epsilon: float = PROB_EPSILON) -> float:
 
 
 def logit(probability: float, *, epsilon: float = PROB_EPSILON) -> float:
+    """Natural logit of a probability, clipped away from 0/1."""
     clipped = _clip_prob(probability, epsilon=epsilon)
     return math.log(clipped / (1.0 - clipped))
 
 
 def inv_logit(value: float) -> float:
+    """Sigmoid: inverse of :func:`logit`."""
     if value >= 0:
         exp_value = math.exp(-value)
         return 1.0 / (1.0 + exp_value)
@@ -59,6 +43,7 @@ def inv_logit(value: float) -> float:
 def normalize_probabilities(
     probabilities: Mapping[str, float | None],
 ) -> dict[str, float] | None:
+    """Renormalize {1, X, 2} to sum to 1; return None on missing or non-positive input."""
     present = {
         key: float(value)
         for key, value in probabilities.items()
@@ -75,70 +60,9 @@ def normalize_probabilities(
 def market_baseline(
     market_probabilities: Mapping[str, float | None],
 ) -> dict[str, float] | None:
+    """Normalized market baseline from raw 1X2 probabilities (overround-free)."""
     unit = ensure_unit_probabilities(dict(market_probabilities))
     return normalize_probabilities(unit)
-
-
-def engine_baseline(
-    *,
-    p_home_dc: float | None,
-    p_draw_dc: float | None,
-    p_away_dc: float | None,
-) -> dict[str, float] | None:
-    return normalize_probabilities(
-        {"1": p_home_dc, "X": p_draw_dc, "2": p_away_dc}
-    )
-
-
-def blend_baselines(
-    market: Mapping[str, float] | None,
-    engine: Mapping[str, float] | None,
-    *,
-    market_weight: float = 0.7,
-    dc_weight: float | None = None,
-) -> dict[str, float] | None:
-    """Weighted linear blend in probability space; falls back to whichever baseline exists."""
-    if market is None and engine is None:
-        return None
-    if market is None:
-        return dict(engine)  # type: ignore[arg-type]
-    if engine is None:
-        return dict(market)
-
-    weight_market = market_weight
-    weight_dc = dc_weight if dc_weight is not None else (1.0 - market_weight)
-    total_weight = weight_market + weight_dc
-    if total_weight <= 0:
-        return None
-    weight_market /= total_weight
-    weight_dc /= total_weight
-
-    blended: dict[str, float] = {}
-    for outcome in OUTCOMES:
-        blended[outcome] = (
-            weight_market * market[outcome] + weight_dc * engine[outcome]
-        )
-    return normalize_probabilities(blended)
-
-
-def apply_market_only_baseline(rows: list[dict]) -> list[dict]:
-    """Set p_*_blend from p_*_market_norm so residuals train/predict vs market only."""
-    for row in rows:
-        home = row.get("p_home_market_norm")
-        draw = row.get("p_draw_market_norm")
-        away = row.get("p_away_market_norm")
-        if home is None or draw is None or away is None:
-            continue
-        if home == "" or draw == "" or away == "":
-            continue
-        row["p_home_blend"] = float(home)
-        row["p_draw_blend"] = float(draw)
-        row["p_away_blend"] = float(away)
-    return rows
-
-
-def is_market_only_weights(market_weight: float, dc_weight: float) -> bool:
-    return market_weight >= 1.0 - 1e-9 and dc_weight <= 1e-9
 
 
 def target_logit_deltas(
@@ -174,10 +98,6 @@ def apply_residual_deltas(
     return normalized
 
 
-def blend_logit_vector(baseline: Mapping[str, float]) -> dict[str, float]:
-    return {outcome: logit(baseline[outcome]) for outcome in OUTCOMES}
-
-
 def shrink_toward_market(
     ml_probabilities: Mapping[str, float],
     market_probabilities: Mapping[str, float],
@@ -197,61 +117,25 @@ def shrink_toward_market(
     return normalized
 
 
-def _parse_has_availability_flag(has_availability: object) -> int | None:
-    if has_availability in (None, ""):
-        return None
-    try:
-        return int(float(has_availability))  # type: ignore[arg-type]
-    except (TypeError, ValueError):
-        return None
-
-
-def coverage_aware_shrink_alpha(has_availability: object) -> float:
-    """Eval-time α: 0.7 when covered, 0.85 when has_availability != 1 (incl. missing)."""
-    if _parse_has_availability_flag(has_availability) == 1:
-        return COVERED_SHRINK_ALPHA
-    return UNCOVERED_SHRINK_ALPHA
-
-
-def shrink_toward_market_by_coverage(
+def apply_large_move_or_identity(
     ml_probabilities: Mapping[str, float],
     market_probabilities: Mapping[str, float],
-    has_availability: object,
-) -> dict[str, float]:
-    """Row-level post-ML shrink. Production scoring still uses a single global α."""
-    return shrink_toward_market(
-        ml_probabilities,
-        market_probabilities,
-        alpha=coverage_aware_shrink_alpha(has_availability),
-    )
-
-
-def _parse_optional_count(value: object) -> float | None:
-    if value in (None, ""):
-        return None
-    try:
-        return float(value)  # type: ignore[arg-type]
-    except (TypeError, ValueError):
-        return None
-
-
-def apply_count_differential_logit_shift(
-    engine: Mapping[str, float],
     *,
-    home_unavailable_count: object,
-    away_unavailable_count: object,
-    has_availability: object,
-    k: float = COUNT_DIFF_LOGIT_SHIFT_K,
+    alpha: float,
+    threshold: float,
 ) -> dict[str, float]:
-    """Post-DC 1X2 logit shift. Unchanged when uncovered or counts are null."""
-    if _parse_has_availability_flag(has_availability) != 1:
-        return dict(engine)
-    home_count = _parse_optional_count(home_unavailable_count)
-    away_count = _parse_optional_count(away_unavailable_count)
-    if home_count is None or away_count is None:
-        return dict(engine)
-    delta = k * (away_count - home_count)
-    return apply_residual_deltas(
-        engine,
-        {"1": delta, "X": 0.0, "2": -delta},
+    """Identity market if the ML move is below ``threshold``; else shrink.
+
+    ``large = max_k |p_k^{ml} - p_k^{market}|``. Below threshold returns the
+    same market object (not a no-op shrink). Above threshold applies
+    ``shrink_toward_market``. Outputs are normalized over ``{1, X, 2}``.
+    """
+    large = max(
+        abs(ml_probabilities[outcome] - market_probabilities[outcome])
+        for outcome in OUTCOMES
+    )
+    if large < threshold:
+        return market_probabilities  # type: ignore[return-value]
+    return shrink_toward_market(
+        ml_probabilities, market_probabilities, alpha=alpha
     )

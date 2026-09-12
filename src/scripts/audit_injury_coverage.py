@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-from collections import Counter, defaultdict
+from collections import defaultdict
 from pathlib import Path
 from statistics import mean, median
 from typing import Any
@@ -68,13 +68,6 @@ def audit_injury_coverage(rows: list[dict[str, str]]) -> dict[str, Any]:
         if _int_or_none(row.get("has_availability")) == 1:
             by_draw[draw]["with"] += 1
 
-    blend_cross: Counter[str] = Counter()
-    for row in rows:
-        flag = _int_or_none(row.get("has_availability"))
-        market_weight = row.get("blend_market_weight", "")
-        key = f"has_availability={flag}|blend_market_weight={market_weight}"
-        blend_cross[key] += 1
-
     tiny_missing_value_rows = 0
     for row in rows:
         if _int_or_none(row.get("has_availability")) != 1:
@@ -121,13 +114,9 @@ def audit_injury_coverage(rows: list[dict[str, str]]) -> dict[str, Any]:
             else None,
         },
         "tiny_scaled_missing_value_rows": tiny_missing_value_rows,
-        "has_availability_x_blend_market_weight": dict(
-            sorted(blend_cross.items(), key=lambda item: (-item[1], item[0]))
-        ),
         "by_draw": draw_summary,
         "columns_present": {
             "has_availability": has_col,
-            "blend_market_weight": "blend_market_weight" in rows[0],
         },
     }
 

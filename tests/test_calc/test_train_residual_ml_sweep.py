@@ -16,9 +16,6 @@ def _sample_rows() -> list[dict]:
             "match_date": f"2024-01-{index:02d}",
             "match_id": index,
             "draw_number": 4800 + index,
-            "p_home_blend": 0.45,
-            "p_draw_blend": 0.28,
-            "p_away_blend": 0.27,
             "p_home_market_norm": 0.50,
             "p_draw_market_norm": 0.28,
             "p_away_market_norm": 0.22,
@@ -28,7 +25,9 @@ def _sample_rows() -> list[dict]:
     ]
 
 
-def _fake_training_result(train_rows: list[dict], validation_rows: list[dict]) -> ResidualMLTrainingResult:
+def _fake_training_result(
+    train_rows: list[dict], validation_rows: list[dict]
+) -> ResidualMLTrainingResult:
     return ResidualMLTrainingResult(
         version="",
         train_rows=len(train_rows),
@@ -36,10 +35,8 @@ def _fake_training_result(train_rows: list[dict], validation_rows: list[dict]) -
         train_log_loss=1.0,
         validation_log_loss=0.9,
         market_validation_log_loss=1.01,
-        blend_validation_log_loss=1.02,
         model_path=Path(),
         feature_schema_path=Path(),
-        baseline_weights_path=Path(),
     )
 
 
@@ -61,10 +58,8 @@ def test_sweep_saves_best_trainer_without_extra_fit(tmp_path: Path):
             train_log_loss=0.0,
             validation_log_loss=0.0,
             market_validation_log_loss=None,
-            blend_validation_log_loss=None,
             model_path=model_path,
             feature_schema_path=directory / "feature_schema.json",
-            baseline_weights_path=directory / "baseline_weights.json",
         )
 
     with patch.object(ResidualMLTrainer, "fit", fake_fit):
@@ -75,8 +70,6 @@ def test_sweep_saves_best_trainer_without_extra_fit(tmp_path: Path):
                         with patch("src.calc.residual_ml.sweep.LABEL_SMOOTHINGS", [0.0]):
                             best = run_hyperparameter_sweep(
                                 _sample_rows(),
-                                market_weight=0.7,
-                                dc_weight=0.3,
                                 output_dir=tmp_path,
                                 validation_fraction=0.2,
                             )

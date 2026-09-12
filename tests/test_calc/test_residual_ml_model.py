@@ -1,12 +1,13 @@
-"""Tests for ResidualMLTrainer and ResidualMLModel."""
+"""Tests for ResidualMLTrainer and ResidualMLModel (market baseline only)."""
 
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 
 import pytest
 
-from src.calc.residual_ml.baseline import apply_residual_deltas, blend_baselines
+from src.calc.residual_ml.baseline import apply_residual_deltas
 from src.calc.residual_ml.injury_features import (
     COUNTS_ONLY_INJURY_COLUMNS,
     INJURY_FEATURE_COLUMNS,
@@ -17,62 +18,41 @@ from src.objects.schema.data_classes.residual_ml_features import ResidualMLFeatu
 
 
 def _synthetic_rows(count: int = 120) -> list[dict]:
-    rows = []
+    rows: list[dict] = []
     for index in range(count):
         label = ("1", "X", "2")[index % 3]
         p_home = 0.45 + (index % 5) * 0.01
         p_draw = 0.28
         p_away = 1.0 - p_home - p_draw
-        row = {
-            "match_id": index + 1,
-            "draw_number": 4700 + index // 13,
-            "feature_cutoff_date": f"2024-{(index % 12) + 1:02d}-15",
-            "match_date": f"2024-{(index % 12) + 1:02d}-15",
-            "p_home_market": p_home,
-            "p_draw_market": p_draw,
-            "p_away_market": p_away,
-            "expected_home_goals": 1.4,
-            "expected_away_goals": 1.1,
-            "p_home_dc": p_home - 0.02,
-            "p_draw_dc": p_draw + 0.01,
-            "p_away_dc": p_away + 0.01,
-            "market_vs_dc_home": 0.02,
-            "market_vs_dc_draw": -0.01,
-            "market_vs_dc_away": -0.01,
-            "attack_strength_difference": 0.1,
-            "expected_goal_difference": 0.3,
-            "expected_goal_total": 2.5,
-            "market_balance": 0.05,
-            "defence_strength_difference": 0.04,
-            "favourite_strength": 0.05,
-            "combined_draw_rate": 0.24,
-            "league_draw_rate": 0.25,
-            "league_home_win_rate": 0.44,
-            "home_rest_days": 5,
-            "away_rest_days": 4,
-            "rest_day_difference": 1,
-            "home_advantage_log": 0.1,
-            "home_advantage_coefficient": 1.10,
-            "label": label,
-        }
-        market = {"1": p_home, "X": p_draw, "2": p_away}
-        engine = {
-            "1": row["p_home_dc"],
-            "X": row["p_draw_dc"],
-            "2": row["p_away_dc"],
-        }
-        blend = blend_baselines(market, engine)
-        assert blend is not None
-        row["p_home_blend"] = blend["1"]
-        row["p_draw_blend"] = blend["X"]
-        row["p_away_blend"] = blend["2"]
-        row["p_home_market_norm"] = p_home
-        row["p_draw_market_norm"] = p_draw
-        row["p_away_market_norm"] = p_away
-        row["p_home_dc_norm"] = row["p_home_dc"]
-        row["p_draw_dc_norm"] = row["p_draw_dc"]
-        row["p_away_dc_norm"] = row["p_away_dc"]
-        rows.append(row)
+        rows.append(
+            {
+                "match_id": index + 1,
+                "draw_number": 4700 + index // 13,
+                "feature_cutoff_date": f"2024-{(index % 12) + 1:02d}-15",
+                "match_date": f"2024-{(index % 12) + 1:02d}-15",
+                "p_home_market": p_home,
+                "p_draw_market": p_draw,
+                "p_away_market": p_away,
+                "p_home_market_norm": p_home,
+                "p_draw_market_norm": p_draw,
+                "p_away_market_norm": p_away,
+                "attack_strength_difference": 0.1,
+                "expected_goal_difference": 0.3,
+                "expected_goal_total": 2.5,
+                "market_balance": 0.05,
+                "defence_strength_difference": 0.04,
+                "favourite_strength": 0.05,
+                "combined_draw_rate": 0.24,
+                "league_draw_rate": 0.25,
+                "league_home_win_rate": 0.44,
+                "home_rest_days": 5,
+                "away_rest_days": 4,
+                "rest_day_difference": 1,
+                "home_advantage_log": 0.1,
+                "home_advantage_coefficient": 1.10,
+                "label": label,
+            }
+        )
     return rows
 
 
@@ -163,7 +143,7 @@ def test_model_predict_proba(tmp_path: Path):
     features = ResidualMLFeatures(
         match_id=1,
         draw_number=4750,
-        feature_cutoff_date=__import__("datetime").date(2024, 6, 1),
+        feature_cutoff_date=date(2024, 6, 1),
         league_external_id=39,
         p_home_market=0.48,
         p_draw_market=0.27,
@@ -186,14 +166,6 @@ def test_model_predict_proba(tmp_path: Path):
         away_set_piece_defence=1.0,
         home_goalkeeper_prevention=0.05,
         away_goalkeeper_prevention=0.02,
-        expected_home_goals=1.5,
-        expected_away_goals=1.1,
-        p_home_dc=0.46,
-        p_draw_dc=0.28,
-        p_away_dc=0.26,
-        market_vs_dc_home=0.02,
-        market_vs_dc_draw=-0.01,
-        market_vs_dc_away=-0.01,
         attack_strength_difference=0.1,
         expected_goal_difference=0.4,
         expected_goal_total=2.6,

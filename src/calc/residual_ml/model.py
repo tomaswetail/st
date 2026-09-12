@@ -1,4 +1,4 @@
-"""Load and run the residual 1X2 ML model."""
+"""Load and run the residual 1X2 ML model against the market baseline."""
 
 from __future__ import annotations
 
@@ -7,8 +7,6 @@ from typing import TYPE_CHECKING
 
 from src.calc.residual_ml.baseline import (
     apply_residual_deltas,
-    blend_baselines,
-    engine_baseline,
     market_baseline,
     shrink_toward_market,
 )
@@ -21,21 +19,17 @@ if TYPE_CHECKING:
 
 
 class ResidualMLModel:
-    """Predict 1X2 probabilities via residual correction on a blended baseline."""
+    """Predict 1X2 probabilities via residual correction on the market baseline."""
 
     def __init__(
         self,
         trainer: ResidualMLTrainer,
         *,
         version: str = "v1",
-        market_weight: float = 0.7,
-        dc_weight: float = 0.3,
         final_shrink_to_market: float = 0.0,
     ) -> None:
         self.trainer = trainer
         self.version = version
-        self.market_weight = market_weight
-        self.dc_weight = dc_weight
         self.final_shrink_to_market = final_shrink_to_market
 
     @classmethod
@@ -53,8 +47,6 @@ class ResidualMLModel:
         return cls(
             trainer,
             version=trainer.version,
-            market_weight=trainer.market_weight,
-            dc_weight=trainer.dc_weight,
             final_shrink_to_market=cfg.residual_ml_final_shrink_to_market,
         )
 
@@ -64,26 +56,15 @@ class ResidualMLModel:
         *,
         baseline: dict[str, float] | None = None,
     ) -> dict[str, float]:
-        market = market_baseline(
+        market = baseline or market_baseline(
             {
                 "1": features.p_home_market,
                 "X": features.p_draw_market,
                 "2": features.p_away_market,
             }
         )
-        engine = engine_baseline(
-            p_home_dc=features.p_home_dc,
-            p_draw_dc=features.p_draw_dc,
-            p_away_dc=features.p_away_dc,
-        )
-        blend = baseline or blend_baselines(
-            market,
-            engine,
-            market_weight=self.market_weight,
-            dc_weight=self.dc_weight,
-        )
-        if blend is None:
-            raise ValueError("Cannot compute baseline probabilities for prediction")
+        if market is None:
+            raise ValueError("Cannot compute market baseline probabilities for prediction")
 
         vector = vectorize_features(
             features,
@@ -91,42 +72,12 @@ class ResidualMLModel:
             global_medians=self.trainer.global_medians,
         )
         deltas = self.trainer.predict_deltas(vector)
-        ml_probs = apply_residual_deltas(blend, deltas)
+        ml_probs = apply_residual_deltas(market, deltas)
 
-        if market is not None and self.final_shrink_to_market > 0:
+        if self.final_shrink_to_market > 0:
             return shrink_toward_market(
                 ml_probs,
                 market,
                 alpha=self.final_shrink_to_market,
             )
         return ml_probs
-
-    def predict_layers(
-        self,
-        features: ResidualMLFeatures,
-    ) -> dict[str, dict[str, float] | None]:
-        market = market_baseline(
-            {
-                "1": features.p_home_market,
-                "X": features.p_draw_market,
-                "2": features.p_away_market,
-            }
-        )
-        engine = engine_baseline(
-            p_home_dc=features.p_home_dc,
-            p_draw_dc=features.p_draw_dc,
-            p_away_dc=features.p_away_dc,
-        )
-        blend = blend_baselines(
-            market,
-            engine,
-            market_weight=self.market_weight,
-            dc_weight=self.dc_weight,
-        )
-        ml_probs = self.predict_proba(features, baseline=blend)
-        return {
-            "market_probabilities": market,
-            "engine_probabilities": engine,
-            "blend_probabilities": blend,
-            "ml_probabilities": ml_probs,
-        }

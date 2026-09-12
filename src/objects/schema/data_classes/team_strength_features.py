@@ -64,8 +64,3 @@ class MatchStrengthFeatures:
     away_set_piece_defence: float | None = None
     home_goalkeeper_prevention: float | None = None
     away_goalkeeper_prevention: float | None = None
-    expected_home_goals: float | None = None
-    expected_away_goals: float | None = None
-    dixon_coles_home_probability: float | None = None
-    dixon_coles_draw_probability: float | None = None
-    dixon_coles_away_probability: float | None = None

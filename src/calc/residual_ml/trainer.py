@@ -1,4 +1,4 @@
-"""Train and persist the residual 1X2 ML model."""
+"""Train and persist the residual 1X2 ML model against the market baseline."""
 
 from __future__ import annotations
 
@@ -23,6 +23,13 @@ from src.calc.residual_ml.vectorize import vectorize_row_values
 MODEL_TYPE = "residual_logit_v1"
 TRAIN_RECENCY_HALF_LIFE_KEY = "train_recency_half_life_days"
 
+MARKET_NORM_FIELDS = (
+    "p_home_market_norm",
+    "p_draw_market_norm",
+    "p_away_market_norm",
+)
+
+# Columns that live in the dataset row but are not fed to the HGB regressor.
 _DATASET_ONLY_FIELDS = frozenset(
     {
         "label",
@@ -31,22 +38,40 @@ _DATASET_ONLY_FIELDS = frozenset(
         "draw_number",
         "feature_cutoff_date",
         "league_external_id",
-        "p_home_blend",
-        "p_draw_blend",
-        "p_away_blend",
-        "p_home_blend_pre_draw",
-        "p_draw_blend_pre_draw",
-        "p_away_blend_pre_draw",
-        "blend_market_weight",
-        "blend_dc_weight",
-        "p_home_market_norm",
-        "p_draw_market_norm",
-        "p_away_market_norm",
-        "p_home_dc_norm",
-        "p_draw_dc_norm",
-        "p_away_dc_norm",
+        *MARKET_NORM_FIELDS,
+        "p_home_market",
+        "p_draw_market",
+        "p_away_market",
+        "p_home_market_opening",
+        "p_draw_market_opening",
+        "p_away_market_opening",
+        "p_home_market_closing",
+        "p_draw_market_closing",
+        "p_away_market_closing",
+        "p_home_market_norm_opening",
+        "p_draw_market_norm_opening",
+        "p_away_market_norm_opening",
+        "p_home_market_norm_closing",
+        "p_draw_market_norm_closing",
+        "p_away_market_norm_closing",
+        "market_price_type",
     }
 )
+
+_MARKET_TRIPLE_PREFIXES = ("p_home_market", "p_draw_market", "p_away_market")
+
+
+def is_market_triple_column(name: str) -> bool:
+    """True for raw / _norm / opening / closing 1X2 market triples."""
+    return any(
+        name == prefix or name.startswith(f"{prefix}_")
+        for prefix in _MARKET_TRIPLE_PREFIXES
+    )
+
+
+def is_price_suffix_column(name: str) -> bool:
+    """True for dual-price suffixed copies (unused after universe remap)."""
+    return name.endswith("_opening") or name.endswith("_closing")
 
 
 @dataclass
@@ -57,14 +82,12 @@ class ResidualMLTrainingResult:
     train_log_loss: float
     validation_log_loss: float
     market_validation_log_loss: float | None
-    blend_validation_log_loss: float | None
     model_path: Path
     feature_schema_path: Path
-    baseline_weights_path: Path
 
 
 def parse_match_date(value: Any) -> date:
-    """Parse a dataset `match_date` (YYYY-MM-DD string or date) to `date`."""
+    """Parse a dataset ``match_date`` (YYYY-MM-DD string or date) to ``date``."""
     if isinstance(value, datetime):
         return value.date()
     if isinstance(value, date):
@@ -80,7 +103,7 @@ def recency_sample_weight(days_before_as_of: int | float, half_life_days: float)
 
 
 def train_as_of_match_date(train_rows: list[dict[str, Any]]) -> date:
-    """As-of date for recency weights: max train `match_date` (not val, not today)."""
+    """As-of date for recency weights: max train ``match_date`` (not val, not today)."""
     if not train_rows:
         raise ValueError("Cannot compute recency as-of date from empty train rows")
     return max(parse_match_date(row["match_date"]) for row in train_rows)
@@ -101,14 +124,24 @@ def train_recency_sample_weights(
     return np.asarray(weights, dtype=float)
 
 
+def market_from_row(row: dict[str, Any]) -> dict[str, float] | None:
+    """Return the normalized market baseline stored on a dataset row."""
+    market = {
+        "1": row.get("p_home_market_norm"),
+        "X": row.get("p_draw_market_norm"),
+        "2": row.get("p_away_market_norm"),
+    }
+    if any(market[outcome] is None for outcome in OUTCOMES):
+        return None
+    return {outcome: float(market[outcome]) for outcome in OUTCOMES}  # type: ignore[arg-type]
+
+
 class ResidualMLTrainer:
-    """Train a multi-output regressor predicting logit deltas vs blended baseline."""
+    """Train a multi-output regressor predicting logit deltas vs the market baseline."""
 
     def __init__(
         self,
         *,
-        market_weight: float = 0.7,
-        dc_weight: float = 0.3,
         random_state: int = 42,
         label_smoothing: float = 0.05,
         max_depth: int = 6,
@@ -118,8 +151,6 @@ class ResidualMLTrainer:
         injury_counts_only: bool = False,
         train_recency_half_life_days: float | None = None,
     ) -> None:
-        self.market_weight = market_weight
-        self.dc_weight = dc_weight
         self.random_state = random_state
         self.label_smoothing = label_smoothing
         self.max_depth = max_depth
@@ -140,6 +171,7 @@ class ResidualMLTrainer:
         *,
         exclude_injury_features: bool = False,
         injury_counts_only: bool = False,
+        include_market_norm: bool = False,
     ) -> list[str]:
         if not rows:
             return []
@@ -147,11 +179,19 @@ class ResidualMLTrainer:
             exclude_injury_features=exclude_injury_features,
             injury_counts_only=injury_counts_only,
         )
-        return [
+        names = [
             key
             for key in rows[0].keys()
-            if key not in _DATASET_ONLY_FIELDS and key not in excluded
+            if key not in _DATASET_ONLY_FIELDS
+            and key not in excluded
+            and not is_market_triple_column(key)
+            and not is_price_suffix_column(key)
         ]
+        if include_market_norm:
+            for key in MARKET_NORM_FIELDS:
+                if key in rows[0] and key not in names:
+                    names.append(key)
+        return names
 
     def fit(
         self,
@@ -172,10 +212,7 @@ class ResidualMLTrainer:
         self.global_medians = self._compute_medians(train_rows, self.feature_names)
 
         x_train = np.vstack([self._vectorize_row(row) for row in train_rows])
-        y_train = np.vstack(
-            [self._target_deltas(row) for row in train_rows]
-        )
-        x_valid = np.vstack([self._vectorize_row(row) for row in validation_rows])
+        y_train = np.vstack([self._target_deltas(row) for row in train_rows])
         y_valid_labels = [row["label"] for row in validation_rows]
 
         self.model = MultiOutputRegressor(
@@ -195,10 +232,14 @@ class ResidualMLTrainer:
         else:
             self.model.fit(x_train, y_train)
 
-        train_loss = self._log_loss_from_rows(train_rows)
-        valid_loss = self._log_loss_from_rows(validation_rows, labels=y_valid_labels)
-        market_loss = self._baseline_log_loss(validation_rows, prefix="p_home_market_norm")
-        blend_loss = self._baseline_log_loss(validation_rows, prefix="p_home_blend")
+        if validation_rows:
+            train_loss = self._log_loss_from_rows(train_rows)
+            valid_loss = self._log_loss_from_rows(validation_rows, labels=y_valid_labels)
+            market_loss = self._market_log_loss(validation_rows)
+        else:
+            train_loss = 0.0
+            valid_loss = 0.0
+            market_loss = None
 
         return ResidualMLTrainingResult(
             version="",
@@ -207,24 +248,19 @@ class ResidualMLTrainer:
             train_log_loss=train_loss,
             validation_log_loss=valid_loss,
             market_validation_log_loss=market_loss,
-            blend_validation_log_loss=blend_loss,
             model_path=Path(),
             feature_schema_path=Path(),
-            baseline_weights_path=Path(),
         )
 
     def save(self, directory: Path, *, version: str = "v1") -> ResidualMLTrainingResult:
         directory.mkdir(parents=True, exist_ok=True)
         model_path = directory / "model.pkl"
         feature_schema_path = directory / "feature_schema.json"
-        baseline_weights_path = directory / "baseline_weights.json"
 
         artifact = {
             "model": self.model,
             "feature_names": self.feature_names,
             "global_medians": self.global_medians,
-            "market_weight": self.market_weight,
-            "dc_weight": self.dc_weight,
             "label_smoothing": self.label_smoothing,
             "model_type": MODEL_TYPE,
             "version": version,
@@ -246,16 +282,6 @@ class ResidualMLTrainer:
             ),
             encoding="utf-8",
         )
-        baseline_payload: dict[str, Any] = {
-            "market_weight": self.market_weight,
-            "dc_weight": self.dc_weight,
-        }
-        if self.train_recency_half_life_days is not None:
-            baseline_payload[TRAIN_RECENCY_HALF_LIFE_KEY] = self.train_recency_half_life_days
-        baseline_weights_path.write_text(
-            json.dumps(baseline_payload, indent=2),
-            encoding="utf-8",
-        )
 
         return ResidualMLTrainingResult(
             version=version,
@@ -264,10 +290,8 @@ class ResidualMLTrainer:
             train_log_loss=0.0,
             validation_log_loss=0.0,
             market_validation_log_loss=None,
-            blend_validation_log_loss=None,
             model_path=model_path,
             feature_schema_path=feature_schema_path,
-            baseline_weights_path=baseline_weights_path,
         )
 
     @classmethod
@@ -280,15 +304,11 @@ class ResidualMLTrainer:
                 f"Unsupported model type {model_type!r}; expected {MODEL_TYPE!r}. Retrain required."
             )
         trainer = cls(
-            market_weight=float(artifact.get("market_weight", 0.7)),
-            dc_weight=float(artifact.get("dc_weight", 0.3)),
             label_smoothing=float(artifact.get("label_smoothing", 0.05)),
         )
         trainer.model = artifact["model"]
         trainer.feature_names = list(artifact["feature_names"])
         trainer.global_medians = dict(artifact.get("global_medians", {}))
-        trainer.market_weight = float(artifact.get("market_weight", trainer.market_weight))
-        trainer.dc_weight = float(artifact.get("dc_weight", trainer.dc_weight))
         trainer.version = str(artifact.get("version", "v1"))
         stored_half_life = artifact.get(TRAIN_RECENCY_HALF_LIFE_KEY)
         trainer.train_recency_half_life_days = (
@@ -304,12 +324,12 @@ class ResidualMLTrainer:
         }
 
     def predict_match_proba(self, row: dict[str, Any]) -> dict[str, float] | None:
-        blend = blend_from_row(row)
-        if blend is None:
+        market = market_from_row(row)
+        if market is None:
             return None
         vector = self._vectorize_row(row)
         deltas = self.predict_deltas(vector)
-        return apply_residual_deltas(blend, deltas)
+        return apply_residual_deltas(market, deltas)
 
     def _vectorize_row(self, row: dict[str, Any]) -> np.ndarray:
         return vectorize_row_values(
@@ -319,12 +339,14 @@ class ResidualMLTrainer:
         )
 
     def _target_deltas(self, row: dict[str, Any]) -> np.ndarray:
-        blend = blend_from_row(row)
-        if blend is None:
-            raise ValueError(f"Missing blend probabilities for match id={row.get('match_id')}")
+        market = market_from_row(row)
+        if market is None:
+            raise ValueError(
+                f"Missing market probabilities for match id={row.get('match_id')}"
+            )
         deltas = target_logit_deltas(
             row["label"],
-            blend,
+            market,
             label_smoothing=self.label_smoothing,
         )
         return np.asarray([deltas[outcome] for outcome in OUTCOMES], dtype=float)
@@ -360,8 +382,6 @@ class ResidualMLTrainer:
         if not rows:
             return medians
         for key in feature_names:
-            if key in _DATASET_ONLY_FIELDS:
-                continue
             values = [
                 float(row[key])
                 for row in rows
@@ -372,17 +392,12 @@ class ResidualMLTrainer:
         return medians
 
     @staticmethod
-    def _baseline_log_loss(
-        rows: list[dict[str, Any]], *, prefix: str
-    ) -> float | None:
+    def _market_log_loss(rows: list[dict[str, Any]]) -> float | None:
         if not rows:
             return None
-        if prefix == "p_home_blend":
-            prob_keys = ("p_home_blend", "p_draw_blend", "p_away_blend")
-        else:
-            prob_keys = ("p_home_market_norm", "p_draw_market_norm", "p_away_market_norm")
-        y_true = []
-        y_prob = []
+        prob_keys = ("p_home_market_norm", "p_draw_market_norm", "p_away_market_norm")
+        y_true: list[int] = []
+        y_prob: list[list[float]] = []
         label_to_index = {"1": 0, "X": 1, "2": 2}
         for row in rows:
             if any(row.get(key) is None for key in prob_keys):
@@ -392,17 +407,6 @@ class ResidualMLTrainer:
         if not y_true:
             return None
         return multiclass_log_loss(y_true, y_prob)
-
-
-def blend_from_row(row: dict[str, Any]) -> dict[str, float] | None:
-    blend = {
-        "1": row.get("p_home_blend"),
-        "X": row.get("p_draw_blend"),
-        "2": row.get("p_away_blend"),
-    }
-    if any(blend[outcome] is None for outcome in OUTCOMES):
-        return None
-    return {outcome: float(blend[outcome]) for outcome in OUTCOMES}  # type: ignore[arg-type]
 
 
 def _is_nan(value: Any) -> bool:

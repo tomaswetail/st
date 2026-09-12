@@ -42,7 +42,6 @@ def test_clear_caches_empties_calculator_dicts():
     league._features_cache[(1, cutoff)] = MagicMock()
     league._global_stats_cache[cutoff] = MagicMock()
     assembler._team_fixtures_cache[("Arsenal", cutoff, 20)] = []
-    assembler._classic_dc_fit_cache[(39, cutoff)] = MagicMock()
 
     assembler.clear_caches()
 
@@ -60,4 +59,3 @@ def test_clear_caches_empties_calculator_dicts():
     assert league._features_cache == {}
     assert league._global_stats_cache == {}
     assert assembler._team_fixtures_cache == {}
-    assert assembler._classic_dc_fit_cache == {}

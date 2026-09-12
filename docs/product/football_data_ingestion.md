@@ -1,7 +1,7 @@
 # Historical Football Data Ingestion
 
 **Results / teams / leagues** come from **API-Football** only (via `config/api_football_leagues.json`).  
-Fixture odds are not persisted (ST odds on Svenska Spel draws are unchanged).  
+Fixture odds from **API-Football** are still not persisted. Historical 1X2 odds from **football-data.co.uk** are persisted on existing fixtures in `fixture_odds` (`python -m src.scripts.ingest_football_data_odds`); live coupon scoring still uses Svenska Spel `stryktipset_match_odds`.  
 **xG / shots** come from **SofaScore** only, attached to existing `fixtures` rows.
 
 ## Architecture

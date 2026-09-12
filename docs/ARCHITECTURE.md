@@ -29,13 +29,13 @@ Application packages live under **`src/`**. First-party imports are **`src.`-pre
 | Database | PostgreSQL | `src/database.py` |
 | ORM | SQLAlchemy 2.x | `src/database.py`, repositories |
 | Validation/DTOs | Pydantic | `src/objects/schema/` |
-| Numerics | NumPy, SciPy | `src/calc/dixon_coles/` |
-| ML | scikit-learn (lazy import) | `src/calc/residual_ml/trainer.py` |
+| Numerics | NumPy, SciPy | `src/calc/residual_ml/` |
+| ML | scikit-learn (lazy in trainer); optional LightGBM/CatBoost (lazy via `residual_ml/models/`) | `src/calc/residual_ml/trainer.py`, `src/calc/residual_ml/models/` |
 | HTTP clients | httpx, requests | `src/data_sources/football_data/http_client.py`, `api_football_client.py` |
 | Testing | pytest | `tests/` |
 | Migrations | None (SQLAlchemy `create_all`) | `database.init_db()` |
 
-**Not present:** Docker, CI workflows, requirements.txt/pyproject.toml (dependencies implicit).
+**Not present:** Docker, CI workflows, pyproject.toml. Runtime pins live in repo-root `requirements.txt`.
 
 ---
 
@@ -72,7 +72,6 @@ External API clients and ingestion orchestration.
 | `draw_manager.py` | Stryktipset import orchestration |
 | `football_data/service.py` | xG/shots enrichment |
 | `football_data/providers/` | SofaScore, FotMob adapters |
-| `classic_dc_config.py` | DC grid/params JSON loading |
 
 ## `src/calc/`
 
@@ -80,10 +79,9 @@ Business logic for features and probabilities (no DB writes in most modules).
 
 | Module | Role |
 |--------|------|
-| `probability_manager.py` | End-to-end coupon probability pipeline |
-| `strength_calculator.py` | xG-based strength + DC matrix |
-| `dixon_coles/` | Classic DC fit/optimize/walk-forward |
-| `residual_ml/` | ML dataset, features, train, predict |
+| `probability_manager.py` | End-to-end coupon probability pipeline (market + optional residual ML + optional shrink) |
+| `strength_calculator.py` | xG-based team/match strength features (no DC math) |
+| `residual_ml/` | ML dataset, features, train, predict (market baseline) |
 | `home_advantage_calculator.py` | HA features |
 | `league_behavior_calculator.py` | League draw/low-score rates |
 | `rest_congestion_calculator.py` | Fixture congestion |
@@ -93,11 +91,11 @@ Business logic for features and probabilities (no DB writes in most modules).
 
 ## `src/scripts/`
 
-CLI entry points for batch jobs (DC optimize, ML train/backtest, missing stats). Invoke as modules from the repo root: `python -m src.scripts.<name>`. Historical phase docs may still say `scripts/` and set `PYTHONPATH` to `src`; both are outdated.
+CLI entry points for batch jobs (`calculate_probabilities`, ML train/backtest, missing stats). Invoke as modules from the repo root: `python -m src.scripts.<name>`. Historical phase docs may still say `scripts/` and set `PYTHONPATH` to `src`; both are outdated.
 
 ## `config/` (repo root)
 
-JSON league maps, team aliases, DC params/grids; `stryktipset.py` draw window constants.
+JSON league maps, team aliases; `stryktipset.py` draw window constants; `eval_protocol.py` holdout / validation constants.
 
 ## `src/utils/`
 
@@ -123,9 +121,10 @@ CLI / src/main.py
 ```
 ProbabilityManager.process_match
   → ResidualMLFeatureAssembler.assemble(STMatchModel)
-      → StrengthCalculator, HomeAdvantageCalculator, DixonColesService, etc.
-  → market_baseline + engine_baseline → blend_baselines → draw adjust
-  → ResidualMLModel.predict_proba (if enabled) → optional shrink_toward_market
+      → StrengthCalculator, HomeAdvantageCalculator, BalanceAndEnvironmentCalculator, etc.
+  → market_baseline (from Svenska Spel decimal odds)
+  → ResidualMLModel.predict_proba(features, baseline=market)  # optional
+  → shrink_toward_market(α)                                    # optional
   → STMatchProbabilityResult
 ```
 
@@ -226,7 +225,7 @@ Repositories use SQLAlchemy session; callers commit/close sessions. `session_sco
 
 # Background Processing
 
-**No queue/worker system.** Long jobs run as CLI processes (DC optimization, ML training). Shell pipeline: `src/scripts/run_classic_dc_ml_pipeline.sh`.
+**No queue/worker system.** Long jobs run as CLI processes (ML dataset build, training, backtest).
 
 ---
 
@@ -237,7 +236,7 @@ Repositories use SQLAlchemy session; callers commit/close sessions. `session_sco
 | `ValueError` for missing entities / invalid inputs | `ProbabilityManager`, `EntityResolver`, odds conversion |
 | Unresolved matches logged to CSV | `DataSourceConfig.unresolved_matches_csv_path` |
 | Provider HTTP errors | `FootballDataHttpError`, `NotFoundError` |
-| ML prediction failures | Caught in `ProbabilityManager`; falls back to blend with `ml_notes` |
+| ML prediction failures | Caught in `ProbabilityManager`; falls back to market baseline with `ml_notes` |
 
 ---
 
@@ -247,7 +246,7 @@ Repositories use SQLAlchemy session; callers commit/close sessions. `session_sco
 
 | Directory | Scope |
 |-----------|-------|
-| `tests/test_calc/` | Calculators, DC, ML, probability (~20 files) |
+| `tests/test_calc/` | Calculators, ML, probability |
 | `tests/football_data/` | Ingestion, providers (JSON fixtures) |
 | `tests/data_sources/` | API clients, collector |
 | `tests/repositories/` | DB query logic (mocked sessions) |
@@ -336,7 +335,6 @@ Confidence: **HIGH**
 | `EntityResolver.resolve_team` / match linking | Wrong team → wrong features for entire coupon |
 | `src/calc/strength_calculator.py` cutoff logic | Leakage breaks backtest validity |
 | `src/objects/repositories/fixture_repository.py` upsert | Data loss on bad reimport |
-| `ProbabilityManager` blend/ML fallback | Silent probability changes |
-| `config/classic_dc_league_params.json` | Wrong DC params → systematic bias |
+| `ProbabilityManager` market → ML → shrink fallback | Silent probability changes |
 | `src/utils/team_mappings.py` | Large static maps; stale mappings cause unresolved teams |
 | `init_db()` / TRUNCATE workflows | Destructive full reimports |

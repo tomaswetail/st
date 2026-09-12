@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Sequence
 from datetime import date
 
 from sqlalchemy import Date, cast, select
@@ -73,6 +73,36 @@ class STMatchRepository(BaseRepository[STMatchModel]):
             query = query.where(STRoundModel.draw_number <= max_draw_number)
         query = query.order_by(self.model.start_time.asc())
         return list(self.session.scalars(query).all())
+
+    def find_settled_with_odds(self) -> list[STMatchModel]:
+        """All settled ST matches that have stored Svenska Spel odds."""
+        query = (
+            select(self.model)
+            .options(
+                selectinload(self.model.home_team),
+                selectinload(self.model.away_team),
+                selectinload(self.model.match_odds),
+            )
+            .where(self.model.stryktipset_result.in_(("1", "X", "2")))
+            .where(self.model.match_odds.has())
+            .order_by(self.model.start_time.asc().nulls_last(), self.model.id.asc())
+        )
+        return list(self.session.scalars(query).all())
+
+    def get_by_ids(self, match_ids: Sequence[int]) -> dict[int, STMatchModel]:
+        """Load ST matches by primary key, keyed by ``id``."""
+        if not match_ids:
+            return {}
+        query = (
+            select(self.model)
+            .options(
+                selectinload(self.model.home_team),
+                selectinload(self.model.away_team),
+                selectinload(self.model.match_odds),
+            )
+            .where(self.model.id.in_(list(match_ids)))
+        )
+        return {match.id: match for match in self.session.scalars(query).all()}
 
     def upsert_from_draw(
         self,

@@ -5,14 +5,18 @@ from __future__ import annotations
 import statistics
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date
 from typing import Any, Sequence
 
 from sqlalchemy.orm import Session
 
+from src.calc.match_feature_context import (
+    MatchFeatureContext,
+    is_fixture_shaped,
+    resolve_cutoff_date,
+)
 from src.calc.strength_helpers import shrink
 from src.objects.models.fixture import FixtureModel
-from src.objects.models.st_match import STMatchModel
 from src.objects.repositories.fixture_repository import FixtureRepository
 from src.objects.repositories.league_repository import LeagueRepository
 from src.utils.fixture_fields import fixture_goals_away, fixture_goals_home, fixture_home_name, fixture_away_name, fixture_match_date, fixture_outcome
@@ -63,32 +67,61 @@ class LeagueBehaviorCalculator:
         self._features_cache.clear()
         self._global_stats_cache.clear()
 
-    def _resolve_league_id(self, match: STMatchModel) -> int | None:
-        if match.league_name:
-            league = self.league_repo.get_by_name(match.league_name)
+    def _resolve_league_id(
+        self,
+        match: Any,
+        *,
+        context: MatchFeatureContext | None = None,
+    ) -> int | None:
+        if is_fixture_shaped(match):
+            league_api_id = getattr(match, "league_id", None)
+            if league_api_id is None and context is not None:
+                league_api_id = context.league_external_id
+            if league_api_id is not None:
+                league = self.league_repo.get_by_external_id(int(league_api_id))
+                if league is not None:
+                    return league.id
+            return None
+        league_name = getattr(match, "league_name", None)
+        if league_name:
+            league = self.league_repo.get_by_name(league_name)
             if league is not None:
                 return league.id
-        return self.fixture_repo.resolve_internal_league_id_for_team(match.home_team)
+        home_team = context.home_team if context is not None else match.home_team
+        return self.fixture_repo.resolve_internal_league_id_for_team(home_team)
 
-    def calculate(self, match: STMatchModel) -> LeagueBehaviorFeatures:
-        """Compute league behaviour features for one ST fixture."""
-        if match.home_team is None:
-            raise ValueError(f"Missing home_team on match id={match.id}")
-        if match.start_time is None:
-            raise ValueError(f"Missing start_time on match id={match.id}")
-        # Historical matches store calendar dates only, so the cutoff is a date.
-        # Strict `<` excludes same-day fixtures (no datetime kickoff on history rows).
+    def calculate(
+        self,
+        match: Any,
+        *,
+        before_date: date | None = None,
+        context: MatchFeatureContext | None = None,
+    ) -> LeagueBehaviorFeatures:
+        """Compute league behaviour features for one ST match or fixture."""
         cutoff = (
-            match.start_time.date()
-            if isinstance(match.start_time, datetime)
-            else match.start_time
+            context.cutoff
+            if context is not None and before_date is None
+            else resolve_cutoff_date(match, before_date=before_date)
         )
-        league_id = self._resolve_league_id(match)
+        league_id = self._resolve_league_id(match, context=context)
         if league_id is None:
-            if match.league_country_name == 'Internationell':
+            country = (
+                context.league_country
+                if context is not None
+                else getattr(match, "league_country_name", None)
+            )
+            home_name = (
+                context.home_team_name
+                if context is not None
+                else getattr(getattr(match, "home_team", None), "name", None)
+            )
+            if country == "Internationell":
                 league_id = 1
             else:
-                raise ValueError(f"Missing league for home_team on match id={match.id} home_team={match.home_team.name}")
+                raise ValueError(
+                    f"Missing league for home_team on match id={match.id} "
+                    f"home_team={home_name}"
+                )
         cache_key = (league_id, cutoff)
         cached = self._features_cache.get(cache_key)
         if cached is not None:

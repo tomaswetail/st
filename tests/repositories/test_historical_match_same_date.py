@@ -71,3 +71,19 @@ def test_upsert_many_writes_each_fixture():
     assert written == 2
     assert insert_mock.call_count == 2
     assert repo.session.execute.call_count == 2
+
+
+def test_find_finished_for_league_season_queries_repo():
+    repo = _repo()
+    repo.session.scalars.return_value.all.return_value = []
+    found = repo.find_finished_for_league_season(league_id=39, league_season=2023)
+    assert found == []
+    repo.session.scalars.assert_called_once()
+
+
+def test_find_finished_with_odds_queries_repo():
+    repo = _repo()
+    repo.session.scalars.return_value.all.return_value = []
+    found = repo.find_finished_with_odds(provider="football-data.co.uk")
+    assert found == []
+    repo.session.scalars.assert_called_once()

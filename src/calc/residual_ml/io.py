@@ -12,6 +12,7 @@ _STRING_FIELDS = frozenset(
         "label",
         "match_date",
         "feature_cutoff_date",
+        "market_price_type",
     }
 )
 

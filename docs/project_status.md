@@ -1,30 +1,36 @@
 # Project status
 
-Living snapshot as of the **MLE-ρ freeze**. Ops detail: [`production_profile.md`](production_profile.md). Term definitions (slice, shrink, blend, …): [`wiki.md`](wiki.md).
+Living snapshot after the **market baseline pivot** (see [DEC-015](DECISIONS.md)). Ops detail: [`production_profile.md`](production_profile.md). Term definitions (slice, shrink, …): [`wiki.md`](wiki.md).
 
 ## Goal
 
 Pooled include-holdout log loss **≤ 0.99** on the official **518-row** gate (`--include-holdout`, 20% time-split validation).
 
-## Current ship
+## Current pipeline
 
-- Model: pinned MLE HGB in `models/residual_ml/sweep_best/` (copy of `dc_rho_mle_retrain/`); Phase 6.1 grid-DC backup at `models/residual_ml/sweep_best_phase61_grid_dc/`
-- Shrink α=**0.7**; conditional blend and draw adjustment **off**
-- Best shrink on official gate: **1.0046** — gate **MISSED** (still short of ≤0.99)
-- DC: **MLE ρ on** — `config/classic_dc_league_params.json`, `CLASSIC_DC_FIT_RHO=1` default
-- Full profile: [`production_profile.md`](production_profile.md)
+```
+ST odds → market_baseline  →  (optional) HGB residual delta  →  (optional) shrink toward market
+```
+
+- Baseline: normalized Svenska Spel 1X2 market from `stryktipset_match_odds`
+- Residual ML: **off** by default (`RESIDUAL_ML_ENABLED=false`). The shipped HGB in `models/residual_ml/sweep_best/` was trained against the pre-pivot blend baseline and **must be retrained against the market baseline** before enabling in production.
+- Pre-pivot snapshot: `models/residual_ml/sweep_best_pre_market_pivot_bck/`
+- Shrink toward market: configurable via `RESIDUAL_ML_FINAL_SHRINK_TO_MARKET` (default 0.7 when ML is enabled)
+
+## Removed / superseded
+
+- Dixon–Coles engine, blend (market+DC), draw adjustment, Sarmanov / NBM libraries, injury λ-shock / logit-shift.
+- All corresponding config, tests, docs, and shipped model artifacts.
+- Historical experiment reports remain under [`reports/`](reports/) as-is.
 
 ## What is off (and why)
 
 | Component | Status | Why / where |
 |-----------|--------|-------------|
-| Injuries v1 | **FAIL** (Phase 2 exit) | No pooled + injury-heavy gain; columns kept for monitoring, not in production HGB — [`reports/injury/injury_phase2_results.md`](reports/injury/injury_phase2_results.md) |
-| Draw adjustment | **FAIL** (OOS) | Discovery retained; `config/draw_adjustment.json` `enabled: false` — [`reports/ml_draw/draw_driver_analysis.md`](reports/ml_draw/draw_driver_analysis.md) |
-| Market-anchored 6.2 | **FAIL** Gate B | Official 518 best shrink worse than Phase 1 / 6.1 — [`reports/ml_residual/phase6_market_anchored.md`](reports/ml_residual/phase6_market_anchored.md) |
-| DC ρ by MLE + pinned HGB | **ON** | Live scoring = MLE params + `sweep_best/` retrain, shrink **0.7**, official 518-row gate **1.0046**. Phase 6.1 **1.0022** is historical (grid-DC). — [`reports/2026-09-04-dc-mle-rho-freeze.md`](reports/2026-09-04-dc-mle-rho-freeze.md) |
-| Sweep HGB on MLE data | **OFF** | 81-combo sweep gate **1.0063** (α=0.8) worse than pinned retrain; `models/residual_ml/dc_rho_mle_sweep/` not promoted |
-| Recency-weighted HGB (half-life 180) | **KILL** | Official 518 shrink@0.7 **1.0088** (also 2026 **1.0310**); candidate kept, not promoted — [`reports/2026-09-05-recency-weighted-hgb.md`](reports/2026-09-05-recency-weighted-hgb.md) |
-| Injuries v2 (T4–T2 wirings) | **KILL** | Official 518 shrink@0.7 T4 **1.0049**, T1 **1.0048**, T3 **1.0047**, T2 **1.0057** vs ship **1.0046**; production still off — [`reports/2026-09-05-injury-wiring-trials.md`](reports/2026-09-05-injury-wiring-trials.md). Follow-up review: **STOP** until XI/starter, fetch-time snapshot, or odds timestamp — [`reports/2026-09-05-injury-calculation-improvements.md`](reports/2026-09-05-injury-calculation-improvements.md) |
+| Dixon–Coles engine + market/DC blend | **SUPERSEDED** | Removed by market-baseline pivot — see [DEC-015](DECISIONS.md) |
+| Draw adjustment | **REMOVED** | Module deleted by DEC-015; orphan `config/draw_adjustment.json` kept for history only. Historical: [`reports/ml_draw/draw_driver_analysis.md`](reports/ml_draw/draw_driver_analysis.md) |
+| Sarmanov / DC-NBM / injury λ-shock | **REMOVED** | Libraries deleted by DEC-015; historical reports remain under [`reports/`](reports/) |
+| Injuries feature (v1, v2 wirings) | **KILL** / **STOP** | Injury feature columns kept for monitoring only; residual HGB not wired to injuries. See [`reports/injury/injury_phase2_results.md`](reports/injury/injury_phase2_results.md), [`reports/2026-09-05-injury-wiring-trials.md`](reports/2026-09-05-injury-wiring-trials.md), [`reports/2026-09-05-injury-calculation-improvements.md`](reports/2026-09-05-injury-calculation-improvements.md) |
 
 ## Official gate reminder
 
@@ -38,6 +44,14 @@ Do **not** treat tuning-only or holdout-only LL as the ship metric. Ship decisio
 | Injury wiring trials | [`plans/2026-09-05-injury-wiring-trials.md`](plans/2026-09-05-injury-wiring-trials.md) | T4–T2 run; all **KILL**; production still off — [`reports/2026-09-05-injury-wiring-trials.md`](reports/2026-09-05-injury-wiring-trials.md) |
 | Injury calculation review | [`plans/2026-09-05-injury-calculation-improvements.md`](plans/2026-09-05-injury-calculation-improvements.md) | **STOP** until data quality; I1/I2 documented, not run — [`reports/2026-09-05-injury-calculation-improvements.md`](reports/2026-09-05-injury-calculation-improvements.md) |
 | Draw ML / adjustment | [`reports/ml_draw/`](reports/ml_draw/) | `draw_driver_analysis.md`, `draw_formula_report.txt` |
+| Historical fixture odds ingest (Phase 1) | [`reports/2026-09-10-football-data-odds-ingest.md`](reports/2026-09-10-football-data-odds-ingest.md) | football-data.co.uk → `fixture_odds`; English E0–E3 **91.3%**; live ST path unchanged |
+| Retry unresolved football-data.co.uk odds | [`reports/2026-09-10-retry-unresolved-football-data-odds.md`](reports/2026-09-10-retry-unresolved-football-data-odds.md) | Targeted miss-log retry CLI; dry-run **0/1475** newly resolved; original CSV not duplicated; live ST path unchanged |
+| Market probability baseline (Phase 2) | [`reports/2026-09-10-market-probability-baseline.md`](reports/2026-09-10-market-probability-baseline.md) | Strict odds > 1; vig-free + overround + entropy dataclass; Avg/PS closing consensus; live ST path unchanged |
+| Point-in-time fixture feature dataset (Phase 3) | [`reports/2026-09-11-phase3-fixture-dataset.md`](reports/2026-09-11-phase3-fixture-dataset.md) | Fixture `assemble` + `iter_fixture_rows`; ST live path unchanged; closing-odds limitation documented |
+| Chronological folds + market-only metrics (Phase 4) | [`reports/2026-09-12-phase4-folds-metrics.md`](reports/2026-09-12-phase4-folds-metrics.md) | Calendar-year expanding/rolling folds; Brier/RPS/ECE/accuracy; `eval_market_folds`; no retraining; not the 518-row ship gate |
+| Model registry + dependency manifest (Phase 5) | [`reports/2026-09-12-phase5-model-registry.md`](reports/2026-09-12-phase5-model-registry.md) | `requirements.txt`; `get_model` family A/B; smoke on expanding-2023; live ML still off |
+| Post-hoc calibration (Phase 6) | [`reports/2026-09-12-phase6-calibration.md`](reports/2026-09-12-phase6-calibration.md) | Temperature + OVR isotonic on validate calib half; market-only temperature **ACCEPT** / isotonic **REJECT**; live ML still off |
+| Compare + coupon backtest + odds shift (Phase 7) | [`reports/2026-09-12-phase7-compare-backtest.md`](reports/2026-09-12-phase7-compare-backtest.md) | Fold-by-fold registry compare; ST vs archive coupon MAX_P13; feature importance; train/serve odds shift; live ML still off |
 | Residual ML / phases | [`reports/ml_residual/`](reports/ml_residual/) | `baseline_after_dc_tune.md`, `phase6_restore_phase1.md`, `phase6_market_anchored.md`, `log_loss_0.99_roadmap.md`, `dc_rho_mle.md`, `dc_rho_mle_promotion_contract.md` |
 | MLE-ρ freeze | [`reports/2026-09-04-dc-mle-rho-freeze.md`](reports/2026-09-04-dc-mle-rho-freeze.md) | Canonical DC + pinned HGB; official gate **1.0046** |
 | Fail-closed DC + slice ML | [`reports/2026-09-04-dc-failclosed-and-slice-ml.md`](reports/2026-09-04-dc-failclosed-and-slice-ml.md) | Classic miss → market only; ship edge mixed (2025 + league 39) |
@@ -67,6 +81,38 @@ Backlog only — **not** production:
 Prefer [`production_profile.md`](production_profile.md) for anything that affects live scoring.
 
 ## Recent work
+
+### 2026-09-12 16:15 — Compare + coupon backtest + odds shift (Phase 7) APPROVED
+
+**APPROVED** (PL + developer + verifier). Eval only. `compare_probability_models` on `fixtures_dataset.csv` (uncalibrated expanding-year folds): market-only LLs match Phase 4 (2023–2026 **0.9973 / 1.0115 / 1.0105 / 1.0207**, mean **1.0100**); no available backend beat market mean LL (closest CatBoost direct **1.0172**). Coupon backtest PREDICTION/MAX_P13: 195 settled coupons; `st_market` n=195; `archive_market` n=101 skipped 94 incomplete archive; budgets 64–1024. Importance smoke (CatBoost direct, expanding-2023): market columns dominate native / permutation / CatBoost ShapValues. Train/serve shift: **1952/2667 (73.2%)** joined vs plan sketch 2225/2667; mean \|Δp\| home/draw/away **0.0268 / 0.0105 / 0.0237**; argmax differ **6.35%**. Tests `tests/test_calc/` + `tests/test_utils/`: **306 passed, 2 xfailed**. Live residual ML stays off. `ProbabilityManager` and `sweep_best/` untouched. Does **not** move the 518-row ship gate. Phase 8 not started. Report: [`reports/2026-09-12-phase7-compare-backtest.md`](reports/2026-09-12-phase7-compare-backtest.md).
+
+### 2026-09-12 14:45 — Post-hoc calibration (Phase 6) APPROVED
+
+**APPROVED** (PL + developer + verifier). `src/calc/residual_ml/calibration.py` fits temperature or one-vs-rest isotonic on the earlier chronological half of each expanding-year validate fold and scores the later half only (odd extra row → score). CLI `python -m src.scripts.eval_calibration` on market-only `fixtures_dataset.csv`: temperature mean OOS LL **1.0068 < 1.0071 ACCEPT**; isotonic **1.0546 ≥ 1.0071 REJECT**. Accept bit is documentation only — not a production switch. Tests `tests/test_calc/` + `tests/test_utils/`: **298 passed, 2 xfailed**. Live residual ML stays off. `ProbabilityManager`, `sweep_best/`, and the CSV were not touched. Does **not** move the 518-row ship gate. Report: [`reports/2026-09-12-phase6-calibration.md`](reports/2026-09-12-phase6-calibration.md).
+
+### 2026-09-12 14:00 — Dependency manifest + model registry (Phase 5) APPROVED
+
+**APPROVED** (PL + developer + verifier). Offline registry `src/calc/residual_ml/models/` (`get_model(backend, family)`) with seeded `predict_proba` over `{1,X,2}`. Family A = multinomial log-loss classifiers **including** `p_*_market_norm`; family B = MSE logit-delta residuals (HGB wraps `ResidualMLTrainer`). Backends: market, logistic, hist_gradient, LightGBM, CatBoost. Smoke on expanding-2023 (train 2022 / val 2023): market **0.9973** (n=2677); no fitted backend beat market. `requirements.txt` pins runtime deps + lightgbm 4.7.0 / catboost 1.2.10. Tests `tests/test_calc/` + `tests/test_utils/`: **287 passed, 2 xfailed**. Full suite **398 passed, 2 xfailed, 2 failed** (pre-existing `test_football_data_odds.py` date-skip). Live residual path, `ProbabilityManager`, `sweep_best/`, and `RESIDUAL_ML_ENABLED` **unchanged** (ML stays off). Does **not** move the 518-row ship gate. Report: [`reports/2026-09-12-phase5-model-registry.md`](reports/2026-09-12-phase5-model-registry.md).
+
+### 2026-09-12 13:45 — Chronological year folds + market-only metrics (Phase 4) APPROVED
+
+**APPROVED** (PL + developer + verifier). Calendar-year expanding and rolling folds (`src/calc/residual_ml/folds.py`) plus shared Brier / RPS / accuracy / ECE on `probability_metrics.py`. CLI `python -m src.scripts.eval_market_folds` scores **market-only** 1X2 on each validate year of `data/residual_ml/fixtures_dataset.csv` (10,702 rows; years 2022–2026). Unweighted mean log loss **1.0100** across validate years 2023–2026. Fold key is calendar year of `match_date`, not English Jul–Jun season. No model load, no retraining, `RESIDUAL_ML_ENABLED` stays false. Does **not** replace the 518-row include-holdout ship gate. `time_split.py` / ProbabilityManager / optimizer unchanged. Tests `tests/test_calc/` + `tests/test_utils/`: **268 passed, 2 xfailed**. Report: [`reports/2026-09-12-phase4-folds-metrics.md`](reports/2026-09-12-phase4-folds-metrics.md).
+
+### 2026-09-11 14:20 — Point-in-time fixture feature dataset (Phase 3) APPROVED
+
+**APPROVED** (PL + developer + verifier). Residual-ML training rows can be built from finished fixtures + `fixture_odds` with an explicit `before_date` cutoff. `assemble()` still accepts ST matches; live `ProbabilityManager` still uses Svenska Spel odds (DEC-002 / DEC-016). Fixture API-Football team ids are resolved via `TeamRepository.get_by_external_id` to internal `teams.id` before strength/HA. New market-shape columns on `ResidualMLFeatures`. CLI `--source fixtures --league --season --output`. Closing odds incorporate late team news our features cannot see; opening is the leakage-clean control (`--price-type opening` / `FIXTURE_ODDS_PRICE_TYPE=opening`). Residual ML remains off in production. Tests **272 passed, 2 xfailed** (`tests/test_calc/` + `tests/repositories/`). Report: [`reports/2026-09-11-phase3-fixture-dataset.md`](reports/2026-09-11-phase3-fixture-dataset.md).
+
+### 2026-09-10 16:00 — Retry unresolved football-data.co.uk odds ingest APPROVED
+
+**APPROVED** (PL + developer + verifier). CLI `python -m src.scripts.retry_unresolved_football_data_odds` retries only miss-log matches; remaining rows go to `data/unresolved_football_data_odds_remaining.csv`; original unresolved CSV is not appended to unless `--rewrite-input`. Reuses `FootballDataOddsIngestService`. `_resolve_team` archive-name fallback locked by regression test. Live dry-run: **attempted=1475, newly_resolved=0, still_unresolved=1475** (same resolver/DB as Phase 1; 2122 spring misses expected). Tests **335 passed, 2 xfailed**. Phase 3 / live Svenska Spel scoring **not** changed. Report: [`reports/2026-09-10-retry-unresolved-football-data-odds.md`](reports/2026-09-10-retry-unresolved-football-data-odds.md).
+
+### 2026-09-10 14:15 — Market probability baseline (Phase 2) APPROVED
+
+**APPROVED** (PL + developer + verifier). One shared strict validator (`validate_decimal_odds`: finite, **> 1**). `MarketProbabilityBreakdown` returns implied, vig-free, overround (flag if `< 1`, not dropped), entropy, top/second/gap. Archive consensus selects a stored `fixture_odds` row (default `Avg` closing; `PS` via `FIXTURE_ODDS_BOOKMAKER`; fallback `Avg` same price_type). Live `ProbabilityManager` / assembler still use Svenska Spel ST odds. Tests **325 passed, 2 xfailed**. Report: [`reports/2026-09-10-market-probability-baseline.md`](reports/2026-09-10-market-probability-baseline.md).
+
+### 2026-09-10 12:30 — Historical fixture odds ingest (Phase 1) APPROVED
+
+**APPROVED** (PL + developer + verifier). New `fixture_odds` table stores football-data.co.uk opening/closing 1X2 on existing `fixtures.id`. DEC-016: historical archive odds persisted for ML; DEC-001 still forbids API-Football `/odds`; DEC-002 still uses Svenska Spel for live coupon scoring. English E0–E3 resolution **8072/8839 = 91.3%** (gate ≥90%). DB **96,578** odds rows / **11,078** fixtures. Unresolved logged to `data/unresolved_football_data_odds.csv` (mostly 2122 spring, fixtures DB starts Aug 2022). `ProbabilityManager` / residual ML / ST odds **unchanged**. Tests **297 passed, 2 xfailed**. Report: [`reports/2026-09-10-football-data-odds-ingest.md`](reports/2026-09-10-football-data-odds-ingest.md).
 
 ### 2026-09-07 22:30 — Stryktipset optimizer PREDICTION default (MAX_P13)
 
@@ -199,7 +245,7 @@ Application code lives under `src/`, first-party imports are `src.`-prefixed, an
 
 ```bash
 python -m pytest tests/
-python -m src.scripts.optimize_classic_dixon_coles --help
+python -m src.scripts.calculate_probabilities --draw-number 4964
 ```
 
 `python src/scripts/X.py` (without `-m`) is **broken** under this layout. Fixed an incomplete conversion where 23 files still did `from database import ...` (needing `src` on the path) while everything else used `src.` (needing the repo root) — the tree only imported with `PYTHONPATH=.:src`, risking a split SQLAlchemy `Base`. Verified: one `src.database` module, one `Base`, 13 tables. Subprocess spawns in the snapshot/ablation scripts now use `python -m` instead of setting `PYTHONPATH`. See **DEC-013** in [`DECISIONS.md`](DECISIONS.md).

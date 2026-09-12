@@ -1,13 +1,12 @@
-"""Scoring helpers for residual ML backtest evaluation."""
+"""Scoring helpers for residual ML backtest evaluation (market baseline only)."""
 
 from __future__ import annotations
 
-import math
 from dataclasses import asdict, dataclass, field
 from typing import Any, Sequence
 
-from src.calc.probability_metrics import multiclass_log_loss
-from src.calc.residual_ml.baseline import apply_market_only_baseline, shrink_toward_market
+from src.calc.probability_metrics import binary_log_loss, multiclass_log_loss
+from src.calc.residual_ml.baseline import shrink_toward_market
 from config.eval_protocol import DRAW_WINDOW_MAX, DRAW_WINDOW_MIN
 
 MARKET_KEYS = ("p_home_market_norm", "p_draw_market_norm", "p_away_market_norm")
@@ -16,8 +15,6 @@ LABEL_TO_INDEX = {"1": 0, "X": 1, "2": 2}
 INDEX_TO_LABEL = ("1", "X", "2")
 BASELINE_KEY_GROUPS = {
     "market": MARKET_KEYS,
-    "dc": ("p_home_dc_norm", "p_draw_dc_norm", "p_away_dc_norm"),
-    "blend": ("p_home_blend", "p_draw_blend", "p_away_blend"),
 }
 
 
@@ -68,7 +65,10 @@ def slice_rows_by_draw_quarter(
     draw_max: int = DRAW_WINDOW_MAX,
 ) -> dict[str, list[dict[str, Any]]]:
     """Group rows by draw quarter within the configured draw window."""
-    grouped = {label: [] for label, _, _ in draw_quarter_ranges(draw_min=draw_min, draw_max=draw_max)}
+    grouped: dict[str, list[dict[str, Any]]] = {
+        label: []
+        for label, _, _ in draw_quarter_ranges(draw_min=draw_min, draw_max=draw_max)
+    }
     for row in rows:
         draw_number = _draw_number(row)
         if draw_number is None:
@@ -93,16 +93,6 @@ def _parse_has_availability(row: dict[str, Any]) -> int | None:
         return None
 
 
-def _parse_float(row: dict[str, Any], key: str) -> float | None:
-    raw = row.get(key)
-    if raw in (None, ""):
-        return None
-    try:
-        return float(raw)
-    except (TypeError, ValueError):
-        return None
-
-
 def slice_rows_by_availability(
     rows: list[dict[str, Any]],
 ) -> dict[str, list[dict[str, Any]]] | None:
@@ -121,55 +111,6 @@ def slice_rows_by_availability(
         if key in grouped:
             grouped[key].append(row)
     return grouped
-
-
-LOCKED_INJURY_SLICE_MIN_ABS_COUNT_DIFF = 2
-
-
-def slice_rows_by_unavailable_count_differential(
-    rows: list[dict[str, Any]],
-    *,
-    min_abs_diff: int = LOCKED_INJURY_SLICE_MIN_ABS_COUNT_DIFF,
-) -> list[dict[str, Any]]:
-    """Rows with has_availability=1 and |home − away unavailable count| >= min_abs_diff."""
-    selected: list[dict[str, Any]] = []
-    for row in rows:
-        if _parse_has_availability(row) != 1:
-            continue
-        home_count = _parse_float(row, "home_unavailable_count")
-        away_count = _parse_float(row, "away_unavailable_count")
-        if home_count is None or away_count is None:
-            continue
-        if abs(home_count - away_count) >= min_abs_diff:
-            selected.append(row)
-    return selected
-
-
-def slice_rows_by_injury_heavy(
-    rows: list[dict[str, Any]],
-    *,
-    threshold: float = 0.0,
-) -> dict[str, list[dict[str, Any]]] | None:
-    """Rows with has_availability=1 and |missing_value_difference| > threshold."""
-    if not rows or "has_availability" not in rows[0]:
-        return None
-    heavy: list[dict[str, Any]] = []
-    light: list[dict[str, Any]] = []
-    for row in rows:
-        if _parse_has_availability(row) != 1:
-            continue
-        diff = _parse_float(row, "missing_value_difference")
-        if diff is None:
-            light.append(row)
-            continue
-        if abs(diff) > threshold:
-            heavy.append(row)
-        else:
-            light.append(row)
-    return {
-        f"injury_heavy:>{threshold}": heavy,
-        f"injury_heavy:<={threshold}": light,
-    }
 
 
 def slice_rows_by_league(
@@ -223,7 +164,7 @@ def _market_probs(row: dict[str, Any]) -> dict[str, float] | None:
 def score_baseline_log_losses(
     rows: list[dict[str, Any]],
 ) -> dict[str, tuple[float | None, int]]:
-    """Score market, DC, and blend baselines on rows."""
+    """Score the market baseline on rows."""
     y_true = [LABEL_TO_INDEX[row["label"]] for row in rows]
     results: dict[str, tuple[float | None, int]] = {}
     for name, keys in BASELINE_KEY_GROUPS.items():
@@ -243,7 +184,6 @@ def score_baseline_log_losses(
 @dataclass
 class BacktestScoringResult:
     baselines: dict[str, tuple[float | None, int]]
-    blend_after_market_only: tuple[float | None, int] | None
     market_on_ml_rows: float | None
     ml_row_count: int
     shrink_results: list[tuple[float, float]]
@@ -255,19 +195,11 @@ def run_backtest_scoring(
     rows: list[dict[str, Any]],
     trainer: Any,
     *,
-    use_market_only_baseline: bool = False,
     shrink_alphas: Sequence[float] | None = None,
     final_shrink: float | None = None,
 ) -> BacktestScoringResult:
-    """Score baselines and ML predictions with optional market shrink."""
-    if use_market_only_baseline:
-        apply_market_only_baseline(rows)
-
+    """Score market baseline and ML predictions with optional market shrink."""
     baselines = score_baseline_log_losses(rows)
-    blend_after_market_only = None
-    if use_market_only_baseline:
-        blend_loss, blend_count = baselines["blend"]
-        blend_after_market_only = (blend_loss, blend_count)
 
     raw_ml: list[dict[str, float]] = []
     markets: list[dict[str, float]] = []
@@ -284,7 +216,6 @@ def run_backtest_scoring(
     if not raw_ml:
         return BacktestScoringResult(
             baselines=baselines,
-            blend_after_market_only=blend_after_market_only,
             market_on_ml_rows=None,
             ml_row_count=0,
             shrink_results=[],
@@ -323,7 +254,6 @@ def run_backtest_scoring(
 
     return BacktestScoringResult(
         baselines=baselines,
-        blend_after_market_only=blend_after_market_only,
         market_on_ml_rows=market_on_ml_rows,
         ml_row_count=len(ml_labels),
         shrink_results=shrink_results,
@@ -399,11 +329,7 @@ def _score_slice_with_trainer(
     slice_rows: list[dict[str, Any]],
     trainer: Any,
 ) -> BacktestScoringResult:
-    return run_backtest_scoring(
-        slice_rows,
-        trainer,
-        use_market_only_baseline=False,
-    )
+    return run_backtest_scoring(slice_rows, trainer)
 
 
 def build_multi_slice_report(
@@ -412,11 +338,8 @@ def build_multi_slice_report(
     trainer: Any | None = None,
     *,
     production_shrink_alpha: float | None = None,
-    use_market_only_baseline: bool = False,
 ) -> dict[str, SliceMetrics]:
-    """Pooled metrics plus year/quarter/league/availability/injury slices."""
-    if use_market_only_baseline:
-        apply_market_only_baseline(rows)
+    """Pooled metrics plus year/quarter/league/availability slices."""
 
     def metrics_for(
         slice_name: str,
@@ -455,28 +378,7 @@ def build_multi_slice_report(
     if availability_slices is not None:
         for slice_name, slice_rows in availability_slices.items():
             report[slice_name] = metrics_for(slice_name, slice_rows)
-    injury_slices = slice_rows_by_injury_heavy(rows)
-    if injury_slices is not None:
-        for slice_name, slice_rows in injury_slices.items():
-            report[slice_name] = metrics_for(slice_name, slice_rows)
     return report
-
-
-def _clip_unit(probability: float, *, epsilon: float = 1e-15) -> float:
-    return min(1.0 - epsilon, max(epsilon, probability))
-
-
-def _binary_log_loss(y_true: Sequence[int], probabilities: Sequence[float]) -> float | None:
-    if not y_true:
-        return None
-    total = 0.0
-    for label, probability in zip(y_true, probabilities):
-        clipped = _clip_unit(float(probability))
-        if label:
-            total += -math.log(clipped)
-        else:
-            total += -math.log(1.0 - clipped)
-    return total / len(y_true)
 
 
 def _binary_brier(y_true: Sequence[int], probabilities: Sequence[float]) -> float | None:
@@ -492,12 +394,7 @@ def score_outcome_metrics(
     rows: list[dict[str, Any]],
     prob_keys: tuple[str, str, str],
 ) -> dict[str, Any]:
-    """Binary one-vs-rest metrics for home/draw/away predicted probabilities.
-
-    - draw_log_loss / draw_brier: y=(label==X), p=p_draw
-    - home_log_loss: y=(label==1), p=p_home  (1 vs rest)
-    - away_log_loss: y=(label==2), p=p_away  (2 vs rest)
-    """
+    """Binary one-vs-rest metrics for home/draw/away predicted probabilities."""
     y_home: list[int] = []
     y_draw: list[int] = []
     y_away: list[int] = []
@@ -530,234 +427,11 @@ def score_outcome_metrics(
             "binary one-vs-rest: draw uses y=(label==X); "
             "home uses y=(label==1); away uses y=(label==2)"
         ),
-        "draw_log_loss": _binary_log_loss(y_draw, p_draw),
+        "draw_log_loss": binary_log_loss(y_draw, p_draw),
         "draw_brier": _binary_brier(y_draw, p_draw),
-        "home_log_loss": _binary_log_loss(y_home, p_home),
-        "away_log_loss": _binary_log_loss(y_away, p_away),
+        "home_log_loss": binary_log_loss(y_home, p_home),
+        "away_log_loss": binary_log_loss(y_away, p_away),
         "pooled_multiclass_log_loss": (
             multiclass_log_loss(y_true_mc, y_prob_mc) if y_true_mc else None
         ),
     }
-
-
-def draw_calibration_deciles(
-    rows: list[dict[str, Any]],
-    *,
-    draw_key: str = "p_draw_blend",
-    n_bins: int = 10,
-) -> list[dict[str, Any]]:
-    """Predicted p_draw deciles vs empirical draw rate (optional calibration)."""
-    scored: list[tuple[float, int]] = []
-    for row in rows:
-        raw = row.get(draw_key)
-        if raw in (None, ""):
-            continue
-        try:
-            probability = float(raw)
-        except (TypeError, ValueError):
-            continue
-        is_draw = 1 if str(row.get("label", "")).strip().upper() == "X" else 0
-        scored.append((probability, is_draw))
-    if not scored:
-        return []
-    scored.sort(key=lambda item: item[0])
-    bin_size = max(1, len(scored) // n_bins)
-    deciles: list[dict[str, Any]] = []
-    for bin_index in range(n_bins):
-        start = bin_index * bin_size
-        end = len(scored) if bin_index == n_bins - 1 else (bin_index + 1) * bin_size
-        chunk = scored[start:end]
-        if not chunk:
-            continue
-        mean_pred = sum(item[0] for item in chunk) / len(chunk)
-        actual_rate = sum(item[1] for item in chunk) / len(chunk)
-        deciles.append(
-            {
-                "decile": bin_index + 1,
-                "n": len(chunk),
-                "mean_predicted_p_draw": mean_pred,
-                "actual_draw_rate": actual_rate,
-            }
-        )
-    return deciles
-
-
-def _pre_draw_blend(row: dict[str, Any]) -> dict[str, float] | None:
-    """Blend before draw adjust: prefer audit columns, else stored blend."""
-    pre_keys = (
-        "p_home_blend_pre_draw",
-        "p_draw_blend_pre_draw",
-        "p_away_blend_pre_draw",
-    )
-    if all(row.get(key) not in (None, "") for key in pre_keys):
-        return {
-            "1": float(row["p_home_blend_pre_draw"]),
-            "X": float(row["p_draw_blend_pre_draw"]),
-            "2": float(row["p_away_blend_pre_draw"]),
-        }
-    blend_keys = ("p_home_blend", "p_draw_blend", "p_away_blend")
-    vector = _prob_vector(row, blend_keys)
-    if vector is None:
-        return None
-    return {"1": vector[0], "X": vector[1], "2": vector[2]}
-
-
-def apply_draw_adjustment_to_rows(
-    rows: list[dict[str, Any]],
-    *,
-    draw_config: Any | None = None,
-) -> list[dict[str, Any]]:
-    """Return copies with p_*_blend set to draw-adjusted pre-draw blend."""
-    from src.calc.draw_adjustment import apply_draw_adjustment, load_draw_adjustment_config
-
-    config = draw_config if draw_config is not None else load_draw_adjustment_config()
-
-    adjusted_rows: list[dict[str, Any]] = []
-    for row in rows:
-        blend = _pre_draw_blend(row)
-        if blend is None:
-            continue
-        adjusted = apply_draw_adjustment(blend, row, config)
-        if adjusted is None:
-            continue
-        copy = dict(row)
-        copy["p_home_blend"] = adjusted["1"]
-        copy["p_draw_blend"] = adjusted["X"]
-        copy["p_away_blend"] = adjusted["2"]
-        adjusted_rows.append(copy)
-    return adjusted_rows
-
-
-@dataclass
-class AblationRowMetrics:
-    name: str
-    description: str
-    row_count: int
-    pooled_log_loss: float | None
-    draw_log_loss: float | None
-    draw_brier: float | None
-    home_log_loss: float | None
-    away_log_loss: float | None
-    shrink_alpha: float | None = None
-
-
-def run_phase3_ablation(
-    rows: list[dict[str, Any]],
-    trainer: Any | None = None,
-    *,
-    shrink_alpha: float = 0.3,
-    draw_config: Any | None = None,
-) -> dict[str, Any]:
-    """Ablation A–D on existing CSV (no rebuild).
-
-    A: stored blend (pre-rebuild may already be fixed 70/30 without draw adj)
-    B: blend + draw adjustment (offline apply)
-    C: B + HGB residual (requires trainer)
-    D: C + shrink toward market
-    """
-    from src.calc.draw_adjustment import load_draw_adjustment_config
-
-    config = draw_config if draw_config is not None else load_draw_adjustment_config()
-    blend_keys = ("p_home_blend", "p_draw_blend", "p_away_blend")
-
-    def _row_metrics(
-        name: str,
-        description: str,
-        scored_rows: list[dict[str, Any]],
-        keys: tuple[str, str, str] = blend_keys,
-        *,
-        shrink_alpha_value: float | None = None,
-    ) -> AblationRowMetrics:
-        outcome = score_outcome_metrics(scored_rows, keys)
-        return AblationRowMetrics(
-            name=name,
-            description=description,
-            row_count=int(outcome["row_count"]),
-            pooled_log_loss=outcome["pooled_multiclass_log_loss"],
-            draw_log_loss=outcome["draw_log_loss"],
-            draw_brier=outcome["draw_brier"],
-            home_log_loss=outcome["home_log_loss"],
-            away_log_loss=outcome["away_log_loss"],
-            shrink_alpha=shrink_alpha_value,
-        )
-
-    row_a = _row_metrics(
-        "A",
-        "Blend as stored in dataset (fixed or conditional; may lack draw adj)",
-        rows,
-    )
-
-    rows_b = apply_draw_adjustment_to_rows(rows, draw_config=config)
-    row_b = _row_metrics(
-        "B",
-        "Blend + explicit draw adjustment (offline)",
-        rows_b,
-    )
-
-    result: dict[str, Any] = {
-        "metric_definition": (
-            "draw/home/away LL are binary one-vs-rest; "
-            "pooled_log_loss is multiclass 1X2"
-        ),
-        "calibration_deciles_A": draw_calibration_deciles(rows),
-        "calibration_deciles_B": draw_calibration_deciles(rows_b),
-    }
-    ablation_rows: dict[str, AblationRowMetrics] = {"A": row_a, "B": row_b}
-
-    if trainer is not None and rows_b:
-        ml_rows: list[dict[str, Any]] = []
-        for row in rows_b:
-            probs = trainer.predict_match_proba(row)
-            market = _market_probs(row)
-            if probs is None or market is None:
-                continue
-            copy = dict(row)
-            copy["p_home_ml"] = probs["1"]
-            copy["p_draw_ml"] = probs["X"]
-            copy["p_away_ml"] = probs["2"]
-            shrunk = shrink_toward_market(probs, market, alpha=shrink_alpha)
-            copy["p_home_ml_shrink"] = shrunk["1"]
-            copy["p_draw_ml_shrink"] = shrunk["X"]
-            copy["p_away_ml_shrink"] = shrunk["2"]
-            ml_rows.append(copy)
-
-        ml_keys = ("p_home_ml", "p_draw_ml", "p_away_ml")
-        shrink_keys = ("p_home_ml_shrink", "p_draw_ml_shrink", "p_away_ml_shrink")
-        ablation_rows["C"] = _row_metrics(
-            "C",
-            "Blend + draw adj + HGB (predict on draw-adjusted blend columns)",
-            ml_rows,
-            ml_keys,
-        )
-        ablation_rows["D"] = _row_metrics(
-            "D",
-            f"C + shrink toward market (alpha={shrink_alpha})",
-            ml_rows,
-            shrink_keys,
-            shrink_alpha_value=shrink_alpha,
-        )
-    else:
-        ablation_rows["C"] = AblationRowMetrics(
-            name="C",
-            description="Blend + draw adj + HGB (model unavailable)",
-            row_count=0,
-            pooled_log_loss=None,
-            draw_log_loss=None,
-            draw_brier=None,
-            home_log_loss=None,
-            away_log_loss=None,
-        )
-        ablation_rows["D"] = AblationRowMetrics(
-            name="D",
-            description="C + shrink (model unavailable)",
-            row_count=0,
-            pooled_log_loss=None,
-            draw_log_loss=None,
-            draw_brier=None,
-            home_log_loss=None,
-            away_log_loss=None,
-            shrink_alpha=shrink_alpha,
-        )
-
-    result["rows"] = {name: asdict(metrics) for name, metrics in ablation_rows.items()}
-    return result

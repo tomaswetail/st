@@ -1,4 +1,4 @@
-"""Team strength features and Dixon-Coles 1/X/2 probabilities.
+"""Team strength features (no DC math).
 
 Uses only persisted ``match_advanced_stats`` joined to ``fixtures``.
 History is always filtered with ``match_date < before`` so the target match
@@ -121,93 +121,6 @@ def expected_goals_from_strengths(
         league_goal_rate * home_attack_strength * away_defence_strength,
         league_goal_rate * away_attack_strength * home_defence_strength,
     )
-
-
-def _poisson_pmf(goals: int, expected_goals: float) -> float:
-    """Poisson probability mass for scoring ``goals`` when λ=``expected_goals``."""
-    if expected_goals <= 0:
-        return 1.0 if goals == 0 else 0.0
-    return math.exp(-expected_goals) * (expected_goals**goals) / math.factorial(goals)
-
-
-def _dixon_coles_tau(
-    home_goals: int,
-    away_goals: int,
-    lambda_home: float,
-    lambda_away: float,
-    rho: float,
-) -> float:
-    """Dixon–Coles low-score dependence factor τ(home, away)."""
-    if home_goals == 0 and away_goals == 0:
-        return 1.0 - lambda_home * lambda_away * rho
-    if home_goals == 0 and away_goals == 1:
-        return 1.0 + lambda_home * rho
-    if home_goals == 1 and away_goals == 0:
-        return 1.0 + lambda_away * rho
-    if home_goals == 1 and away_goals == 1:
-        return 1.0 - rho
-    return 1.0
-
-
-def _scoreline_probability(
-    home_goals: int,
-    away_goals: int,
-    lambda_home: float,
-    lambda_away: float,
-    rho: float,
-) -> float:
-    """Independent Poisson scoreline probability with Dixon–Coles τ."""
-    independent = _poisson_pmf(home_goals, lambda_home) * _poisson_pmf(
-        away_goals, lambda_away
-    )
-    return max(
-        0.0,
-        independent
-        * _dixon_coles_tau(home_goals, away_goals, lambda_home, lambda_away, rho),
-    )
-
-
-def dixon_coles_matrix(
-    lambda_home: float,
-    lambda_away: float,
-    rho: float = -0.13,
-    max_goals: int = 10,
-) -> tuple[list[list[float]], float, float, float]:
-    """Build a scoreline matrix and renormalized 1/X/2 probabilities."""
-    size = max_goals + 1
-    matrix = [[0.0] * size for _ in range(size)]
-    home_win = draw = away_win = total = 0.0
-    for home_goals in range(size):
-        for away_goals in range(size):
-            probability = _scoreline_probability(
-                home_goals, away_goals, lambda_home, lambda_away, rho
-            )
-            matrix[home_goals][away_goals] = probability
-            total += probability
-            if home_goals > away_goals:
-                home_win += probability
-            elif home_goals == away_goals:
-                draw += probability
-            else:
-                away_win += probability
-    return _renormalize_dixon_coles(matrix, home_win, draw, away_win, total)
-
-
-def _renormalize_dixon_coles(
-    matrix: list[list[float]],
-    home_win: float,
-    draw: float,
-    away_win: float,
-    total: float,
-) -> tuple[list[list[float]], float, float, float]:
-    """Scale matrix and 1/X/2 probs so they sum to 1."""
-    if total <= 0:
-        return matrix, home_win, draw, away_win
-    scale = 1.0 / total
-    for home_goals, row in enumerate(matrix):
-        for away_goals, probability in enumerate(row):
-            matrix[home_goals][away_goals] = probability * scale
-    return matrix, home_win * scale, draw * scale, away_win * scale
 
 
 def _mean(values: list[float]) -> float | None:
@@ -394,7 +307,7 @@ class StrengthCalculator:
         match_id: int,
         lookback_matches: int | None = None,
     ) -> MatchStrengthFeatures:
-        """Combine home/away team features and Dixon–Coles 1/X/2 for one match."""
+        """Combine home/away team features for one match (no DC math)."""
         fixture = self.fixture_repo.get(match_id)
         if fixture is None:
             return MatchStrengthFeatures(
@@ -497,7 +410,35 @@ class StrengthCalculator:
         target_league_external_id: int | None = None,
         home_advantage_coefficient: float | None = None,
     ) -> MatchStrengthFeatures:
-        """Build MatchStrengthFeatures from side features and Dixon–Coles."""
+        """Build MatchStrengthFeatures from side features (no DC math)."""
+        return self._match_features_payload(
+            match_id=match_id,
+            home_team=home_team,
+            away_team=away_team,
+            home_features=home_features,
+            away_features=away_features,
+        )
+
+    def expected_match_goals(
+        self,
+        *,
+        home_team: TeamModel | None,
+        away_team: TeamModel | None,
+        match_date: date,
+        target_league_external_id: int | None = None,
+        home_advantage_coefficient: float | None = None,
+    ) -> tuple[float | None, float | None]:
+        """Return venue-adjusted (λ_home, λ_away) for balance features."""
+        home_features = (
+            self.get_team_features(home_team.id, before=match_date, venue="home")
+            if home_team is not None
+            else None
+        )
+        away_features = (
+            self.get_team_features(away_team.id, before=match_date, venue="away")
+            if away_team is not None
+            else None
+        )
         league_home, league_away = self._league_goal_rates(home_team, match_date)
         league_goal_rate = (league_home + league_away) / 2.0
         league_npxg = (
@@ -519,19 +460,7 @@ class StrengthCalculator:
             )
         if expected_home is not None:
             expected_home *= home_advantage_coefficient
-        home_win, draw, away_win = self._dixon_coles_probs(expected_home, expected_away)
-        return self._match_features_payload(
-            match_id=match_id,
-            home_team=home_team,
-            away_team=away_team,
-            home_features=home_features,
-            away_features=away_features,
-            expected_home_goals=expected_home,
-            expected_away_goals=expected_away,
-            home_win_probability=home_win,
-            draw_probability=draw,
-            away_win_probability=away_win,
-        )
+        return expected_home, expected_away
 
     def home_advantage_calculator(self) -> HomeAdvantageCalculator:
         """Return the shared HomeAdvantageCalculator for this strength calculator."""
@@ -626,7 +555,7 @@ class StrengthCalculator:
         features: TeamStrengthFeatures | None,
         league_npxg: float | None,
     ) -> float | None:
-        """Venue-neutral attack strength for Dixon–Coles λ (no home advantage)."""
+        """Venue-neutral attack strength for expected-goals λ (no home advantage)."""
         if features is None:
             return None
         if features.opponent_adjusted_attack_strength is not None:
@@ -640,7 +569,7 @@ class StrengthCalculator:
         features: TeamStrengthFeatures | None,
         league_npxg: float | None,
     ) -> float | None:
-        """Venue-neutral defence strength for Dixon–Coles λ (no home advantage)."""
+        """Venue-neutral defence strength for expected-goals λ (no home advantage)."""
         if features is None:
             return None
         if features.opponent_adjusted_defence_strength is not None:
@@ -689,22 +618,6 @@ class StrengthCalculator:
             league_npxg=league_npxg,
         )
 
-    def _dixon_coles_probs(
-        self,
-        expected_home_goals: float | None,
-        expected_away_goals: float | None,
-    ) -> tuple[float | None, float | None, float | None]:
-        """Return 1/X/2 probs from expected goals, or Nones if λ missing."""
-        if expected_home_goals is None or expected_away_goals is None:
-            return None, None, None
-        _matrix, home_win, draw, away_win = dixon_coles_matrix(
-            expected_home_goals,
-            expected_away_goals,
-            rho=self.config.dixon_coles_rho,
-            max_goals=self.config.dixon_coles_max_goals,
-        )
-        return home_win, draw, away_win
-
     @staticmethod
     def _match_features_payload(
         *,
@@ -713,11 +626,6 @@ class StrengthCalculator:
         away_team: TeamModel | None,
         home_features: TeamStrengthFeatures | None,
         away_features: TeamStrengthFeatures | None,
-        expected_home_goals: float | None,
-        expected_away_goals: float | None,
-        home_win_probability: float | None,
-        draw_probability: float | None,
-        away_win_probability: float | None,
     ) -> MatchStrengthFeatures:
         """Flatten side features into the match-level dataclass."""
         return MatchStrengthFeatures(
@@ -727,24 +635,11 @@ class StrengthCalculator:
             home=home_features,
             away=away_features,
             **_side_feature_fields(home_features, away_features),
-            expected_home_goals=expected_home_goals,
-            expected_away_goals=expected_away_goals,
-            dixon_coles_home_probability=home_win_probability,
-            dixon_coles_draw_probability=draw_probability,
-            dixon_coles_away_probability=away_win_probability,
         )
 
     def _explain_match_features(self, features: MatchStrengthFeatures) -> str:
         """Format match-level explain text including nested team dumps."""
-        lines = [
-            f"Match {features.match_id}",
-            f"λ home={features.expected_home_goals} λ away={features.expected_away_goals}",
-            (
-                f"Dixon-Coles 1={features.dixon_coles_home_probability} "
-                f"X={features.dixon_coles_draw_probability} "
-                f"2={features.dixon_coles_away_probability}"
-            ),
-        ]
+        lines = [f"Match {features.match_id}"]
         if features.home is not None:
             lines.extend(["--- home ---", self._explain_team_features(features.home)])
         if features.away is not None:

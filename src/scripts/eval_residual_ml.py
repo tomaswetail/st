@@ -4,7 +4,7 @@
 By default scores the time-split validation slice and excludes final holdout draws
 (draw_number > TUNING_DRAW_MAX). Use --include-holdout for Phase 5 evaluation only.
 
-Also reports binary draw/home/away metrics and optional Phase 3 ablation A–D.
+Also reports binary draw/home/away metrics.
 """
 
 from __future__ import annotations
@@ -17,7 +17,6 @@ from typing import Any
 
 from src.calc.residual_ml import (
     ResidualMLModel,
-    is_market_only_weights,
     load_dataset_rows,
     resolve_validation_fraction,
     select_backtest_rows,
@@ -26,7 +25,6 @@ from src.calc.residual_ml.evaluation import (
     BASELINE_KEY_GROUPS,
     SliceMetrics,
     build_multi_slice_report,
-    run_phase3_ablation,
     score_outcome_metrics,
 )
 from config.eval_protocol import TUNING_DRAW_MAX, VALIDATION_FRACTION
@@ -120,17 +118,6 @@ def main() -> None:
         help="Include final holdout draws (Phase 5 only)",
     )
     parser.add_argument(
-        "--ablation",
-        action="store_true",
-        help="Run Phase 3 ablation rows A–D (blend / draw adj / HGB / shrink)",
-    )
-    parser.add_argument(
-        "--shrink-alpha",
-        type=float,
-        default=0.3,
-        help="Shrink alpha for ablation row D (default 0.3)",
-    )
-    parser.add_argument(
         "--json",
         type=Path,
         default=None,
@@ -168,13 +155,8 @@ def main() -> None:
     )
     model = ResidualMLModel.load(model_path, config=config)
     trainer = None
-    use_market_only = False
     if model is not None:
         trainer = model.trainer
-        use_market_only = is_market_only_weights(
-            model.trainer.market_weight,
-            model.trainer.dc_weight,
-        )
     else:
         print("ML model not found; reporting baseline slices only", flush=True)
 
@@ -182,7 +164,6 @@ def main() -> None:
         rows,
         trainer=trainer,
         production_shrink_alpha=config.residual_ml_final_shrink_to_market,
-        use_market_only_baseline=use_market_only,
     )
     for key in sorted(report.keys(), key=lambda name: (name != "pooled", name)):
         _print_slice_metrics(report[key])
@@ -193,25 +174,6 @@ def main() -> None:
     }
     for name, outcome in outcome_by_baseline.items():
         _print_outcome_metrics(name, outcome)
-
-    ablation = None
-    if args.ablation:
-        ablation = run_phase3_ablation(
-            rows,
-            trainer,
-            shrink_alpha=args.shrink_alpha,
-        )
-        print("\n[ablation A–D]", flush=True)
-        for name, metrics in ablation["rows"].items():
-            print(
-                f"  {name}: pooled_ll={_format_loss(metrics.get('pooled_log_loss'))} "
-                f"draw_ll={_format_loss(metrics.get('draw_log_loss'))} "
-                f"draw_brier={_format_loss(metrics.get('draw_brier'))} "
-                f"home_ll={_format_loss(metrics.get('home_log_loss'))} "
-                f"away_ll={_format_loss(metrics.get('away_log_loss'))} "
-                f"n={metrics.get('row_count')}",
-                flush=True,
-            )
 
     if args.json is not None:
         json_path = resolve_repo_path(args.json)
@@ -224,10 +186,8 @@ def main() -> None:
                 name: _metrics_to_dict(metrics) for name, metrics in report.items()
             },
             "outcome_metrics": outcome_by_baseline,
-            "pipeline_order": "conditional blend → draw adjust → HGB",
+            "pipeline_order": "market_baseline → optional residual ML → optional shrink to market",
         }
-        if ablation is not None:
-            payload["ablation"] = ablation
         json_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
         print(f"\nWrote JSON report to {json_path}", flush=True)
 

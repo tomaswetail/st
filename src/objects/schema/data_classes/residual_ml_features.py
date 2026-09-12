@@ -40,16 +40,6 @@ class ResidualMLFeatures:
     home_goalkeeper_prevention: float | None
     away_goalkeeper_prevention: float | None
 
-    expected_home_goals: float | None
-    expected_away_goals: float | None
-    p_home_dc: float | None
-    p_draw_dc: float | None
-    p_away_dc: float | None
-
-    market_vs_dc_home: float | None
-    market_vs_dc_draw: float | None
-    market_vs_dc_away: float | None
-
     attack_strength_difference: float | None
     expected_goal_difference: float | None
     expected_goal_total: float | None
@@ -106,8 +96,22 @@ class ResidualMLFeatures:
     short_rest_x_rotation: float | None = None
     has_availability: int = 0
 
+    market_overround: float | None = None
+    market_entropy: float | None = None
+    market_top_probability: float | None = None
+    market_second_probability: float | None = None
+    market_probability_gap: float | None = None
+    # Categorical provenance; excluded from model_feature_names().
+    market_price_type: str | None = None
+
     _METADATA_FIELDS = frozenset(
-        {"match_id", "draw_number", "feature_cutoff_date", "league_external_id"}
+        {
+            "match_id",
+            "draw_number",
+            "feature_cutoff_date",
+            "league_external_id",
+            "market_price_type",
+        }
     )
 
     def to_dict(self) -> dict[str, Any]:

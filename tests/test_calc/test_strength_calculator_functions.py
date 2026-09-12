@@ -1,4 +1,4 @@
-"""Unit tests for StrengthCalculator helpers and Dixon-Coles."""
+"""Unit tests for StrengthCalculator helpers."""
 
 from __future__ import annotations
 
@@ -11,7 +11,6 @@ import pytest
 
 from src.calc.strength_calculator import (
     StrengthCalculator,
-    dixon_coles_matrix,
     expected_goals_from_strengths,
 )
 from src.calc.strength_helpers import (
@@ -78,30 +77,32 @@ def test_external_home_advantage_coefficient_applies_cleanly():
     assert adjusted_home_lambda == pytest.approx(1.35 * 1.10)
 
 
-def test_home_advantage_coefficient_applied_before_dixon_coles():
+def test_expected_match_goals_applies_home_advantage():
     calculator = StrengthCalculator(session=MagicMock())
+    home_features = _team_features()
+    away_features = _team_features()
+
+    def _fake_team_features(team=None, before=None, venue=None, **_kwargs):
+        return home_features if venue == "home" else away_features
+
+    calculator.get_team_features = MagicMock(side_effect=_fake_team_features)
     calculator._match_expected_goals = MagicMock(return_value=(1.50, 1.20))
     calculator._home_advantage_coefficient = MagicMock(return_value=1.10)
-    calculator._dixon_coles_probs = MagicMock(return_value=(0.4, 0.3, 0.3))
     calculator._league_goal_rates = MagicMock(return_value=(1.35, 1.35))
     calculator.league_averages = MagicMock(return_value={"npxg": 1.0})
 
     home_team = SimpleNamespace(id=1, league_id=10, name="Arsenal")
-    features = calculator._assemble_match_features(
-        match_id=1,
+    away_team = SimpleNamespace(id=2, league_id=10, name="Chelsea")
+
+    home_lambda, away_lambda = calculator.expected_match_goals(
         home_team=home_team,
-        away_team=SimpleNamespace(id=2, league_id=10, name="Chelsea"),
-        home_features=_team_features(),
-        away_features=_team_features(),
+        away_team=away_team,
         match_date=date(2024, 6, 1),
         target_league_external_id=39,
     )
 
-    assert features.expected_home_goals == pytest.approx(1.65)
-    assert features.expected_away_goals == pytest.approx(1.20)
-    called_home, called_away = calculator._dixon_coles_probs.call_args[0]
-    assert called_home == pytest.approx(1.65)
-    assert called_away == pytest.approx(1.20)
+    assert home_lambda == pytest.approx(1.65)
+    assert away_lambda == pytest.approx(1.20)
     calculator._home_advantage_coefficient.assert_called_once_with(
         home_team,
         date(2024, 6, 1),
@@ -109,43 +110,28 @@ def test_home_advantage_coefficient_applied_before_dixon_coles():
     )
 
 
-def test_passed_home_advantage_coefficient_skips_process():
+def test_expected_match_goals_uses_passed_home_advantage_coefficient():
     calculator = StrengthCalculator(session=MagicMock())
+
+    def _fake_team_features(team=None, before=None, venue=None, **_kwargs):
+        return _team_features()
+
+    calculator.get_team_features = MagicMock(side_effect=_fake_team_features)
     calculator._match_expected_goals = MagicMock(return_value=(1.50, 1.20))
     calculator._home_advantage_coefficient = MagicMock(return_value=9.99)
-    calculator._dixon_coles_probs = MagicMock(return_value=(0.4, 0.3, 0.3))
     calculator._league_goal_rates = MagicMock(return_value=(1.35, 1.35))
     calculator.league_averages = MagicMock(return_value={"npxg": 1.0})
 
-    home_team = SimpleNamespace(id=1, league_id=10, name="Arsenal")
-    features = calculator._assemble_match_features(
-        match_id=1,
-        home_team=home_team,
+    home_lambda, _away_lambda = calculator.expected_match_goals(
+        home_team=SimpleNamespace(id=1, league_id=10, name="Arsenal"),
         away_team=SimpleNamespace(id=2, league_id=10, name="Chelsea"),
-        home_features=_team_features(),
-        away_features=_team_features(),
         match_date=date(2024, 6, 1),
         target_league_external_id=39,
         home_advantage_coefficient=1.10,
     )
 
-    assert features.expected_home_goals == pytest.approx(1.65)
+    assert home_lambda == pytest.approx(1.65)
     calculator._home_advantage_coefficient.assert_not_called()
-    called_home, _called_away = calculator._dixon_coles_probs.call_args[0]
-    assert called_home == pytest.approx(1.65)
-
-
-def test_dixon_coles_probabilities_sum_to_one():
-    _, p_home, p_draw, p_away = dixon_coles_matrix(1.5, 1.1, rho=-0.13, max_goals=10)
-    assert p_home + p_draw + p_away == pytest.approx(1.0, abs=1e-9)
-    assert p_home > 0 and p_draw > 0 and p_away > 0
-
-
-def test_dixon_coles_low_score_adjustment_changes_00():
-    matrix_rho0, *_ = dixon_coles_matrix(1.2, 1.0, rho=0.0, max_goals=5)
-    matrix_rho, *_ = dixon_coles_matrix(1.2, 1.0, rho=-0.13, max_goals=5)
-    # With negative rho, P(0-0) increases vs independent Poisson after τ.
-    assert matrix_rho[0][0] != pytest.approx(matrix_rho0[0][0])
 
 
 def test_missing_inputs_stay_none():

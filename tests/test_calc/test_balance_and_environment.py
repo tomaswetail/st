@@ -92,8 +92,6 @@ def strength_features():
         away_attack_strength=0.90,
         home_defence_strength=0.80,
         away_defence_strength=1.10,
-        expected_home_goals=1.40,
-        expected_away_goals=1.00,
     )
 
 
@@ -101,6 +99,7 @@ def strength_features():
 def strength_calculator(strength_features):
     calculator = Mock(name="StrengthCalculator")
     calculator.get_fixture_features.return_value = strength_features
+    calculator.expected_match_goals.return_value = (1.40, 1.00)
     return calculator
 
 
@@ -158,6 +157,23 @@ def test_calculate_reuses_provided_strength_without_calling_calculator(
     strength_calculator.get_fixture_features.assert_not_called()
     assert features.attack_strength_difference == pytest.approx(0.30)
     assert features.expected_goal_total == pytest.approx(2.40)
+
+
+def test_before_date_override_is_used_when_strength_is_computed(
+    calculator,
+    strength_calculator,
+    target_match,
+):
+    calculator.calculate(
+        match=target_match,
+        fixtures=[],
+        market_probabilities={"1": 0.46, "X": 0.30, "2": 0.24},
+        before_date=date(2024, 1, 1),
+    )
+    assert strength_calculator.get_fixture_features.call_args.args[2] == date(2024, 1, 1)
+    assert strength_calculator.expected_match_goals.call_args.kwargs["match_date"] == date(
+        2024, 1, 1
+    )
 
 
 def test_calculate_computes_all_recent_team_rates_and_combined_rates(
@@ -373,9 +389,8 @@ def test_missing_strength_values_propagate_as_none(
         away_attack_strength=0.90,
         home_defence_strength=0.80,
         away_defence_strength=None,
-        expected_home_goals=None,
-        expected_away_goals=1.00,
     )
+    strength_calculator.expected_match_goals.return_value = (None, 1.00)
 
     calculator = BalanceAndEnvironment(
         session=Mock(name="Session"),

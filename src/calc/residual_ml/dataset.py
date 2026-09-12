@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import json
 import time
+from collections import Counter
 from datetime import date
 from pathlib import Path
 from typing import Any, Iterator
@@ -12,24 +13,61 @@ from typing import Any, Iterator
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from src.calc.draw_adjustment import DrawAdjustmentConfig, load_draw_adjustment_config
-from src.calc.residual_ml.baseline import (
-    apply_draw_adjustment,
-    blend_baselines,
-    engine_baseline,
-    market_baseline,
-)
-from src.calc.residual_ml.blend_weights import (
-    BlendWeightsConfig,
-    load_blend_weights_config,
-    load_dc_league_quality,
-    select_blend_weights,
+from src.calc.market_probabilities import load_fixture_market_probabilities
+from src.calc.residual_ml.baseline import market_baseline
+from src.calc.residual_ml.dual_price import (
+    empty_dual_price_columns,
+    price_block_from_breakdown,
+    price_block_is_usable,
 )
 from src.calc.residual_ml.feature_assembler import ResidualMLFeatureAssembler
 from src.objects.models.st_match import STMatchModel
 from src.objects.models.st_round import STRoundModel
 from src.objects.schema.data_classes.data_sources import DataSourceConfig
+from src.objects.schema.data_classes.market_probability import MarketProbabilityBreakdown
 from src.objects.schema.data_classes.residual_ml_features import ResidualMLFeatures
+from src.utils.fixture_fields import fixture_match_date, fixture_outcome
+
+SKIP_REASONS = (
+    "timezone",
+    "no_odds",
+    "unresolved_team",
+    "bad_label",
+    "no_baseline",
+    "missing_kickoff",
+    "other",
+)
+
+
+def classify_skip(exc: BaseException) -> str:
+    """Map an assemble/export exception to a skip-histogram bucket."""
+    message = str(exc).lower()
+    if isinstance(exc, TypeError) and (
+        "can't compare" in message
+        or "offset-naive" in message
+        or "offset-aware" in message
+        or ("naive" in message and "aware" in message)
+    ):
+        return "timezone"
+    if "unresolved" in message and "team" in message:
+        return "unresolved_team"
+    if "no usable fixture odds" in message or "no odds" in message:
+        return "no_odds"
+    if "no market baseline" in message:
+        return "no_baseline"
+    if "kickoff" in message or "fixture_date" in message or "start_time" in message:
+        return "missing_kickoff"
+    return "other"
+
+
+def format_skip_histogram(counts: Counter[str]) -> str:
+    parts = [f"{reason}={counts.get(reason, 0)}" for reason in SKIP_REASONS]
+    extras = [
+        f"{reason}={count}"
+        for reason, count in sorted(counts.items())
+        if reason not in SKIP_REASONS
+    ]
+    return "Skip histogram: " + " ".join(parts + extras)
 
 
 class ResidualMLDatasetBuilder:
@@ -41,25 +79,11 @@ class ResidualMLDatasetBuilder:
         self,
         session: Session,
         config: DataSourceConfig | None = None,
-        *,
-        draw_adjustment_config: DrawAdjustmentConfig | None = None,
-        blend_weights_config: BlendWeightsConfig | None = None,
     ) -> None:
         self.session = session
         self.config = config or DataSourceConfig()
         self.assembler = ResidualMLFeatureAssembler(session, config=self.config)
-        self.draw_adjustment_config = (
-            draw_adjustment_config
-            if draw_adjustment_config is not None
-            else load_draw_adjustment_config()
-        )
-        self.blend_weights_config = (
-            blend_weights_config
-            if blend_weights_config is not None
-            else load_blend_weights_config(self.config.residual_ml_blend_weights_path)
-        )
-        self._dc_league_log_loss = load_dc_league_quality()
-
+        self.skip_counts: Counter[str] = Counter()
 
     def iter_rows(
         self,
@@ -76,15 +100,6 @@ class ResidualMLDatasetBuilder:
             f"(draws {min_draw_number}–{max_draw_number})",
             flush=True,
         )
-        if self.config.residual_ml_home_advantage_mode == "fast":
-            print(
-                "Building with fast home advantage (league + competition only)",
-                flush=True,
-            )
-        print(
-            f"DC engine: {self.config.residual_ml_dc_engine}",
-            flush=True,
-        )
         emitted = 0
         batch_started = time.perf_counter()
         for index, match in enumerate(matches, start=1):
@@ -95,8 +110,10 @@ class ResidualMLDatasetBuilder:
             draw_number = self._draw_number(match)
             label = match.stryktipset_result
             if label not in {"1", "X", "2"}:
+                self.skip_counts["bad_label"] += 1
                 continue
             if match.match_odds is None:
+                self.skip_counts["no_odds"] += 1
                 print(
                     f"Skipping match_id={match.id} draw={draw_number} (no odds)",
                     flush=True,
@@ -120,70 +137,24 @@ class ResidualMLDatasetBuilder:
                     event_number=index,
                 )
             except (ValueError, TypeError) as exc:
-                print(
-                    f"Skipping match_id={match.id} draw={draw_number} ({exc})",
-                    flush=True,
-                )
-                continue
-            market = market_baseline(
-                {
-                    "1": features.p_home_market,
-                    "X": features.p_draw_market,
-                    "2": features.p_away_market,
-                }
-            )
-            engine = engine_baseline(
-                p_home_dc=features.p_home_dc,
-                p_draw_dc=features.p_draw_dc,
-                p_away_dc=features.p_away_dc,
-            )
-            # Pipeline: conditional blend → draw adjust → (HGB later).
-            market_weight, dc_weight = select_blend_weights(
-                features,
-                self.blend_weights_config,
-                league_external_id=features.league_external_id,
-                dc_league_log_loss=self._dc_league_log_loss,
-                fallback_market_weight=self.config.residual_ml_market_weight,
-                fallback_dc_weight=self.config.residual_ml_dc_weight,
-            )
-            blend = blend_baselines(
-                market,
-                engine,
-                market_weight=market_weight,
-                dc_weight=dc_weight,
-            )
-            if blend is None:
+                reason = classify_skip(exc)
+                self.skip_counts[reason] += 1
                 print(
                     f"Skipping match_id={match.id} draw={draw_number} "
-                    "(no blend baseline)",
+                    f"[{reason}] ({exc})",
                     flush=True,
                 )
                 continue
-            row = self._features_to_row(features)
-            row["label"] = label
-            row["match_date"] = features.feature_cutoff_date.isoformat()
-            row["blend_market_weight"] = market_weight
-            row["blend_dc_weight"] = dc_weight
-            row["p_home_blend_pre_draw"] = blend["1"]
-            row["p_draw_blend_pre_draw"] = blend["X"]
-            row["p_away_blend_pre_draw"] = blend["2"]
-            adjusted = apply_draw_adjustment(
-                blend,
-                features,
-                self.draw_adjustment_config,
-            )
-            assert adjusted is not None
-            row["p_home_blend"] = adjusted["1"]
-            row["p_draw_blend"] = adjusted["X"]
-            row["p_away_blend"] = adjusted["2"]
-            if market is not None:
-                row["p_home_market_norm"] = market["1"]
-                row["p_draw_market_norm"] = market["X"]
-                row["p_away_market_norm"] = market["2"]
-            if engine is not None:
-                row["p_home_dc_norm"] = engine["1"]
-                row["p_draw_dc_norm"] = engine["X"]
-                row["p_away_dc_norm"] = engine["2"]
+            row = self._labeled_feature_row(features, label)
+            if row is None:
+                self.skip_counts["no_baseline"] += 1
+                print(
+                    f"Skipping match_id={match.id} draw={draw_number} "
+                    "(no market baseline)",
+                    flush=True,
+                )
+                continue
+            row.update(empty_dual_price_columns())
             emitted += 1
             yield row
         final_batch_seconds = time.perf_counter() - batch_started
@@ -192,6 +163,98 @@ class ResidualMLDatasetBuilder:
             f"[{final_batch_seconds:.1f}s since last progress]",
             flush=True,
         )
+        print(format_skip_histogram(self.skip_counts), flush=True)
+
+    def iter_fixture_rows(
+        self,
+        *,
+        league_external_id: int | None = None,
+        league_season: int | None = None,
+        dual_price: bool = True,
+    ) -> Iterator[dict[str, Any]]:
+        """Yield labeled residual-ML rows from finished fixtures + fixture_odds.
+
+        Default ``dual_price=True`` assembles features once and attaches
+        opening and closing market columns side by side. ``dual_price=False``
+        is the legacy single-triple export (skip if that price is missing).
+        """
+        if league_external_id is None and league_season is None:
+            fixtures = self.assembler.fixture_repo.find_finished_with_odds(
+                provider=self.config.fixture_odds_provider,
+            )
+            scope = "all leagues/seasons with odds"
+        else:
+            fixtures = self.assembler.fixture_repo.find_finished_for_league_season(
+                league_id=league_external_id,
+                league_season=league_season,
+            )
+            scope = f"league_id={league_external_id} season={league_season}"
+        mode = "dual-price" if dual_price else "single-price"
+        print(
+            f"Building residual ML dataset from {len(fixtures)} finished fixtures "
+            f"({scope}, {mode})",
+            flush=True,
+        )
+        emitted = 0
+        batch_started = time.perf_counter()
+        for index, fixture in enumerate(fixtures, start=1):
+            if index % self.CACHE_FLUSH_EVERY == 0:
+                self.assembler.clear_caches()
+                self.session.expire_all()
+
+            label = fixture_outcome(fixture)
+            if label not in {"1", "X", "2"}:
+                self.skip_counts["bad_label"] += 1
+                print(
+                    f"Skipping fixture_id={fixture.id} (invalid label)",
+                    flush=True,
+                )
+                continue
+            cutoff = fixture_match_date(fixture)
+            if cutoff is None:
+                self.skip_counts["missing_kickoff"] += 1
+                print(
+                    f"Skipping fixture_id={fixture.id} (missing kickoff date)",
+                    flush=True,
+                )
+                continue
+            if index == 1 or index % self.CACHE_FLUSH_EVERY == 0:
+                home_name = getattr(fixture, "home_team_name", None) or "?"
+                away_name = getattr(fixture, "away_team_name", None) or "?"
+                batch_seconds = time.perf_counter() - batch_started
+                print(
+                    f"[{index}/{len(fixtures)}] Assembling fixture_id={fixture.id} "
+                    f"{home_name} vs {away_name} [{batch_seconds:.1f}s]",
+                    flush=True,
+                )
+                batch_started = time.perf_counter()
+            try:
+                row = (
+                    self._dual_price_fixture_row(fixture, label, index, cutoff)
+                    if dual_price
+                    else self._legacy_single_price_fixture_row(
+                        fixture, label, index, cutoff
+                    )
+                )
+            except (ValueError, TypeError) as exc:
+                reason = classify_skip(exc)
+                self.skip_counts[reason] += 1
+                print(
+                    f"Skipping fixture_id={fixture.id} [{reason}] ({exc})",
+                    flush=True,
+                )
+                continue
+            if row is None:
+                continue
+            emitted += 1
+            yield row
+        final_batch_seconds = time.perf_counter() - batch_started
+        print(
+            f"Dataset build finished: {emitted} rows emitted "
+            f"[{final_batch_seconds:.1f}s since last progress]",
+            flush=True,
+        )
+        print(format_skip_histogram(self.skip_counts), flush=True)
 
     def build(
         self,
@@ -268,6 +331,101 @@ class ResidualMLDatasetBuilder:
             query = query.where(STRoundModel.draw_number <= max_draw_number)
         query = query.order_by(STRoundModel.draw_number, STMatchModel.id)
         return list(self.session.scalars(query).all())
+
+    def _load_fixture_price(
+        self, fixture_id: int, price_type: str
+    ) -> MarketProbabilityBreakdown | None:
+        config = self.config.model_copy(update={"fixture_odds_price_type": price_type})
+        return load_fixture_market_probabilities(
+            self.session, fixture_id, config=config
+        )
+
+    def _legacy_single_price_fixture_row(
+        self,
+        fixture: Any,
+        label: str,
+        event_number: int,
+        cutoff: date,
+    ) -> dict[str, Any] | None:
+        features = self.assembler.assemble(
+            fixture,
+            draw_number=None,
+            event_number=event_number,
+            before_date=cutoff,
+            require_market=True,
+        )
+        row = self._labeled_feature_row(features, label)
+        if row is None:
+            self.skip_counts["no_baseline"] += 1
+            print(
+                f"Skipping fixture_id={fixture.id} (no market baseline)",
+                flush=True,
+            )
+            return None
+        return row
+
+    def _dual_price_fixture_row(
+        self,
+        fixture: Any,
+        label: str,
+        event_number: int,
+        cutoff: date,
+    ) -> dict[str, Any] | None:
+        features = self.assembler.assemble(
+            fixture,
+            draw_number=None,
+            event_number=event_number,
+            before_date=cutoff,
+            require_market=False,
+        )
+        opening = self._load_fixture_price(int(fixture.id), "opening")
+        closing = self._load_fixture_price(int(fixture.id), "closing")
+        missing_diff = features.missing_value_difference
+        opening_block = price_block_from_breakdown(
+            opening, price_type="opening", missing_value_difference=missing_diff
+        )
+        closing_block = price_block_from_breakdown(
+            closing, price_type="closing", missing_value_difference=missing_diff
+        )
+        if not price_block_is_usable(opening_block, "opening") and not (
+            price_block_is_usable(closing_block, "closing")
+        ):
+            self.skip_counts["no_odds"] += 1
+            print(
+                f"Skipping fixture_id={fixture.id} (no usable opening or closing odds)",
+                flush=True,
+            )
+            return None
+        row = self._features_to_row(features)
+        row["label"] = label
+        row["match_date"] = features.feature_cutoff_date.isoformat()
+        row["p_home_market_norm"] = None
+        row["p_draw_market_norm"] = None
+        row["p_away_market_norm"] = None
+        row.update(opening_block)
+        row.update(closing_block)
+        return row
+
+    @staticmethod
+    def _labeled_feature_row(
+        features: ResidualMLFeatures, label: str
+    ) -> dict[str, Any] | None:
+        market = market_baseline(
+            {
+                "1": features.p_home_market,
+                "X": features.p_draw_market,
+                "2": features.p_away_market,
+            }
+        )
+        if market is None:
+            return None
+        row = ResidualMLDatasetBuilder._features_to_row(features)
+        row["label"] = label
+        row["match_date"] = features.feature_cutoff_date.isoformat()
+        row["p_home_market_norm"] = market["1"]
+        row["p_draw_market_norm"] = market["X"]
+        row["p_away_market_norm"] = market["2"]
+        return row
 
     @staticmethod
     def _draw_number(match: STMatchModel) -> int | None:

@@ -8,7 +8,7 @@ This system models **Swedish pool betting (Stryktipset)** on top of **European f
 
 Agents must not conflate provider-specific IDs with internal database IDs.
 
-For **eval & modeling jargon** (slice, HGB residual, logit, shrink, blend, Brier), see [`wiki.md`](wiki.md).
+For **eval & modeling jargon** (slice, HGB residual, logit, shrink, Brier), see [`wiki.md`](wiki.md).
 
 ---
 
@@ -88,27 +88,9 @@ For **eval & modeling jargon** (slice, HGB residual, logit, shrink, blend, Brier
 
 ---
 
-## Engine Baseline
-
-**Definition:** Model-derived 1X2 probabilities, typically from **Dixon–Coles** goal model (`p_home_dc`, `p_draw_dc`, `p_away_dc` in features).
-
-**Not the same as:** Final output when ML is enabled (ML may override blend).
-
-**Evidence:** `calc/residual_ml/baseline.py` (`engine_baseline`)
-
----
-
-## Blend Baseline
-
-**Definition:** Weighted combination of market and engine baselines (default 0.7/0.3). Input to residual ML when enabled.
-
-**Evidence:** `calc/residual_ml/baseline.py` (`blend_baselines`); eval & modeling jargon → [`wiki.md`](wiki.md) (Blend, Shrink)
-
----
-
 ## Residual ML
 
-**Definition:** Gradient-boosting model predicting **residual adjustments** to the blend baseline in logit space, outputting final 1X2 probabilities.
+**Definition:** Gradient-boosting model predicting **residual adjustments** to the **market baseline** in logit space, outputting final 1X2 probabilities (see DEC-015).
 
 **Evidence:** `calc/residual_ml/model.py`, `calc/residual_ml/trainer.py`; eval & modeling jargon → [`wiki.md`](wiki.md) (HGB residual, Logit, Shrink)
 
@@ -116,17 +98,9 @@ For **eval & modeling jargon** (slice, HGB residual, logit, shrink, blend, Brier
 
 ## Team Strength Features
 
-**Definition:** Recency-weighted xG/shot/set-piece/GK metrics for a team before a cutoff date, optionally venue-split and opponent-adjusted.
+**Definition:** Recency-weighted xG/shot/set-piece/GK metrics for a team before a cutoff date, optionally venue-split and opponent-adjusted. Feed the HGB residual model; not a probability engine.
 
 **Evidence:** `objects/schema/data_classes/team_strength_features.py`, `calc/strength_calculator.py`
-
----
-
-## Classic Dixon–Coles (DC)
-
-**Definition:** Poisson goals model with low-score dependence (ρ), fit per league with configurable lookback and time decay (ξ).
-
-**Evidence:** `calc/dixon_coles/model.py`, `config/classic_dc_league_params.json`
 
 ---
 
@@ -252,5 +226,5 @@ Evidence: `utils/common.py`, `data_sources/entity_resolver.py`, `tests/repositor
 | **draw_number** vs **stryktipset_round_id** | Round PK vs Svenska Spel draw number |
 | **fixture_id** vs **fixtures.id** | API-Football id vs internal surrogate PK |
 | **Market probability** vs **Bet distribution %** | Odds-implied probs vs public stake shares (`STMatchBetModel`) |
-| **Engine baseline** vs **Final probability** | DC/strength vs ML-adjusted output |
+| **Market baseline** vs **Final probability** | Overround-free market vs ML-adjusted output |
 | **HistoricalMatchModel** vs **FixtureModel** | Legacy alias only; prefer FixtureModel |

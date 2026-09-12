@@ -4,30 +4,39 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from math import exp
+from typing import Any
 
 from sqlalchemy.orm import Session
 
 from src.calc.balance_and_environment import BalanceAndEnvironment
-from src.calc.dixon_coles.model import DixonColesModel, DixonColesPrediction
-from src.calc.dixon_coles.service import DixonColesService
 from src.calc.league_behavior_calculator import LeagueBehaviorCalculator
-from src.calc.market_probabilities import MarketProbabilities
+from src.calc.market_probabilities import (
+    MarketProbabilities,
+    load_fixture_market_probabilities,
+)
+from src.calc.match_feature_context import (
+    MatchFeatureContext,
+    is_fixture_shaped,
+    kickoff_datetime,
+    resolve_cutoff_date,
+)
 from src.calc.player_availability_calculator import PlayerAvailabilityCalculator
 from src.calc.rest_congestion_calculator import RestCongestionCalculator
 from src.calc.strength_calculator import StrengthCalculator
-from src.objects.models.st_match import STMatchModel
 from src.objects.repositories.fixture_repository import FixtureRepository
 from src.objects.repositories.league_repository import LeagueRepository
+from src.objects.repositories.team_repository import TeamRepository
 from src.objects.schema.data_classes.data_sources import DataSourceConfig
+from src.objects.schema.data_classes.market_probability import MarketProbabilityBreakdown
 from src.objects.schema.data_classes.residual_ml_features import ResidualMLFeatures
-from src.objects.schema.data_classes.team_strength_features import MatchStrengthFeatures
 from src.objects.schema.db.st_match_odds import STMatchOdds
 from src.objects.schema.db.team import Team
 from src.utils.common import ensure_unit_probabilities
+from src.utils.fixture_fields import fixture_home_name, fixture_away_name
 
 
 class ResidualMLFeatureAssembler:
-    """Build ResidualMLFeatures for one Stryktipset coupon match."""
+    """Build ResidualMLFeatures for an ST coupon match or a historical fixture."""
 
     def __init__(
         self,
@@ -38,6 +47,7 @@ class ResidualMLFeatureAssembler:
         self.config = config or DataSourceConfig()
         self.fixture_repo = FixtureRepository(session)
         self.league_repo = LeagueRepository(session)
+        self.team_repo = TeamRepository(session)
         self.strength_calculator = StrengthCalculator(session, config=self.config)
         self.balance_calculator = BalanceAndEnvironment(
             session,
@@ -55,24 +65,15 @@ class ResidualMLFeatureAssembler:
         self.home_advantage_calculator = (
             self.strength_calculator.home_advantage_calculator()
         )
-        self.dixon_coles_service = DixonColesService(session, config=self.config)
         self._league_external_id_cache: dict[tuple[str, str], int] = {}
         self._team_league_id_cache: dict[int, int | None] = {}
-        self._team_fixtures_cache: dict[
-            tuple[str, date, int], list
-        ] = {}
-        self._classic_dc_fit_cache: dict[
-            tuple[int, date], DixonColesModel | None
-        ] = {}
-        self._classic_dc_fallback_logged: set[tuple[int, date]] = set()
+        self._team_fixtures_cache: dict[tuple[str, date, int], list] = {}
 
     def clear_caches(self) -> None:
         """Drop lookback caches across nested calculators."""
         self._league_external_id_cache.clear()
         self._team_league_id_cache.clear()
         self._team_fixtures_cache.clear()
-        self._classic_dc_fit_cache.clear()
-        self._classic_dc_fallback_logged.clear()
         self.strength_calculator.clear_caches()
         self.league_behavior_calculator.clear_caches()
         self.rest_calculator.clear_caches()
@@ -81,47 +82,62 @@ class ResidualMLFeatureAssembler:
 
     def assemble(
         self,
-        match: STMatchModel,
+        match: Any,
         *,
         draw_number: int | None = None,
         event_number: int | None = None,
+        before_date: date | None = None,
+        before: datetime | None = None,
+        require_market: bool = True,
     ) -> ResidualMLFeatures:
-        if match.home_team is None or match.away_team is None:
-            raise ValueError(f"Missing team on match id={match.id}")
-        if match.start_time is None:
-            raise ValueError(f"Missing start_time on match id={match.id}")
-
-        cutoff = (
-            match.start_time.date()
-            if isinstance(match.start_time, datetime)
-            else match.start_time
+        del event_number
+        context = self._build_context(
+            match, before_date=before_date, before=before
         )
-        target_league_external_id = self._resolve_league_external_id(match)
-
-        market_probs = self._market_probabilities(match)
+        cutoff = context.cutoff
+        target_league_external_id = context.league_external_id
+        market = self._market_breakdown(match, required=require_market)
+        market_probs = self._market_probs_dict(market)
         home_advantage_log, home_advantage_coefficient = self._home_advantage(
-            match,
+            context,
             cutoff,
             target_league_external_id=target_league_external_id,
         )
+        strength_before: date | datetime = (
+            cutoff if before_date is not None or before is not None else context.kickoff
+        )
         strength = self.strength_calculator.get_fixture_features(
-            match.home_team_id,
-            match.away_team_id,
-            match.start_time,
-            match_id=match.id,
+            context.home_team_internal_id,
+            context.away_team_internal_id,
+            strength_before,
+            match_id=context.identity,
             target_league_external_id=target_league_external_id,
             home_advantage_coefficient=home_advantage_coefficient,
         )
-        history_fixtures = self._load_balance_fixtures(match, cutoff)
+        history_fixtures = self._load_balance_fixtures(context, cutoff)
         balance = self.balance_calculator.calculate(
             match,
             history_fixtures,
             market_probs,
             strength=strength,
+            before_date=cutoff,
+            context=context,
         )
-        league_behavior = self.league_behavior_calculator.calculate(match)
-        home_previous, away_previous = self.rest_calculator.previous_fixtures(match)
-        rest_seed = self.rest_calculator.calculate(match)
+        league_behavior = self.league_behavior_calculator.calculate(
+            match,
+            before_date=cutoff,
+            context=context,
+        )
+        home_previous, away_previous = self.rest_calculator.previous_fixtures(
+            match,
+            before_date=cutoff,
+            context=context,
+        )
+        rest_seed = self.rest_calculator.calculate(
+            match,
+            before_date=cutoff,
+            context=context,
+        )
         availability = self.availability_calculator.calculate(
             match,
             favourite_strength=balance.favourite_strength,
@@ -129,10 +145,17 @@ class ResidualMLFeatureAssembler:
             away_short_rest=rest_seed.away_short_rest,
             home_previous_fixture=home_previous,
             away_previous_fixture=away_previous,
+            before_date=cutoff,
+            context=context,
         )
-        rest = self.rest_calculator.calculate(match, availability=availability)
+        rest = self.rest_calculator.calculate(
+            match,
+            availability=availability,
+            before_date=cutoff,
+            context=context,
+        )
 
-        league_avg_npxg = self._league_avg_npxg(match, cutoff)
+        league_avg_npxg = self._league_avg_npxg(context, cutoff)
 
         upset_rate = (
             1.0 - league_behavior.league_favourite_win_rate
@@ -143,27 +166,27 @@ class ResidualMLFeatureAssembler:
         if rest.home_congestion is not None and rest.away_congestion is not None:
             congestion_difference = rest.home_congestion - rest.away_congestion
 
-        expected_home_goals, expected_away_goals, p_home_dc, p_draw_dc, p_away_dc = (
-            self._engine_probabilities(match, cutoff, target_league_external_id, strength)
-        )
-        market_vs_dc_home = self._market_vs_dc(
-            market_probs.get("1"), p_home_dc
-        )
-        market_vs_dc_draw = self._market_vs_dc(
-            market_probs.get("X"), p_draw_dc
-        )
-        market_vs_dc_away = self._market_vs_dc(
-            market_probs.get("2"), p_away_dc
-        )
-
+        st_draw_number = getattr(match, "stryktipset_round_id", None)
         return ResidualMLFeatures(
-            match_id=match.id,
-            draw_number=draw_number if draw_number is not None else match.stryktipset_round_id,
+            match_id=context.identity,
+            draw_number=draw_number if draw_number is not None else st_draw_number,
             feature_cutoff_date=cutoff,
             league_external_id=target_league_external_id,
             p_home_market=market_probs.get("1"),
             p_draw_market=market_probs.get("X"),
             p_away_market=market_probs.get("2"),
+            market_overround=market.overround if market is not None else None,
+            market_entropy=market.market_entropy if market is not None else None,
+            market_top_probability=(
+                market.market_top_probability if market is not None else None
+            ),
+            market_second_probability=(
+                market.market_second_probability if market is not None else None
+            ),
+            market_probability_gap=(
+                market.market_probability_gap if market is not None else None
+            ),
+            market_price_type=market.price_type if market is not None else None,
             home_npxg_for=strength.home_npxg_for,
             home_npxg_against=strength.home_npxg_against,
             away_npxg_for=strength.away_npxg_for,
@@ -182,14 +205,6 @@ class ResidualMLFeatureAssembler:
             away_set_piece_defence=strength.away_set_piece_defence,
             home_goalkeeper_prevention=strength.home_goalkeeper_prevention,
             away_goalkeeper_prevention=strength.away_goalkeeper_prevention,
-            expected_home_goals=expected_home_goals,
-            expected_away_goals=expected_away_goals,
-            p_home_dc=p_home_dc,
-            p_draw_dc=p_draw_dc,
-            p_away_dc=p_away_dc,
-            market_vs_dc_home=market_vs_dc_home,
-            market_vs_dc_draw=market_vs_dc_draw,
-            market_vs_dc_away=market_vs_dc_away,
             attack_strength_difference=balance.attack_strength_difference,
             expected_goal_difference=balance.expected_goal_difference,
             expected_goal_total=balance.expected_goal_total,
@@ -241,102 +256,103 @@ class ResidualMLFeatureAssembler:
             has_availability=availability.has_availability,
         )
 
-    def _engine_probabilities(
+    def _build_context(
         self,
-        match: STMatchModel,
-        cutoff: date,
-        league_external_id: int | None,
-        strength: MatchStrengthFeatures,
-    ) -> tuple[float | None, float | None, float | None, float | None, float | None]:
-        """Return expected goals + 1X2 DC probs from classic or strength engine."""
-        strength_tuple = (
-            strength.expected_home_goals,
-            strength.expected_away_goals,
-            strength.dixon_coles_home_probability,
-            strength.dixon_coles_draw_probability,
-            strength.dixon_coles_away_probability,
+        match: Any,
+        *,
+        before_date: date | None,
+        before: datetime | None,
+    ) -> MatchFeatureContext:
+        cutoff = resolve_cutoff_date(match, before_date=before_date, before=before)
+        kickoff = kickoff_datetime(match)
+        if is_fixture_shaped(match):
+            home_team, away_team = self._resolve_fixture_teams(match)
+            league_external_id = getattr(match, "league_id", None)
+            if league_external_id is not None:
+                league_external_id = int(league_external_id)
+            return MatchFeatureContext(
+                identity=int(match.id),
+                kickoff=kickoff,
+                cutoff=cutoff,
+                home_team=home_team,
+                away_team=away_team,
+                league_name=getattr(match, "league_name", None),
+                league_country=getattr(match, "league_country", None),
+                league_external_id=league_external_id,
+                fixture_pk=int(match.id),
+                source="fixture",
+            )
+        if match.home_team is None or match.away_team is None:
+            raise ValueError(f"Missing team on match id={match.id}")
+        if match.start_time is None:
+            raise ValueError(f"Missing start_time on match id={match.id}")
+        return MatchFeatureContext(
+            identity=int(match.id),
+            kickoff=kickoff,
+            cutoff=cutoff,
+            home_team=match.home_team,
+            away_team=match.away_team,
+            league_name=getattr(match, "league_name", None),
+            league_country=getattr(match, "league_country_name", None),
+            league_external_id=self._resolve_league_external_id(match),
+            fixture_pk=None,
+            source="stryktipset",
         )
-        if self.config.residual_ml_dc_engine != "classic":
-            return strength_tuple
 
-        classic = self._classic_dc_prediction(match, cutoff, league_external_id)
-        if classic is None:
-            return (None, None, None, None, None)
-        return (
-            classic.lambda_home,
-            classic.lambda_away,
-            classic.p_home,
-            classic.p_draw,
-            classic.p_away,
-        )
-
-    def _classic_dc_prediction(
-        self,
-        match: STMatchModel,
-        cutoff: date,
-        league_external_id: int | None,
-    ) -> DixonColesPrediction | None:
-        if league_external_id is None:
-            return None
-        home_external_id = getattr(match.home_team, "external_id", None)
-        away_external_id = getattr(match.away_team, "external_id", None)
+    def _resolve_fixture_teams(self, fixture: Any) -> tuple[Any, Any]:
+        home_external_id = getattr(fixture, "home_team_id", None)
+        away_external_id = getattr(fixture, "away_team_id", None)
         if home_external_id is None or away_external_id is None:
-            return None
+            raise ValueError(
+                f"Missing API-Football team id on fixture id={getattr(fixture, 'id', None)}"
+            )
+        home_team = self.team_repo.get_by_external_id(int(home_external_id))
+        away_team = self.team_repo.get_by_external_id(int(away_external_id))
+        if home_team is None:
+            raise ValueError(
+                f"Unresolved home team external_id={home_external_id} "
+                f"on fixture id={getattr(fixture, 'id', None)} "
+                f"({fixture_home_name(fixture)})"
+            )
+        if away_team is None:
+            raise ValueError(
+                f"Unresolved away team external_id={away_external_id} "
+                f"on fixture id={getattr(fixture, 'id', None)} "
+                f"({fixture_away_name(fixture)})"
+            )
+        return home_team, away_team
 
-        cache_key = (league_external_id, cutoff)
-        if cache_key not in self._classic_dc_fit_cache:
-            try:
-                model = self.dixon_coles_service.fit_league(
-                    league_external_id, cutoff
+    def _market_breakdown(
+        self, match: Any, *, required: bool = True
+    ) -> MarketProbabilityBreakdown | None:
+        if is_fixture_shaped(match):
+            if not required:
+                return None
+            breakdown = load_fixture_market_probabilities(
+                self.session,
+                int(match.id),
+                config=self.config,
+            )
+            if breakdown is None:
+                raise ValueError(
+                    f"No usable fixture odds for fixture id={match.id}"
                 )
-            except (ValueError, RuntimeError) as exc:
-                if cache_key not in self._classic_dc_fallback_logged:
-                    print(
-                        f"Classic DC fit failed league={league_external_id} "
-                        f"as_of={cutoff} ({exc}); classic engine omitted, "
-                        f"blend will use market",
-                        flush=True,
-                    )
-                    self._classic_dc_fallback_logged.add(cache_key)
-                model = None
-            self._classic_dc_fit_cache[cache_key] = model
-
-        model = self._classic_dc_fit_cache[cache_key]
-        if model is None:
+            return breakdown
+        odds = getattr(match, "match_odds", None)
+        if odds is None:
             return None
-        try:
-            return model.predict(int(home_external_id), int(away_external_id))
-        except Exception as exc:
-            if cache_key not in self._classic_dc_fallback_logged:
-                print(
-                    f"Classic DC predict failed league={league_external_id} "
-                    f"as_of={cutoff} ({exc}); classic engine omitted, "
-                    f"blend will use market",
-                    flush=True,
-                )
-                self._classic_dc_fallback_logged.add(cache_key)
-            return None
+        schema = STMatchOdds.model_validate(odds)
+        return MarketProbabilities(schema).describe()
 
     @staticmethod
-    def _market_vs_dc(
-        market_probability: float | None,
-        dc_probability: float | None,
-    ) -> float | None:
-        if market_probability is None or dc_probability is None:
-            return None
-        return market_probability - dc_probability
-
-    def _market_probabilities(self, match: STMatchModel) -> dict[str, float | None]:
-        odds = match.match_odds
-        if odds is None:
+    def _market_probs_dict(
+        market: MarketProbabilityBreakdown | None,
+    ) -> dict[str, float | None]:
+        if market is None:
             return {"1": None, "X": None, "2": None}
-        schema = STMatchOdds.model_validate(odds)
-        raw = MarketProbabilities(schema).get_probs()
-        return ensure_unit_probabilities(
-            {"1": raw.get("1"), "X": raw.get("X"), "2": raw.get("2")}
-        )
+        return ensure_unit_probabilities(market.as_probs())
 
-    def _resolve_league_external_id(self, match: STMatchModel) -> int | None:
+    def _resolve_league_external_id(self, match: Any) -> int | None:
         league_name = (getattr(match, "league_name", None) or "").strip()
         country = (getattr(match, "league_country_name", None) or "").strip() or ""
         if league_name:
@@ -362,15 +378,19 @@ class ResidualMLFeatureAssembler:
             skip_name=True,
         )
 
-    def _league_avg_npxg(self, match: STMatchModel, cutoff: date) -> float | None:
-        if match.home_team is None:
-            return None
-        team_id = match.home_team.id
+    def _league_avg_npxg(
+        self, context: MatchFeatureContext, cutoff: date
+    ) -> float | None:
+        team_id = context.home_team_internal_id
         if team_id in self._team_league_id_cache:
             league_id = self._team_league_id_cache[team_id]
+        elif context.source == "fixture" and context.league_external_id is not None:
+            league = self.league_repo.get_by_external_id(context.league_external_id)
+            league_id = league.id if league is not None else None
+            self._team_league_id_cache[team_id] = league_id
         else:
             league_id = self.fixture_repo.resolve_internal_league_id_for_team(
-                match.home_team
+                context.home_team
             )
             self._team_league_id_cache[team_id] = league_id
         if league_id is None:
@@ -383,12 +403,12 @@ class ResidualMLFeatureAssembler:
 
     def _home_advantage(
         self,
-        match: STMatchModel,
+        context: MatchFeatureContext,
         cutoff: date,
         *,
         target_league_external_id: int | None,
     ) -> tuple[float | None, float | None]:
-        team = Team.model_validate(match.home_team)
+        team = Team.model_validate(context.home_team)
         result = self.home_advantage_calculator.process(
             team,
             cutoff,
@@ -397,13 +417,15 @@ class ResidualMLFeatureAssembler:
         return result.home_advantage, exp(result.home_advantage)
 
     def _load_balance_fixtures(
-        self, match: STMatchModel, cutoff: date
+        self, context: MatchFeatureContext, cutoff: date
     ) -> list:
         lookback = max(self.config.balance_recent_matches * 4, 40)
-        home_name = match.home_team.name
-        away_name = match.away_team.name
-        home_rows = self._team_fixtures_before(home_name, cutoff, lookback)
-        away_rows = self._team_fixtures_before(away_name, cutoff, lookback)
+        home_rows = self._team_fixtures_before(
+            context.home_team_name, cutoff, lookback
+        )
+        away_rows = self._team_fixtures_before(
+            context.away_team_name, cutoff, lookback
+        )
         by_id = {row.id: row for row in home_rows}
         for row in away_rows:
             by_id.setdefault(row.id, row)

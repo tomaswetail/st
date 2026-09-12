@@ -297,14 +297,9 @@ def test_competition_home_advantage_added_exactly_once_in_process():
 
 def _process_calculator_for_mode_tests(
     goal_sums: dict[int, tuple[int, int, int, int]],
-    *,
-    mode: str,
 ) -> HomeAdvantageCalculator:
     session = MagicMock()
-    config = DataSourceConfig(
-        competition_ha_shrinkage_matches=0,
-        residual_ml_home_advantage_mode=mode,
-    )
+    config = DataSourceConfig(competition_ha_shrinkage_matches=0)
     calculator = HomeAdvantageCalculator(session, config=config)
     calculator.fixture_repo.get_goal_sums_by_league_before_date = MagicMock(
         return_value=goal_sums
@@ -332,33 +327,12 @@ def _process_calculator_for_mode_tests(
     return calculator
 
 
-def test_process_fast_mode_skips_team_home_advantage():
+def test_process_calls_team_home_advantage():
     goal_sums = {
         PREMIER_LEAGUE_ID: (150, 100, 100, 100),
         FA_CUP_ID: (40, 20, 20, 20),
     }
-    calculator = _process_calculator_for_mode_tests(goal_sums, mode="fast")
-    team = Team(id=1, external_id=42, name="Arsenal")
-
-    result = calculator.process(
-        team,
-        date(2024, 1, 1),
-        target_league_external_id=FA_CUP_ID,
-    )
-
-    calculator.calculate_team_home_advantage.assert_not_called()
-    assert result.team_home_advantage == pytest.approx(0.0)
-    assert result.home_advantage == pytest.approx(
-        result.league_season_home_advantage + result.competition_home_advantage
-    )
-
-
-def test_process_full_mode_calls_team_home_advantage():
-    goal_sums = {
-        PREMIER_LEAGUE_ID: (150, 100, 100, 100),
-        FA_CUP_ID: (40, 20, 20, 20),
-    }
-    calculator = _process_calculator_for_mode_tests(goal_sums, mode="full")
+    calculator = _process_calculator_for_mode_tests(goal_sums)
     team = Team(id=1, external_id=42, name="Arsenal")
 
     calculator.process(

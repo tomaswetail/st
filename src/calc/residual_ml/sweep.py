@@ -32,8 +32,6 @@ def _is_better_trial(candidate: dict[str, Any], best: dict[str, Any] | None) -> 
 def run_hyperparameter_sweep(
     rows: list[dict[str, Any]],
     *,
-    market_weight: float,
-    dc_weight: float,
     output_dir: Path,
     validation_fraction: float = DEFAULT_VALIDATION_FRACTION,
     exclude_injury_features: bool = False,
@@ -60,8 +58,6 @@ def run_hyperparameter_sweep(
                         validation_fraction=validation_fraction,
                     )
                     trainer = ResidualMLTrainer(
-                        market_weight=market_weight,
-                        dc_weight=dc_weight,
                         max_depth=max_depth,
                         learning_rate=learning_rate,
                         max_iter=max_iter,
@@ -80,7 +76,6 @@ def run_hyperparameter_sweep(
                         "train_log_loss": result.train_log_loss,
                         "validation_log_loss": result.validation_log_loss,
                         "market_validation_log_loss": result.market_validation_log_loss,
-                        "blend_validation_log_loss": result.blend_validation_log_loss,
                     }
                     trials.append(trial)
                     print(
@@ -115,8 +110,6 @@ def run_hyperparameter_sweep(
 def train_and_save(
     rows: list[dict[str, Any]],
     *,
-    market_weight: float,
-    dc_weight: float,
     output_dir: Path,
     version: str,
     validation_fraction: float,
@@ -142,8 +135,6 @@ def train_and_save(
             flush=True,
         )
     trainer = ResidualMLTrainer(
-        market_weight=market_weight,
-        dc_weight=dc_weight,
         max_depth=max_depth,
         learning_rate=learning_rate,
         max_iter=max_iter,
@@ -166,6 +157,4 @@ def train_and_save(
     print(f"Validation log loss: {result.validation_log_loss:.4f}")
     if result.market_validation_log_loss is not None:
         print(f"Market validation log loss: {result.market_validation_log_loss:.4f}")
-    if result.blend_validation_log_loss is not None:
-        print(f"Blend validation log loss: {result.blend_validation_log_loss:.4f}")
     print(f"Model saved to {saved.model_path}")

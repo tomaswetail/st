@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Backtest market, DC, blend, and ML probabilities on a dataset.
+"""Backtest market baseline and ML predictions (with optional market shrink) on a dataset.
 
 By default evaluates only the time-split validation slice (same ordering as
 training) so train rows are not scored. Holdout draws (4951–4960) are excluded
@@ -14,7 +14,6 @@ from pathlib import Path
 
 from src.calc.residual_ml import (
     ResidualMLModel,
-    is_market_only_weights,
     load_dataset_rows,
     resolve_validation_fraction,
     run_backtest_scoring,
@@ -44,11 +43,6 @@ def main() -> None:
         type=float,
         default=None,
         help="If set, evaluate raw ML (α=0) and this shrink α only",
-    )
-    parser.add_argument(
-        "--market-only-baseline",
-        action="store_true",
-        help="Force blend := market_norm before ML predict",
     )
     parser.add_argument(
         "--all-rows",
@@ -150,27 +144,11 @@ def main() -> None:
         print("ML model not found; skipping ML backtest")
         return
 
-    use_market_only = args.market_only_baseline or is_market_only_weights(
-        model.trainer.market_weight,
-        model.trainer.dc_weight,
-    )
-    if use_market_only:
-        print("Using market-only baseline (blend := market_norm)", flush=True)
-
     scoring = run_backtest_scoring(
         rows,
         model.trainer,
-        use_market_only_baseline=use_market_only,
         final_shrink=args.final_shrink,
     )
-
-    if scoring.blend_after_market_only is not None:
-        blend_loss, blend_count = scoring.blend_after_market_only
-        if blend_loss is not None:
-            print(
-                f"blend log loss (after market-only): {blend_loss:.4f} "
-                f"({blend_count} rows)"
-            )
 
     if scoring.ml_row_count == 0:
         print("ml: no rows")

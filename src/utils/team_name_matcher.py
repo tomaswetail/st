@@ -58,6 +58,18 @@ def _load_aliases() -> dict[str, str]:
         return {}
     return {str(k): str(v) for k, v in data.items()}
 
+def _football_data_load_aliases() -> dict[str, str]:
+    path = DataSourceConfig().football_data_team_aliases_path
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    return {str(k): str(v) for k, v in data.items()}
+
 
 
 def to_football_data_name(

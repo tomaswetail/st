@@ -1,13 +1,13 @@
 # Purpose
 
-Compute **1 / X / 2 probabilities** for each match on a Stryktipset coupon by combining market odds, a Dixon–Coles (or strength) engine baseline, and an optional residual ML model.
+Compute **1 / X / 2 probabilities** for each match on a Stryktipset coupon from the Svenska Spel market baseline plus an optional residual ML delta plus an optional shrink back toward the market. See [DEC-015](../DECISIONS.md).
 
 # Core Concepts
 
-- **Market baseline** — implied probs from Svenska Spel odds
-- **Engine baseline** — DC/strength model probs (`p_home_dc`, etc.)
-- **Blend baseline** — weighted mix (default 70/30)
-- **Final probabilities** — ML output when enabled, else **blend** (then engine, then market)
+- **Market baseline** — normalized implied probabilities from Svenska Spel 1X2 decimal odds
+- **Residual ML delta** — optional HGB three-logit correction on top of the market baseline
+- **Shrink toward market** — optional convex mix of ML output and market baseline (`α ∈ [0, 1]`)
+- **Final probabilities** — ML output when enabled, else the market baseline
 
 Formulas and worked examples: [`docs/probability_calculations.md`](probability_calculations.md).
 
@@ -34,11 +34,9 @@ Steps per match (`calc/probability_manager.py`):
 1. Validate teams and `start_time` present
 2. `ResidualMLFeatureAssembler.assemble(match)` (includes cutoff-safe injuries when snapshots exist)
 3. `market_baseline` ← ST odds stored on match (often start odds — see `docs/production_cutoff_alignment.md`)
-4. `engine_baseline` ← DC probs in features
-5. Conditional `blend_baselines` → draw adjust
-6. If `residual_ml_enabled` and model loaded: `predict_proba(features, baseline=blend)`
-7. If `RESIDUAL_ML_FINAL_SHRINK_TO_MARKET` > 0: `shrink_toward_market` on final probs
-8. Return `STMatchProbabilityResult`
+4. If `residual_ml_enabled` and model loaded: `ResidualMLModel.predict_proba(features, baseline=market)`
+5. If `RESIDUAL_ML_FINAL_SHRINK_TO_MARKET > 0`: `shrink_toward_market` on the ML output
+6. Return `STMatchProbabilityResult`
 
 ## Research / backtest
 
@@ -55,8 +53,7 @@ Uses finished matches with odds in draw window 4760–4960.
 # Business Rules
 
 - **BR-009, BR-010** in `docs/BUSINESS.md`
-- ML failure falls back to blend; notes appended to `ml_notes`
-- `draw_boost_score` = ML draw prob − market draw prob (when ML succeeds)
+- ML failure falls back to the market baseline; notes appended to `ml_notes`
 
 # Permissions
 
@@ -80,14 +77,13 @@ None (batch CLI).
 |---------|----------|
 | Round not found | `ValueError` |
 | Missing team/start_time | `ValueError` |
-| No baseline computable | `ValueError` |
-| ML predict error | Fallback to blend, `ml_notes` populated |
+| No market probabilities | `ValueError` |
+| ML predict error | Fallback to market baseline, `ml_notes` populated |
 
 # Edge Cases
 
-- `RESIDUAL_ML_ENABLED=false` → no ML path
-- Missing DC features → engine baseline may be None → blend degrades to market-only
-- `residual_ml_dc_engine`: `"classic"` vs `"strength"` affects engine features
+- `RESIDUAL_ML_ENABLED=false` → no ML path; market baseline is the final output
+- Missing odds on a match → `ValueError` (market baseline is required)
 
 # Important Tests
 
@@ -112,6 +108,7 @@ None (batch CLI).
 - Feature assembly is expensive (many DB reads per match)
 - Market odds are whatever is stored on `STMatchOdds` (often early/start odds), not necessarily closing
 - See `docs/production_cutoff_alignment.md` for injury vs market timing
+- OI1 — shipped HGB in `models/residual_ml/sweep_best/` was trained against the pre-pivot blend baseline; must be retrained against the market baseline before residuals are enabled (backup at `models/residual_ml/sweep_best_pre_market_pivot_bck/`). See [DEC-015](../DECISIONS.md).
 
 # Unknowns
 

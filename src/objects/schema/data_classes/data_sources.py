@@ -11,15 +11,6 @@ from pydantic import BaseModel, Field
 from src.utils.repo_paths import repo_root
 
 
-def _classic_dc_league_params_path() -> Path:
-    env_path = os.environ.get("CLASSIC_DC_LEAGUE_PARAMS_PATH")
-    if env_path:
-        return Path(env_path)
-    from src.data_sources.classic_dc_config import default_league_params_path
-
-    return default_league_params_path()
-
-
 DISK_CACHE_TTL_ONE_YEAR = 365 * 24 * 3600
 
 
@@ -28,6 +19,9 @@ class DataSourceConfig(BaseModel):
 
     team_aliases_path: Path = Field(
         default_factory=lambda: repo_root() / "config" / "team_aliases.json"
+    )
+    football_data_team_aliases_path: Path = Field(
+        default_factory=lambda: repo_root() / "config" / "football_data_team_aliases.json"
     )
     api_football_leagues_path: Path = Field(
         default_factory=lambda: repo_root() / "config" / "api_football_leagues.json"
@@ -74,6 +68,22 @@ class DataSourceConfig(BaseModel):
     coupon_source: Literal["manual", "svenskaspel"] = Field(default="manual")
     odds_provider: Literal["svenskaspel", "the-odds-api", "manual"] = Field(default="svenskaspel")
     odds_aggregation_method: str = Field(default="average_probability")
+    fixture_odds_bookmaker: str = Field(
+        default_factory=lambda: os.environ.get("FIXTURE_ODDS_BOOKMAKER", "Avg")
+    )
+    fixture_odds_price_type: Literal["opening", "closing"] = Field(
+        default_factory=lambda: (
+            "opening"
+            if os.environ.get("FIXTURE_ODDS_PRICE_TYPE", "closing").lower()
+            == "opening"
+            else "closing"
+        )
+    )
+    fixture_odds_provider: str = Field(
+        default_factory=lambda: os.environ.get(
+            "FIXTURE_ODDS_PROVIDER", "football-data.co.uk"
+        )
+    )
 
     # Historical FotMob / SofaScore ingestion
     football_data_provider: Literal["fotmob", "sofascore"] = Field(
@@ -122,6 +132,9 @@ class DataSourceConfig(BaseModel):
     unresolved_matches_csv_path: Path = Field(
         default_factory=lambda: repo_root() / "data" / "unresolved_matches.csv"
     )
+    unresolved_football_data_odds_csv_path: Path = Field(
+        default_factory=lambda: repo_root() / "data" / "unresolved_football_data_odds.csv"
+    )
     conflicting_matches_csv_path: Path = Field(
         default_factory=lambda: repo_root() / "data" / "conflicting_matches.csv"
     )
@@ -158,42 +171,6 @@ class DataSourceConfig(BaseModel):
     goalkeeper_prior_shots: int = Field(
         default_factory=lambda: int(os.environ.get("GOALKEEPER_PRIOR_SHOTS", "100")),
         ge=0,
-    )
-    dixon_coles_max_goals: int = Field(
-        default_factory=lambda: int(os.environ.get("DIXON_COLES_MAX_GOALS", "10")),
-        ge=1,
-    )
-    dixon_coles_rho: float = Field(
-        default_factory=lambda: float(os.environ.get("DIXON_COLES_RHO", "-0.13")),
-    )
-    classic_dc_fit_rho: bool = Field(
-        default_factory=lambda: os.environ.get("CLASSIC_DC_FIT_RHO", "1")
-        not in ("0", "", "false", "False"),
-    )
-    classic_dc_rho_min: float = Field(
-        default_factory=lambda: float(os.environ.get("CLASSIC_DC_RHO_MIN", "-0.2")),
-    )
-    classic_dc_rho_max: float = Field(
-        default_factory=lambda: float(os.environ.get("CLASSIC_DC_RHO_MAX", "0.2")),
-    )
-    classic_dc_xi: float = Field(
-        default_factory=lambda: float(os.environ.get("CLASSIC_DC_XI", "0.0018")),
-        ge=0.0,
-    )
-    classic_dc_lookback_days: int = Field(
-        default_factory=lambda: int(
-            os.environ.get("CLASSIC_DC_LOOKBACK_DAYS", "730")
-        ),
-        ge=1,
-    )
-    classic_dc_min_team_matches: int = Field(
-        default_factory=lambda: int(
-            os.environ.get("CLASSIC_DC_MIN_TEAM_MATCHES", "5")
-        ),
-        ge=1,
-    )
-    classic_dc_league_params_path: Path = Field(
-        default_factory=lambda: _classic_dc_league_params_path(),
     )
     home_advantage_shrinkage_matches: int = Field(
         default_factory=lambda: int(
@@ -307,40 +284,10 @@ class DataSourceConfig(BaseModel):
     residual_ml_model_path: Path = Field(
         default_factory=lambda: repo_root() / "models" / "residual_ml" / "v1" / "model.pkl"
     )
-    residual_ml_market_weight: float = Field(
-        default_factory=lambda: float(
-            os.environ.get("RESIDUAL_ML_MARKET_WEIGHT", "0.7")
-        ),
-        ge=0.0,
-        le=1.0,
-    )
-    residual_ml_dc_weight: float = Field(
-        default_factory=lambda: float(os.environ.get("RESIDUAL_ML_DC_WEIGHT", "0.3")),
-        ge=0.0,
-        le=1.0,
-    )
-    residual_ml_blend_weights_path: Path = Field(
-        default_factory=lambda: Path(
-            os.environ.get(
-                "RESIDUAL_ML_BLEND_WEIGHTS_PATH",
-                str(repo_root() / "config" / "blend_weights.json"),
-            )
-        )
-    )
     residual_ml_final_shrink_to_market: float = Field(
         default_factory=lambda: float(
             os.environ.get("RESIDUAL_ML_FINAL_SHRINK_TO_MARKET", "0.7")
         ),
         ge=0.0,
         le=1.0,
-    )
-    residual_ml_home_advantage_mode: Literal["full", "fast"] = Field(
-        default_factory=lambda: os.environ.get(
-            "RESIDUAL_ML_HOME_ADVANTAGE_MODE", "full"
-        ).lower(),
-    )
-    residual_ml_dc_engine: Literal["classic", "strength"] = Field(
-        default_factory=lambda: os.environ.get(
-            "RESIDUAL_ML_DC_ENGINE", "classic"
-        ).lower(),
     )
